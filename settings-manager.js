@@ -12,20 +12,31 @@ export const DEFAULT_SETTINGS = {
   customRules: [],
   ungroupSingleTabs: false,
   ungroupSingleTabsTimeout: 10,
-  exceptions: []
+  exceptions: [],
+  showTabCount: true,
+  syncEnabled: false,
+  manualGroupIds: [], // NOVO: Guarda os IDs dos grupos manuais
 };
 
 // In-memory settings object
 export let settings = { ...DEFAULT_SETTINGS };
 export let smartNameCache = new Map();
 
+function getStorageArea() {
+    // A sincronização será reativada quando o erro do manifesto for corrigido
+    // return settings.syncEnabled ? browser.storage.sync : browser.storage.local;
+    return browser.storage.local;
+}
+
 /**
  * Loads settings from storage into the in-memory object.
  */
 export async function loadSettings() {
-  const data = await browser.storage.local.get('settings');
+  const storageArea = getStorageArea();
+  const data = await storageArea.get('settings');
+
   settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
-  console.log("Settings loaded. Grouping mode:", settings.groupingMode);
+  console.log("Settings loaded. Manual Groups:", settings.manualGroupIds);
 }
 
 /**
@@ -35,9 +46,10 @@ export async function loadSettings() {
 export async function updateSettings(newSettings) {
     const oldSettings = { ...settings };
     settings = { ...settings, ...newSettings };
-    await browser.storage.local.set({ settings });
+    
+    const storageArea = getStorageArea();
+    await storageArea.set({ settings });
 
-    // Return a summary of what changed
     return { oldSettings, newSettings: settings };
 }
 

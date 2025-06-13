@@ -8,7 +8,6 @@ import { settings, smartNameCache } from './settings-manager.js';
 const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
 let colorIndex = 0;
 
-// CORREÇÃO: Adicionada a palavra-chave 'export'
 export function isTabGroupable(tab) {
   if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http') || tab.pinned) {
     return false;
@@ -44,7 +43,6 @@ function getBaseDomainName(url) {
     return parts.join('.');
 }
 
-// CORREÇÃO: Adicionada a palavra-chave 'export'
 export async function getFinalGroupName(tab) {
     const { url, title, id: tabId } = tab;
     if (!url || !url.startsWith('http')) return null;
@@ -110,25 +108,30 @@ export async function getFinalGroupName(tab) {
     return getBaseDomainName(url);
 }
 
-// CORREÇÃO: Adicionada a palavra-chave 'export'
 export function getNextColor() {
   const color = colors[colorIndex];
   colorIndex = (colorIndex + 1) % colors.length;
   return color;
 }
 
+
 /**
- * Processa um lote de abas da fila, agrupando-as de forma eficiente com a nova lógica.
+ * Processa um lote de abas da fila, agrupando-as de forma eficiente.
  * @param {number[]} tabIds - Uma lista de IDs de abas para processar.
  */
 export async function processTabQueue(tabIds) {
     if (!settings.autoGroupingEnabled || tabIds.length === 0) return;
-    console.log(`[Queue] A processar ${tabIds.length} aba(s) da fila.`);
 
     try {
         const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
         
         for (const tab of tabsToProcess) {
+            // **NOVA LÓGICA DE GUARDA**
+            // Se a aba já está num grupo manual, ignora-a completamente.
+            if (tab.groupId !== browser.tabs.TAB_ID_NONE && settings.manualGroupIds.includes(tab.groupId)) {
+                continue; // Passa para a próxima aba da fila
+            }
+
             if (!isTabGroupable(tab)) {
                 if (tab.groupId !== browser.tabs.TAB_ID_NONE) {
                     await browser.tabs.ungroup([tab.id]);
@@ -153,12 +156,12 @@ export async function processTabQueue(tabIds) {
                 continue;
             }
             
-            if (wasAlreadyGrouped && currentGroup && currentGroup.title === finalGroupName) {
+            if (wasAlreadyGrouped && currentGroup && currentGroup.title.replace(/\s\(\d+\)$/, '') === finalGroupName) {
                 continue;
             }
 
             const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId });
-            const targetGroup = existingGroups.find(g => g.title === finalGroupName);
+            const targetGroup = existingGroups.find(g => g.title.replace(/\s\(\d+\)$/, '') === finalGroupName && !settings.manualGroupIds.includes(g.id));
 
             if (targetGroup) {
                 await browser.tabs.group({ groupId: targetGroup.id, tabIds: [tab.id] });
@@ -178,9 +181,8 @@ export async function processTabQueue(tabIds) {
                     continue;
                 }
                 
-                const potentialTabIds = potentialTabs.map(t => t.id);
-                if(potentialTabIds.length > 0) {
-                    const newGroupId = await browser.tabs.group({ createProperties: { windowId: tab.windowId }, tabIds: potentialTabIds });
+                if (potentialTabs.length > 0) {
+                    const newGroupId = await browser.tabs.group({ createProperties: { windowId: tab.windowId }, tabIds: potentialTabs.map(t => t.id) });
                     await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: getNextColor() });
                 }
             }
