@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Opções - Auto Tab Grouper</title>
+  <link rel="stylesheet" href="../vendor/tailwind.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+    <header class="mb-10 text-center">
+      <h1 class="text-5xl font-extrabold text-slate-900">Auto Tab Grouper</h1>
+      <p class="text-lg text-slate-500 mt-2">Ajuste a organização automática das suas abas.</p>
+    </header>
+
+    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3">Agrupamento</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="groupingMode" class="font-semibold">Estratégia de Nomenclatura:</label>
+          <select id="groupingMode" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500">
+            <option value="smart">Nomenclatura Inteligente</option>
+            <option value="domain">Agrupar por Domínio</option>
+            <option value="subdomain">Agrupar por Subdomínio</option>
+          </select>
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="suppressSingleTabGroups" class="font-semibold">Não agrupar abas únicas:</label>
+          <input type="checkbox" id="suppressSingleTabGroups" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3">Comportamento dos Grupos</h2>
+       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="uncollapseOnActivate" class="font-semibold">Expandir grupo ao selecionar aba:</label>
+          <input type="checkbox" id="uncollapseOnActivate" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="autoCollapseTimeout" class="font-semibold">Recolher grupo após (segundos):</label>
+          <input type="number" id="autoCollapseTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500" placeholder="0 (desativado)">
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="ungroupSingleTabs" class="font-semibold">Desagrupar aba solitária:</label>
+          <input type="checkbox" id="ungroupSingleTabs" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+          <label for="ungroupSingleTabsTimeout" class="font-semibold">Desagrupar aba após (segundos):</label>
+          <input type="number" id="ungroupSingleTabsTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500" placeholder="10">
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3">Lista de Exceções</h2>
+      <div class="flex flex-col">
+          <label for="exceptionsList" class="font-semibold mb-2">Sites a serem ignorados (um por linha):</label>
+          <textarea id="exceptionsList" placeholder="Ex: mail.google.com&#10;youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" rows="5"></textarea>
+          <p class="text-sm text-slate-500 mt-2">Qualquer URL que contenha o texto inserido será ignorada.</p>
+      </div>
+    </section>
+
+    <section class="bg-white p-6 rounded-2xl shadow-lg">
+      <div class="flex justify-between items-center mb-5 border-b border-slate-200 pb-3">
+        <h2 class="text-2xl font-bold">Regras Personalizadas</h2>
+        <button id="addRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+          Adicionar Nova Regra
+        </button>
+      </div>
+      <div id="rulesList" class="space-y-2"></div>
+    </section>
+    
+    <footer class="text-center mt-10">
+        <button id="saveButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 text-lg rounded-full shadow-xl transition-transform hover:scale-105 duration-200">Salvar Todas as Configurações</button>
+        <div id="saveNotification" class="mt-4 text-green-700 font-semibold opacity-0 transition-opacity duration-500">Configurações salvas com sucesso!</div>
+    </footer>
+  </div>
+
+  <div id="ruleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg m-4">
+      <h3 id="modalTitle" class="text-2xl font-bold mb-6">Adicionar Nova Regra</h3>
+      <form id="ruleForm">
+        <input type="hidden" id="ruleIndex">
+        <div class="space-y-5">
+            <div>
+                <label for="ruleName" class="font-semibold block mb-1">Nome do Grupo</label>
+                <input type="text" id="ruleName" placeholder="Ex: Projetos de Trabalho" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" required>
+            </div>
+            <div>
+                <label for="ruleType" class="font-semibold block mb-1">Tipo de Regra</label>
+                <select id="ruleType" class="w-full p-2 border border-slate-300 rounded-md shadow-sm">
+                    <option value="url-wildcard">URL (Curinga)</option>
+                    <option value="url-regex">URL (Regex)</option>
+                    <option value="title-match">Título da Página (Contém)</option>
+                </select>
+            </div>
+            <div>
+                <label for="rulePatterns" class="font-semibold block mb-1">Padrões (um por linha)</label>
+                <textarea id="rulePatterns" placeholder="Ex: *jira.mycompany.com*&#10;*trello.com/meuprojeto*" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" rows="4" required></textarea>
+            </div>
+            <div>
+                <label for="ruleColor" class="font-semibold block mb-1">Cor</label>
+                <input type="color" id="ruleColor" value="#cccccc" class="p-1 h-10 w-full border border-slate-300 rounded-md shadow-sm">
+            </div>
+        </div>
+        <div class="flex justify-end space-x-4 mt-8">
+          <button type="button" id="cancelRuleBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+          <button type="submit" id="saveRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg">Salvar Regra</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

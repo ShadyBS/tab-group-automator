@@ -1,0 +1,191 @@
+/**
+ * @file grouping-logic.js
+ * @description Core logic for grouping tabs.
+ */
+
+import { settings, smartNameCache } from './settings-manager.js';
+
+const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
+let colorIndex = 0;
+
+// CORREÇÃO: Adicionada a palavra-chave 'export'
+export function isTabGroupable(tab) {
+  if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http') || tab.pinned) {
+    return false;
+  }
+  for (const exception of settings.exceptions) {
+    if (exception && tab.url.includes(exception)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getHostname(url) {
+    if (!url || !url.startsWith('http')) return null;
+    try {
+        return new URL(url).hostname;
+    } catch (e) {
+        return null;
+    }
+}
+
+function getBaseDomainName(url) {
+    const hostname = getHostname(url);
+    if (!hostname) return null;
+    const parts = hostname.replace(/^www\./, '').split('.');
+    if (parts.length > 2) {
+        const tldIndex = parts.length - 2;
+        if (['co', 'com', 'org', 'net', 'gov', 'edu'].includes(parts[tldIndex]) && parts.length > 2) {
+             return parts.slice(-3).join('.');
+        }
+        return parts.slice(-2).join('.');
+    }
+    return parts.join('.');
+}
+
+// CORREÇÃO: Adicionada a palavra-chave 'export'
+export async function getFinalGroupName(tab) {
+    const { url, title, id: tabId } = tab;
+    if (!url || !url.startsWith('http')) return null;
+
+    const hostname = getHostname(url);
+    if (!hostname) return null;
+
+    if (smartNameCache.has(hostname)) {
+        return smartNameCache.get(hostname);
+    }
+
+    const rules = settings.customRules || [];
+    for (const rule of rules) {
+        for (const pattern of rule.patterns || []) {
+            try {
+                const trimmedPattern = pattern.trim();
+                if(!trimmedPattern) continue;
+                if (rule.type === 'url-wildcard' && new RegExp(trimmedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*')).test(url)) return rule.name;
+                if (rule.type === 'url-regex' && new RegExp(trimmedPattern).test(url)) return rule.name;
+                if (rule.type === 'title-match' && title && title.toLowerCase().includes(trimmedPattern.toLowerCase())) return rule.name;
+            } catch(e) { console.warn(`Regex inválida: ${pattern}`); }
+        }
+    }
+
+    if (settings.groupingMode === 'smart') {
+        try {
+            const details = await browser.tabs.sendMessage(tabId, { action: "getPageDetails" });
+            if (details) {
+                const smartName = 
+                    details.ogSiteName ||
+                    details.applicationName ||
+                    details.schemaName ||
+                    details.twitterAppName ||
+                    details.dcPublisher ||
+                    (details.twitterSite ? details.twitterSite.replace('@', '') : null) ||
+                    details.logoAltText;
+                
+                if (smartName) {
+                    smartNameCache.set(hostname, smartName);
+                    return smartName;
+                }
+
+                if (details.pageTitle) {
+                    const titleParts = details.pageTitle.split(/\||–|-/);
+                    if (titleParts.length > 1) {
+                        const firstPart = titleParts[0].trim();
+                        const lastPart = titleParts[titleParts.length - 1].trim();
+                        const domainCore = getBaseDomainName(url).split('.')[0].toLowerCase();
+                        let brandName = null;
+                        if (firstPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) brandName = firstPart;
+                        else if (lastPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) brandName = lastPart;
+                        if (brandName && brandName.length < 40) {
+                            smartNameCache.set(hostname, brandName);
+                            return brandName;
+                        }
+                    }
+                }
+            }
+        } catch (e) { /* Fallback */ }
+    }
+    
+    if (settings.groupingMode === 'smart' || settings.groupingMode === 'subdomain') return hostname;
+    return getBaseDomainName(url);
+}
+
+// CORREÇÃO: Adicionada a palavra-chave 'export'
+export function getNextColor() {
+  const color = colors[colorIndex];
+  colorIndex = (colorIndex + 1) % colors.length;
+  return color;
+}
+
+/**
+ * Processa um lote de abas da fila, agrupando-as de forma eficiente com a nova lógica.
+ * @param {number[]} tabIds - Uma lista de IDs de abas para processar.
+ */
+export async function processTabQueue(tabIds) {
+    if (!settings.autoGroupingEnabled || tabIds.length === 0) return;
+    console.log(`[Queue] A processar ${tabIds.length} aba(s) da fila.`);
+
+    try {
+        const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
+        
+        for (const tab of tabsToProcess) {
+            if (!isTabGroupable(tab)) {
+                if (tab.groupId !== browser.tabs.TAB_ID_NONE) {
+                    await browser.tabs.ungroup([tab.id]);
+                }
+                continue;
+            }
+
+            const finalGroupName = await getFinalGroupName(tab);
+            const wasAlreadyGrouped = tab.groupId !== browser.tabs.TAB_ID_NONE;
+            let currentGroup = null;
+
+            if (wasAlreadyGrouped) {
+                try {
+                   currentGroup = await browser.tabGroups.get(tab.groupId);
+                } catch(e) { /* O grupo pode já não existir */ }
+            }
+
+            if (!finalGroupName) {
+                if (wasAlreadyGrouped) {
+                    await browser.tabs.ungroup([tab.id]);
+                }
+                continue;
+            }
+            
+            if (wasAlreadyGrouped && currentGroup && currentGroup.title === finalGroupName) {
+                continue;
+            }
+
+            const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId });
+            const targetGroup = existingGroups.find(g => g.title === finalGroupName);
+
+            if (targetGroup) {
+                await browser.tabs.group({ groupId: targetGroup.id, tabIds: [tab.id] });
+            } else {
+                const allTabsInWindow = await browser.tabs.query({ windowId: tab.windowId });
+                const potentialTabs = [];
+                for(const t of allTabsInWindow) {
+                    if (isTabGroupable(t) && await getFinalGroupName(t) === finalGroupName) {
+                        potentialTabs.push(t);
+                    }
+                }
+
+                if (settings.suppressSingleTabGroups && potentialTabs.length < 2) {
+                    if (wasAlreadyGrouped) {
+                        await browser.tabs.ungroup([tab.id]);
+                    }
+                    continue;
+                }
+                
+                const potentialTabIds = potentialTabs.map(t => t.id);
+                if(potentialTabIds.length > 0) {
+                    const newGroupId = await browser.tabs.group({ createProperties: { windowId: tab.windowId }, tabIds: potentialTabIds });
+                    await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: getNextColor() });
+                }
+            }
+        }
+    } catch(e) {
+        console.error("[Queue] Erro ao processar a fila de abas:", e);
+    }
+}

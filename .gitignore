@@ -1,0 +1,10 @@
+# Ignore build artifacts
+src/
+node_modules/
+dist/
+build/
+
+# Optional: Common ignores
+.env
+.DS_Store
+*.log

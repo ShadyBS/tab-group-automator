@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="../vendor/tailwind.css">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans w-64">
+  <div class="p-4">
+    <h1 class="text-xl font-bold mb-4 text-center text-gray-700">Auto Tab Grouper</h1>
+    
+    <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
+      <label for="autoGroupingToggle" class="font-medium text-gray-700">Ativar Agrupamento</label>
+      <label class="switch">
+        <input type="checkbox" id="autoGroupingToggle">
+        <span class="slider round"></span>
+      </label>
+    </div>
+
+    <button id="groupAllButton" class="mt-4 w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-200 flex items-center justify-center space-x-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z" /></svg>
+      <span>Agrupar Abas Abertas</span>
+    </button>
+
+    <button id="optionsButton" class="mt-2 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-200">
+      Opções
+    </button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
