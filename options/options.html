@@ -98,6 +98,13 @@
             <input type="checkbox" id="syncEnabled" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
             <label for="syncEnabled" class="ml-2 font-semibold">Sincronizar configurações entre dispositivos</label>
         </div>
+
+        <div class="flex items-center justify-center space-x-4 my-6">
+            <button id="importBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Importar</button>
+            <input type="file" id="importFile" accept=".json" class="hidden">
+            <button id="exportBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
+        </div>
+
         <button id="saveButton" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 text-lg rounded-full shadow-xl transition-transform hover:scale-105 duration-200">Salvar Todas as Configurações</button>
         <div id="saveNotification" class="mt-4 text-green-700 font-semibold opacity-0 transition-opacity duration-500">Configurações salvas com sucesso!</div>
     </footer>
@@ -125,6 +132,11 @@
             <div>
                 <label for="rulePatterns" class="font-semibold block mb-1">Padrões (um por linha)</label>
                 <textarea id="rulePatterns" placeholder="Ex: *jira.mycompany.com*&#10;*trello.com/meuprojeto*" class="w-full p-2 border border-slate-300 rounded-md shadow-sm" rows="4" required></textarea>
+            </div>
+            <div>
+              <label for="ruleMinTabs" class="font-semibold block mb-1">Nº Mínimo de Abas para Agrupar</label>
+              <input type="number" id="ruleMinTabs" min="1" placeholder="1" class="w-full p-2 border border-slate-300 rounded-md shadow-sm">
+              <p class="text-sm text-slate-500 mt-1">O grupo só será criado se este número de abas for atingido.</p>
             </div>
             <div>
                 <label for="ruleColor" class="font-semibold block mb-1">Cor</label>

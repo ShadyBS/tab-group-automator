@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const rulesList = document.getElementById('rulesList');
     const saveButton = document.getElementById('saveButton');
     const saveNotification = document.getElementById('saveNotification');
+    const importBtn = document.getElementById('importBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const importFile = document.getElementById('importFile');
 
     const ruleModal = document.getElementById('ruleModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -28,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ruleNameInput = document.getElementById('ruleName');
     const ruleTypeSelect = document.getElementById('ruleType');
     const rulePatternsTextarea = document.getElementById('rulePatterns');
+    const ruleMinTabsInput = document.getElementById('ruleMinTabs');
     const saveRuleBtn = document.getElementById('saveRuleBtn');
 
     const ruleTesterInput = document.getElementById('ruleTesterInput');
@@ -36,11 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSettings = {};
     let sortableInstance = null;
 
-    // **CORREÇÃO ESTRUTURAL**: Executa a ação da URL imediatamente ao carregar.
-    // Isto garante que o modal abre mesmo que a inicialização do Sortable falhe.
     checkForUrlAction();
-    
-    // Carrega o resto das configurações e da interface.
     loadSettings();
     
     // --- Funções Principais ---
@@ -63,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderRules();
         } catch (e) {
             console.error("Erro ao carregar as configurações:", e);
-            document.body.innerHTML = '<p class="text-red-500 p-8 text-center">Ocorreu um erro crítico ao carregar as configurações. Por favor, recarregue a extensão e tente novamente.</p>';
         }
     }
 
@@ -109,33 +108,26 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p class="text-sm text-slate-600 truncate" title="${patterns.join('\n')}">${displayPattern} <span class="text-xs bg-slate-200 text-slate-500 p-1 rounded">${rule.type}</span></p>
                         </div>
                     </div>
-                    <div class="flex space-x-2 flex-shrink-0">
-                        <button data-index="${index}" class="edit-rule-btn text-slate-500 hover:text-indigo-600 font-bold p-2 rounded-md">Editar</button>
-                        <button data-index="${index}" class="delete-rule-btn text-slate-500 hover:text-red-600 font-bold p-2 rounded-md">Excluir</button>
+                    <div class="flex space-x-1 flex-shrink-0">
+                        <button data-index="${index}" class="duplicate-rule-btn text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button>
+                        <button data-index="${index}" class="edit-rule-btn text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button>
+                        <button data-index="${index}" class="delete-rule-btn text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button>
                     </div>
                 `;
                 rulesList.appendChild(ruleElement);
             });
         }
         
-        document.querySelectorAll('.edit-rule-btn').forEach(btn => btn.addEventListener('click', openModalForEdit));
-        document.querySelectorAll('.delete-rule-btn').forEach(btn => btn.addEventListener('click', deleteRule));
-        
         initSortable();
     }
     
     function initSortable() {
-        if (sortableInstance) {
-            sortableInstance.destroy();
-            sortableInstance = null;
-        }
-
+        if (sortableInstance) sortableInstance.destroy();
         const rulesListEl = document.getElementById('rulesList');
         if (rulesListEl && currentSettings.customRules && currentSettings.customRules.length > 0) {
             try {
-                // **CORREÇÃO**: A opção `group` deve ser um objeto com uma propriedade `name`.
                 sortableInstance = new Sortable(rulesListEl, {
-                    group: { name: 'rules-list' }, 
+                    group: 'rules-list', 
                     handle: '.drag-handle',
                     animation: 150,
                     onEnd: (evt) => {
@@ -146,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             } catch (e) {
-                console.error("Falha ao inicializar o Sortable.js. A funcionalidade de reordenar estará desativada.", e);
+                console.error("Falha ao inicializar o Sortable.js:", e);
             }
         }
     }
@@ -156,11 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (params.get('action') === 'new_rule') {
             openModalForAdd();
             
-            ruleNameInput.value = params.get('name') || '';
-            rulePatternsTextarea.value = params.get('patterns') || '';
+            ruleNameInput.value = decodeURIComponent(params.get('name') || '');
+            rulePatternsTextarea.value = decodeURIComponent(params.get('patterns') || '');
 
-            const url = params.get('url');
-            const title = params.get('title');
+            const url = decodeURIComponent(params.get('url') || '');
+            const title = decodeURIComponent(params.get('title') || '');
             if (url && title) {
                 const titleParts = title.split(/\||–|-/);
                 const cleanTitle = titleParts[0].trim();
@@ -192,9 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 ruleTesterResult.textContent = 'Este URL não seria agrupado.';
             }
-
         } catch (e) {
-            console.error("Erro no testador de regras:", e);
             ruleTesterResult.textContent = 'URL inválido ou erro ao testar.';
         }
     }
@@ -207,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleNameInput.value = rule.name;
         ruleTypeSelect.value = rule.type;
         rulePatternsTextarea.value = (rule.patterns || []).join('\n');
+        ruleMinTabsInput.value = rule.minTabs || 1;
         document.getElementById('ruleColor').value = rule.color || '#cccccc';
         ruleModal.classList.remove('hidden');
     }
@@ -215,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modalTitle.textContent = 'Adicionar Nova Regra';
         ruleForm.reset();
         ruleIndexInput.value = '';
-        rulePatternsTextarea.value = '';
+        ruleMinTabsInput.value = 1;
         document.getElementById('ruleColor').value = '#cccccc';
         ruleModal.classList.remove('hidden');
     }
@@ -235,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
             type: ruleTypeSelect.value,
             patterns: rulePatternsTextarea.value.split('\n').map(p => p.trim()).filter(Boolean),
             color: document.getElementById('ruleColor').value,
+            minTabs: parseInt(ruleMinTabsInput.value, 10) || 1,
         };
         const index = ruleIndexInput.value;
 
@@ -246,8 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         closeModal();
-        renderRules();
         saveAllSettings();
+        renderRules();
     }
     
     function deleteRule(e) {
@@ -255,18 +247,69 @@ document.addEventListener('DOMContentLoaded', () => {
         const ruleName = currentSettings.customRules[index].name;
         if (confirm(`Tem a certeza que deseja excluir a regra "${ruleName}"?`)) {
             currentSettings.customRules.splice(index, 1);
-            renderRules();
             saveAllSettings();
+            renderRules();
         }
     }
     
     // --- Event Listeners ---
+    rulesList.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        if (target.classList.contains('edit-rule-btn')) {
+            openModalForEdit({ currentTarget: target });
+        } else if (target.classList.contains('delete-rule-btn')) {
+            deleteRule({ currentTarget: target });
+        } else if (target.classList.contains('duplicate-rule-btn')) {
+            const index = parseInt(target.dataset.index, 10);
+            const originalRule = currentSettings.customRules[index];
+            const newRule = JSON.parse(JSON.stringify(originalRule));
+            newRule.name += " (cópia)";
+            currentSettings.customRules.splice(index + 1, 0, newRule);
+            saveAllSettings();
+            renderRules();
+        }
+    });
+
     saveButton.addEventListener('click', saveAllSettings);
     addRuleBtn.addEventListener('click', openModalForAdd);
     cancelRuleBtn.addEventListener('click', closeModal);
     ruleForm.addEventListener('submit', handleRuleFormSubmit);
     ruleTesterInput.addEventListener('input', testRule);
     
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const importedSettings = JSON.parse(e.target.result);
+                if (importedSettings && importedSettings.customRules) {
+                    const mergedSettings = { ...DEFAULT_SETTINGS, ...importedSettings };
+                    await browser.runtime.sendMessage({ action: 'updateSettings', settings: mergedSettings });
+                    alert('Configurações importadas com sucesso!');
+                    loadSettings();
+                } else {
+                    alert('Erro: Ficheiro de configuração inválido.');
+                }
+            } catch (err) { alert('Erro ao ler o ficheiro.'); }
+        };
+        reader.readAsText(file);
+    });
+
+    exportBtn.addEventListener('click', async () => {
+        const settingsToExport = await browser.runtime.sendMessage({ action: 'getSettings' });
+        const jsonString = JSON.stringify(settingsToExport, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        browser.downloads.download({
+            url: URL.createObjectURL(blob),
+            filename: `auto-tab-grouper-settings-${new Date().toISOString().slice(0,10)}.json`,
+            saveAs: true
+        });
+    });
+
     ruleModal.addEventListener('click', (e) => {
         if (e.target === ruleModal) closeModal();
     });

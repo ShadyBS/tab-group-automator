@@ -3,7 +3,7 @@
  * @description Core logic for grouping tabs.
  */
 
-import { settings, smartNameCache } from './settings-manager.js';
+import { settings, smartNameCache, saveSmartNameCache } from './settings-manager.js';
 
 const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
 let colorIndex = 0;
@@ -69,8 +69,13 @@ export async function getFinalGroupName(tab) {
 
     if (settings.groupingMode === 'smart') {
         try {
-            const details = await browser.tabs.sendMessage(tabId, { action: "getPageDetails" });
-            if (details) {
+            const injectionResults = await browser.scripting.executeScript({
+                target: { tabId: tabId },
+                files: ['content-script.js'],
+            });
+
+            if (injectionResults && injectionResults[0] && injectionResults[0].result) {
+                const details = injectionResults[0].result;
                 const smartName = 
                     details.ogSiteName ||
                     details.applicationName ||
@@ -82,6 +87,7 @@ export async function getFinalGroupName(tab) {
                 
                 if (smartName) {
                     smartNameCache.set(hostname, smartName);
+                    saveSmartNameCache(); // Salva o cache
                     return smartName;
                 }
 
@@ -96,12 +102,15 @@ export async function getFinalGroupName(tab) {
                         else if (lastPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) brandName = lastPart;
                         if (brandName && brandName.length < 40) {
                             smartNameCache.set(hostname, brandName);
+                            saveSmartNameCache(); // Salva o cache
                             return brandName;
                         }
                     }
                 }
             }
-        } catch (e) { /* Fallback */ }
+        } catch (e) {
+            console.warn(`Não foi possível injetar o script na aba ${tabId}: ${e.message}`);
+        }
     }
     
     if (settings.groupingMode === 'smart' || settings.groupingMode === 'subdomain') return hostname;
@@ -114,11 +123,6 @@ export function getNextColor() {
   return color;
 }
 
-
-/**
- * Processa um lote de abas da fila, agrupando-as de forma eficiente.
- * @param {number[]} tabIds - Uma lista de IDs de abas para processar.
- */
 export async function processTabQueue(tabIds) {
     if (!settings.autoGroupingEnabled || tabIds.length === 0) return;
 
@@ -126,10 +130,8 @@ export async function processTabQueue(tabIds) {
         const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
         
         for (const tab of tabsToProcess) {
-            // **NOVA LÓGICA DE GUARDA**
-            // Se a aba já está num grupo manual, ignora-a completamente.
             if (tab.groupId !== browser.tabs.TAB_ID_NONE && settings.manualGroupIds.includes(tab.groupId)) {
-                continue; // Passa para a próxima aba da fila
+                continue;
             }
 
             if (!isTabGroupable(tab)) {
@@ -146,13 +148,16 @@ export async function processTabQueue(tabIds) {
             if (wasAlreadyGrouped) {
                 try {
                    currentGroup = await browser.tabGroups.get(tab.groupId);
-                } catch(e) { /* O grupo pode já não existir */ }
+                } catch(e) {
+                    // CORREÇÃO: Se o grupo antigo não for encontrado (porque foi removido pelo navegador),
+                    // defina currentGroup como nulo e continue a execução. Isso evita
+                    // que um erro aqui interrompa a nomeação do novo grupo.
+                    currentGroup = null;
+                }
             }
 
             if (!finalGroupName) {
-                if (wasAlreadyGrouped) {
-                    await browser.tabs.ungroup([tab.id]);
-                }
+                if (wasAlreadyGrouped) await browser.tabs.ungroup([tab.id]);
                 continue;
             }
             
@@ -174,10 +179,11 @@ export async function processTabQueue(tabIds) {
                     }
                 }
 
-                if (settings.suppressSingleTabGroups && potentialTabs.length < 2) {
-                    if (wasAlreadyGrouped) {
-                        await browser.tabs.ungroup([tab.id]);
-                    }
+                const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
+                const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
+
+                if (potentialTabs.length < minTabsRequired) {
+                    if (wasAlreadyGrouped) await browser.tabs.ungroup([tab.id]);
                     continue;
                 }
                 

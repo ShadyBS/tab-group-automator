@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Tab Grouper",
-  "version": "2.4",
+  "version": "3.0",
   "description": "Automatically groups tabs by domain or custom rules.",
   "permissions": [
     "tabs",
@@ -10,6 +10,7 @@
     "alarms",
     "menus",
     "scripting",
+    "downloads",
     "clipboardWrite"
   ],
   "host_permissions": [
@@ -42,11 +43,5 @@
     "gecko": {
       "id": "autotabgrouper@example.com"
     }
-  },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content-script.js"]
-    }
-  ]
+  }
 }

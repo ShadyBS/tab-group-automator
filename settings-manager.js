@@ -15,16 +15,14 @@ export const DEFAULT_SETTINGS = {
   exceptions: [],
   showTabCount: true,
   syncEnabled: false,
-  manualGroupIds: [], // NOVO: Guarda os IDs dos grupos manuais
+  manualGroupIds: [],
 };
 
-// In-memory settings object
+// In-memory objects
 export let settings = { ...DEFAULT_SETTINGS };
 export let smartNameCache = new Map();
 
 function getStorageArea() {
-    // A sincronização será reativada quando o erro do manifesto for corrigido
-    // return settings.syncEnabled ? browser.storage.sync : browser.storage.local;
     return browser.storage.local;
 }
 
@@ -32,11 +30,20 @@ function getStorageArea() {
  * Loads settings from storage into the in-memory object.
  */
 export async function loadSettings() {
-  const storageArea = getStorageArea();
-  const data = await storageArea.get('settings');
-
-  settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
-  console.log("Settings loaded. Manual Groups:", settings.manualGroupIds);
+    const storageArea = getStorageArea();
+    try {
+        const data = await storageArea.get(['settings', 'smartNameCache']);
+        settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
+        
+        if (data.smartNameCache) {
+            smartNameCache = new Map(Object.entries(data.smartNameCache));
+        }
+        console.log("Settings and cache loaded. Manual Groups:", settings.manualGroupIds.length);
+    } catch(e) {
+        console.error("Fatal error loading settings:", e);
+        settings = { ...DEFAULT_SETTINGS };
+        smartNameCache = new Map();
+    }
 }
 
 /**
@@ -54,9 +61,23 @@ export async function updateSettings(newSettings) {
 }
 
 /**
- * Clears the smart name cache.
+ * Saves the smart name cache to persistent storage.
+ */
+export async function saveSmartNameCache() {
+    const storageArea = getStorageArea();
+    try {
+        await storageArea.set({ smartNameCache: Object.fromEntries(smartNameCache) });
+    } catch (e) {
+        console.error("Error saving smart name cache:", e);
+    }
+}
+
+/**
+ * Clears the smart name cache from memory and storage.
  */
 export function clearSmartNameCache() {
     smartNameCache.clear();
+    const storageArea = getStorageArea();
+    storageArea.remove('smartNameCache');
     console.log("Smart name cache cleared.");
 }
