@@ -6,7 +6,6 @@
 import { settings, loadSettings, updateSettings } from './settings-manager.js';
 import { processTabQueue } from './grouping-logic.js';
 import { initializeContextMenus, updateContextMenus } from './context-menu-manager.js';
-// Otimização: Importa o mapa de falhas do estado compartilhado
 import { recentlyCreatedAutomaticGroups, pendingClassificationGroups, injectionFailureMap } from './app-state.js';
 
 // --- Constantes e Variáveis de Estado ---
@@ -35,11 +34,7 @@ function scheduleQueueProcessing() {
     }, QUEUE_DELAY);
 }
 
-/**
- * Lida com todas as atualizações de abas, incluindo carregamento de página e mudanças de grupo.
- */
 function handleTabUpdated(tabId, changeInfo, tab) {
-    // 1. Lógica para o contador de abas
     if (changeInfo.groupId !== undefined) {
         const oldGroupId = tabGroupMap.get(tabId);
         if (oldGroupId) {
@@ -49,30 +44,22 @@ function handleTabUpdated(tabId, changeInfo, tab) {
         tabGroupMap.set(tabId, changeInfo.groupId);
     }
 
-    // 2. Lógica para agrupamento automático
     if (settings.autoGroupingEnabled && changeInfo.status === 'complete' && tab.url) {
-        // Se a aba foi atualizada, é seguro limpar o seu estado de falha de injeção.
         injectionFailureMap.delete(tabId);
         tabProcessingQueue.add(tabId);
         scheduleQueueProcessing();
     }
 }
 
-// Lida com a remoção (fecho) de uma aba
 function handleTabRemoved(tabId, removeInfo) {
     const oldGroupId = tabGroupMap.get(tabId);
     if (oldGroupId) {
         scheduleTitleUpdate(oldGroupId);
     }
     tabGroupMap.delete(tabId);
-    // Otimização: Limpa o cache de falhas para a aba removida para evitar memory leaks.
     injectionFailureMap.delete(tabId);
 }
 
-
-/**
- * Ativa ou desativa os listeners de eventos principais com base nas configurações.
- */
 function toggleListeners(enable) {
     const hasUpdatedListener = browser.tabs.onUpdated.hasListener(handleTabUpdated);
     const hasRemovedListener = browser.tabs.onRemoved.hasListener(handleTabRemoved);
@@ -127,35 +114,67 @@ function updateAutoCollapseTimer() {
     }
 }
 
+/**
+ * [OTIMIZADO] Verifica e desagrupa grupos com uma única aba.
+ * Esta função foi refatorada para usar apenas uma chamada de API e processamento
+ * em memória, evitando o problema de "N+1 queries".
+ */
 async function checkSingleTabGroups() {
     if (!settings.ungroupSingleTabs || settings.ungroupSingleTabsTimeout <= 0) return;
     const timeoutMs = settings.ungroupSingleTabsTimeout * 1000;
     const now = Date.now();
-    try {
-        const allGroups = await browser.tabGroups.query({});
-        for (const group of allGroups) {
-            if (settings.manualGroupIds.includes(group.id)) continue;
 
-            const tabsInGroup = await browser.tabs.query({ groupId: group.id });
-            if (tabsInGroup.length === 1) {
-                const tabId = tabsInGroup[0].id;
-                if (!singleTabGroupTimestamps.has(group.id)) {
-                    singleTabGroupTimestamps.set(group.id, now);
+    try {
+        // 1. READ: Obtém todas as abas de uma só vez.
+        const allTabs = await browser.tabs.query({});
+        const groupInfo = new Map(); // Armazena { count: number, tabId: number }
+
+        // 2. PROCESS (parte 1): Conta as abas por grupo em memória.
+        for (const tab of allTabs) {
+            if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
+                if (!groupInfo.has(tab.groupId)) {
+                    groupInfo.set(tab.groupId, { count: 0, tabId: null });
+                }
+                const info = groupInfo.get(tab.groupId);
+                info.count++;
+                info.tabId = tab.id; // Guarda o ID da última aba encontrada (suficiente para grupos de 1)
+            }
+        }
+
+        // 3. PROCESS (parte 2) & WRITE: Toma as ações necessárias.
+        for (const [groupId, info] of groupInfo.entries()) {
+            if (info.count === 1) {
+                if (settings.manualGroupIds.includes(groupId)) continue;
+
+                if (!singleTabGroupTimestamps.has(groupId)) {
+                    singleTabGroupTimestamps.set(groupId, now);
                 } else {
-                    const timeEnteredState = singleTabGroupTimestamps.get(group.id);
+                    const timeEnteredState = singleTabGroupTimestamps.get(groupId);
                     if (now - timeEnteredState > timeoutMs) {
-                        await browser.tabs.ungroup([tabId]);
-                        singleTabGroupTimestamps.delete(group.id);
+                        await browser.tabs.ungroup([info.tabId]);
+                        singleTabGroupTimestamps.delete(groupId); // Limpa o timestamp após desagrupar
                     }
                 }
             } else {
-                 if (singleTabGroupTimestamps.has(group.id)) {
-                    singleTabGroupTimestamps.delete(group.id);
+                // Se um grupo que antes era solitário agora tem mais abas, remove o seu timestamp.
+                if (singleTabGroupTimestamps.has(groupId)) {
+                    singleTabGroupTimestamps.delete(groupId);
                 }
             }
         }
-    } catch (e) { console.error("Erro ao verificar grupos com abas únicas:", e); }
+        
+        // Limpeza final: remove timestamps de grupos que já não existem
+        for (const groupId of singleTabGroupTimestamps.keys()) {
+            if (!groupInfo.has(groupId)) {
+                singleTabGroupTimestamps.delete(groupId);
+            }
+        }
+
+    } catch (e) {
+        console.error("Erro ao verificar grupos com abas únicas:", e);
+    }
 }
+
 
 function updateUngroupTimer() {
     if (ungroupInterval) clearInterval(ungroupInterval);
