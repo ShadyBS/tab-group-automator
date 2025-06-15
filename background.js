@@ -23,7 +23,7 @@ let collapseInterval = null;
 let ungroupInterval = null;
 let singleTabGroupTimestamps = new Map();
 
-// --- Lógica de Processamento e Gestão de Eventos (CORRIGIDA) ---
+// --- Lógica de Processamento e Gestão de Eventos ---
 
 function scheduleQueueProcessing() {
     if (queueTimeout) clearTimeout(queueTimeout);
@@ -327,8 +327,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     
                     await checkForRenamedOrEditedRules(oldSettings, newSettings);
                     
-                    if (newSettings.autoGroupingEnabled !== oldSettings.autoGroupingEnabled) toggleListeners(newSettings.autoGroupingEnabled);
-                    if (newSettings.showTabCount !== oldSettings.showTabCount) toggleListeners(newSettings.showTabCount); // Simplificado
+                    // Otimização: Consolida a lógica de ativação/desativação dos listeners
+                    const oldListenersState = oldSettings.autoGroupingEnabled || oldSettings.showTabCount;
+                    const newListenersState = newSettings.autoGroupingEnabled || newSettings.showTabCount;
+
+                    if (oldListenersState !== newListenersState) {
+                        toggleListeners(newListenersState);
+                    }
+                    
                     if (newSettings.autoCollapseTimeout !== oldSettings.autoCollapseTimeout) updateAutoCollapseTimer();
                     if (newSettings.ungroupSingleTabs !== oldSettings.ungroupSingleTabs || newSettings.ungroupSingleTabsTimeout !== oldSettings.ungroupSingleTabsTimeout) {
                         updateUngroupTimer();
