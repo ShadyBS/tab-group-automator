@@ -370,11 +370,14 @@ async function main() {
         await loadSettings();
         
         await populateTabGroupMap();
+        
+        // Otimização: Atualiza a contagem de abas em paralelo na inicialização
         if (settings.showTabCount) {
              const allGroups = await browser.tabGroups.query({});
-             for (const group of allGroups) {
-                 updateGroupTitleWithCount(group.id);
-             }
+             // Usamos Promise.allSettled para garantir que todas as atualizações tentem ser executadas
+             // mesmo que uma delas falhe (ex: grupo foi removido nesse meio tempo).
+             const titleUpdatePromises = allGroups.map(group => updateGroupTitleWithCount(group.id));
+             await Promise.allSettled(titleUpdatePromises);
         }
 
         browser.tabs.onActivated.addListener(handleTabActivated);
