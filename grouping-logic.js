@@ -4,15 +4,11 @@
  */
 
 import { settings, smartNameCache, saveSmartNameCache } from './settings-manager.js';
-// Otimização: Importa o mapa de falhas do estado compartilhado
 import { recentlyCreatedAutomaticGroups, injectionFailureMap } from './app-state.js';
 
 // --- Constantes ---
 const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
 let colorIndex = 0;
-
-/** O número máximo de vezes que a extensão tentará injetar um script
- * numa aba antes de desistir. Evita loops em páginas protegidas. */
 const MAX_INJECTION_RETRIES = 3;
 
 
@@ -77,12 +73,10 @@ export async function getFinalGroupName(tab) {
         }
     }
 
-    // Otimização: Implementação do cache de falhas com contador
     if (settings.groupingMode === 'smart') {
         const failureCount = injectionFailureMap.get(tabId) || 0;
         if (failureCount >= MAX_INJECTION_RETRIES) {
-            // Se a aba já falhou muitas vezes, não tenta injetar novamente.
-            return getBaseDomainName(url); // Retorna um fallback seguro
+            return getBaseDomainName(url);
         }
 
         try {
@@ -91,7 +85,6 @@ export async function getFinalGroupName(tab) {
                 files: ['content-script.js'],
             });
             
-            // Se a injeção foi bem-sucedida, remove a aba do mapa de falhas.
             injectionFailureMap.delete(tabId);
 
             if (injectionResults && injectionResults[0] && injectionResults[0].result) {
@@ -142,7 +135,6 @@ export async function getFinalGroupName(tab) {
                 }
             }
         } catch (e) {
-            // Se a injeção falhar, incrementa o contador de falhas para esta aba.
             const newFailureCount = (injectionFailureMap.get(tabId) || 0) + 1;
             injectionFailureMap.set(tabId, newFailureCount);
             console.warn(`Falha ao injetar script na aba ${tabId} (tentativa ${newFailureCount}): ${e.message}`);
@@ -159,75 +151,117 @@ export function getNextColor() {
   return color;
 }
 
+/**
+ * [OTIMIZADO] Processa a fila de abas para agrupar.
+ * Segue o padrão "Read-Process-Write" para máxima performance e robustez.
+ * 1. Read: Lê o estado do navegador (abas, grupos) uma única vez por janela.
+ * 2. Process: Decide todas as ações em memória, sem chamadas de API.
+ * 3. Write: Executa todas as ações de agrupamento em lote.
+ * @param {number[]} tabIds - IDs das abas a serem processadas.
+ */
 export async function processTabQueue(tabIds) {
     if (!settings.autoGroupingEnabled || tabIds.length === 0) return;
 
     try {
+        // Obter os objetos completos das abas
         const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
-        
-        for (const tab of tabsToProcess) {
-            const finalGroupName = await getFinalGroupName(tab);
+        if (tabsToProcess.length === 0) return;
+
+        // Agrupar abas por janela, pois as operações são por janela
+        const tabsByWindow = tabsToProcess.reduce((acc, tab) => {
+            if (!acc[tab.windowId]) {
+                acc[tab.windowId] = [];
+            }
+            acc[tab.windowId].push(tab);
+            return acc;
+        }, {});
+
+        // Processar cada janela independentemente
+        for (const windowIdStr in tabsByWindow) {
+            const windowId = parseInt(windowIdStr, 10);
+            const queuedTabsInWindow = tabsByWindow[windowId];
             
-            if (tab.groupId !== browser.tabs.TAB_ID_NONE && settings.manualGroupIds.includes(tab.groupId)) {
-                continue;
-            }
+            // --- 1. READ PHASE ---
+            const allTabsInWindow = await browser.tabs.query({ windowId });
+            const allGroupsInWindow = await browser.tabGroups.query({ windowId });
+            const groupTitleToIdMap = new Map(allGroupsInWindow.map(g => [(g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, ''), g.id]));
 
-            const wasAlreadyGrouped = tab.groupId !== browser.tabs.TAB_ID_NONE;
+            // --- 2. PROCESS PHASE ---
+            const groupActions = new Map(); // { groupName: { tabsToGroup: [], color: '...' } }
+            const tabsToUngroup = new Set();
             
-            if (!finalGroupName) {
-                if (wasAlreadyGrouped) {
-                    await browser.tabs.ungroup([tab.id]);
-                }
-                continue;
-            }
-
-            let currentGroup = null;
-            if (wasAlreadyGrouped) {
-                try {
-                   currentGroup = await browser.tabGroups.get(tab.groupId);
-                } catch(e) {
-                    currentGroup = null;
+            // Mapear os nomes de grupo para todas as abas na janela para a lógica de minTabs
+            const groupNamePromises = allTabsInWindow.map(async tab => ({ tabId: tab.id, groupName: await getFinalGroupName(tab) }));
+            const tabIdToGroupName = new Map((await Promise.all(groupNamePromises)).map(item => [item.tabId, item.groupName]));
+            
+            // Contar o número total de abas candidatas para cada nome de grupo
+            const groupNameCounts = new Map();
+            for (const name of tabIdToGroupName.values()) {
+                if (name) {
+                    groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
                 }
             }
             
-            if (wasAlreadyGrouped && currentGroup && (currentGroup.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') === finalGroupName) {
-                continue;
-            }
+            for (const tab of queuedTabsInWindow) {
+                if (settings.manualGroupIds.includes(tab.groupId)) continue;
 
-            const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId });
-            const targetGroup = existingGroups.find(g => (g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') === finalGroupName && !settings.manualGroupIds.includes(g.id));
+                const finalGroupName = tabIdToGroupName.get(tab.id);
+                const currentGroup = tab.groupId ? allGroupsInWindow.find(g => g.id === tab.groupId) : null;
+                const currentCleanTitle = currentGroup ? (currentGroup.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') : null;
 
-            if (targetGroup) {
-                await browser.tabs.group({ groupId: targetGroup.id, tabIds: [tab.id] });
-            } else {
-                const allTabsInWindow = await browser.tabs.query({ windowId: tab.windowId });
-                const potentialTabs = [];
-                for(const t of allTabsInWindow) {
-                    if (await getFinalGroupName(t) === finalGroupName) {
-                        potentialTabs.push(t);
-                    }
-                }
-
-                const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
-                const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
-
-                if (potentialTabs.length < minTabsRequired) {
-                    if (wasAlreadyGrouped) await browser.tabs.ungroup([tab.id]);
+                if (!finalGroupName) {
+                    if (tab.groupId) tabsToUngroup.add(tab.id);
                     continue;
                 }
                 
-                if (potentialTabs.length > 0) {
-                    const newGroupId = await browser.tabs.group({ createProperties: { windowId: tab.windowId }, tabIds: potentialTabs.map(t => t.id) });
-                    
-                    recentlyCreatedAutomaticGroups.add(newGroupId);
+                if (finalGroupName === currentCleanTitle) continue; // Já está no grupo certo
 
-                    const groupColor = matchedRule && matchedRule.color ? matchedRule.color : getNextColor();
-
-                    await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: groupColor });
+                // Verificar a regra minTabs para novos grupos
+                const isNewGroup = !groupTitleToIdMap.has(finalGroupName);
+                if (isNewGroup) {
+                    const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
+                    const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
+                    const candidateCount = groupNameCounts.get(finalGroupName) || 0;
+                    if (candidateCount < minTabsRequired) {
+                        if (tab.groupId) tabsToUngroup.add(tab.id);
+                        continue;
+                    }
                 }
+                
+                // Adicionar ação de agrupamento
+                if (!groupActions.has(finalGroupName)) {
+                    const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
+                    groupActions.set(finalGroupName, {
+                        tabsToGroup: [],
+                        color: matchedRule && matchedRule.color ? matchedRule.color : getNextColor()
+                    });
+                }
+                groupActions.get(finalGroupName).tabsToGroup.push(tab.id);
+            }
+
+            // --- 3. WRITE PHASE ---
+            if (tabsToUngroup.size > 0) {
+                try {
+                    await browser.tabs.ungroup(Array.from(tabsToUngroup));
+                } catch(e) { console.error("Erro ao desagrupar abas:", e); }
+            }
+
+            for (const [groupName, action] of groupActions.entries()) {
+                if (action.tabsToGroup.length === 0) continue;
+                
+                try {
+                    const existingGroupId = groupTitleToIdMap.get(groupName);
+                    if (existingGroupId && !settings.manualGroupIds.includes(existingGroupId)) {
+                        await browser.tabs.group({ groupId: existingGroupId, tabIds: action.tabsToGroup });
+                    } else {
+                        const newGroupId = await browser.tabs.group({ createProperties: { windowId }, tabIds: action.tabsToGroup });
+                        recentlyCreatedAutomaticGroups.add(newGroupId);
+                        await browser.tabGroups.update(newGroupId, { title: groupName, color: action.color });
+                    }
+                } catch(e) { console.error(`Erro ao processar o grupo "${groupName}":`, e); }
             }
         }
     } catch(e) {
-        console.error("[Queue] Erro ao processar a fila de abas:", e);
+        console.error("[Queue] Erro grave ao processar a fila de abas:", e);
     }
 }
