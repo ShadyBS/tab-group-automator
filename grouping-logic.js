@@ -4,10 +4,17 @@
  */
 
 import { settings, smartNameCache, saveSmartNameCache } from './settings-manager.js';
-import { recentlyCreatedAutomaticGroups } from './app-state.js';
+// Otimização: Importa o mapa de falhas do estado compartilhado
+import { recentlyCreatedAutomaticGroups, injectionFailureMap } from './app-state.js';
 
+// --- Constantes ---
 const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
 let colorIndex = 0;
+
+/** O número máximo de vezes que a extensão tentará injetar um script
+ * numa aba antes de desistir. Evita loops em páginas protegidas. */
+const MAX_INJECTION_RETRIES = 3;
+
 
 export function isTabGroupable(tab) {
   if (!tab || !tab.id || !tab.url || !tab.url.startsWith('http') || tab.pinned) {
@@ -70,14 +77,22 @@ export async function getFinalGroupName(tab) {
         }
     }
 
+    // Otimização: Implementação do cache de falhas com contador
     if (settings.groupingMode === 'smart') {
+        const failureCount = injectionFailureMap.get(tabId) || 0;
+        if (failureCount >= MAX_INJECTION_RETRIES) {
+            // Se a aba já falhou muitas vezes, não tenta injetar novamente.
+            return getBaseDomainName(url); // Retorna um fallback seguro
+        }
+
         try {
-            // CORRIGIDO: Removido o prefixo "global." que foi adicionado por engano.
-            // O objeto 'browser' já é global no contexto da extensão.
             const injectionResults = await browser.scripting.executeScript({
                 target: { tabId: tabId },
                 files: ['content-script.js'],
             });
+            
+            // Se a injeção foi bem-sucedida, remove a aba do mapa de falhas.
+            injectionFailureMap.delete(tabId);
 
             if (injectionResults && injectionResults[0] && injectionResults[0].result) {
                 const details = injectionResults[0].result;
@@ -127,7 +142,10 @@ export async function getFinalGroupName(tab) {
                 }
             }
         } catch (e) {
-            console.warn(`Não foi possível injetar o script na aba ${tabId}: ${e.message}`);
+            // Se a injeção falhar, incrementa o contador de falhas para esta aba.
+            const newFailureCount = (injectionFailureMap.get(tabId) || 0) + 1;
+            injectionFailureMap.set(tabId, newFailureCount);
+            console.warn(`Falha ao injetar script na aba ${tabId} (tentativa ${newFailureCount}): ${e.message}`);
         }
     }
     

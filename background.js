@@ -6,7 +6,8 @@
 import { settings, loadSettings, updateSettings } from './settings-manager.js';
 import { processTabQueue } from './grouping-logic.js';
 import { initializeContextMenus, updateContextMenus } from './context-menu-manager.js';
-import { recentlyCreatedAutomaticGroups, pendingClassificationGroups } from './app-state.js';
+// Otimização: Importa o mapa de falhas do estado compartilhado
+import { recentlyCreatedAutomaticGroups, pendingClassificationGroups, injectionFailureMap } from './app-state.js';
 
 // --- Constantes e Variáveis de Estado ---
 
@@ -39,19 +40,19 @@ function scheduleQueueProcessing() {
  */
 function handleTabUpdated(tabId, changeInfo, tab) {
     // 1. Lógica para o contador de abas
-    // Se o groupId da aba mudou, atualiza os contadores do grupo antigo e do novo.
     if (changeInfo.groupId !== undefined) {
         const oldGroupId = tabGroupMap.get(tabId);
         if (oldGroupId) {
-            scheduleTitleUpdate(oldGroupId); // Agenda atualização para o grupo de onde a aba saiu.
+            scheduleTitleUpdate(oldGroupId);
         }
-        scheduleTitleUpdate(changeInfo.groupId); // Agenda atualização para o grupo onde a aba entrou.
-        tabGroupMap.set(tabId, changeInfo.groupId); // Atualiza o nosso mapa de estado.
+        scheduleTitleUpdate(changeInfo.groupId);
+        tabGroupMap.set(tabId, changeInfo.groupId);
     }
 
     // 2. Lógica para agrupamento automático
-    // Se a página terminou de carregar, agenda a aba para possível agrupamento.
     if (settings.autoGroupingEnabled && changeInfo.status === 'complete' && tab.url) {
+        // Se a aba foi atualizada, é seguro limpar o seu estado de falha de injeção.
+        injectionFailureMap.delete(tabId);
         tabProcessingQueue.add(tabId);
         scheduleQueueProcessing();
     }
@@ -64,6 +65,8 @@ function handleTabRemoved(tabId, removeInfo) {
         scheduleTitleUpdate(oldGroupId);
     }
     tabGroupMap.delete(tabId);
+    // Otimização: Limpa o cache de falhas para a aba removida para evitar memory leaks.
+    injectionFailureMap.delete(tabId);
 }
 
 
@@ -76,7 +79,6 @@ function toggleListeners(enable) {
 
     if (enable) {
         if (!hasUpdatedListener) {
-            // Escuta por mudanças de status (página carregada) e de grupo.
             browser.tabs.onUpdated.addListener(handleTabUpdated, { properties: ["status", "groupId"] });
         }
         if (!hasRemovedListener) {
@@ -200,7 +202,7 @@ async function updateGroupTitleWithCount(groupId) {
         }
     } catch (e) {
         if (e.message.includes("No group with id")) {
-            console.log(`Não foi possível atualizar o título: o grupo ${groupId} já não existe.`);
+            // Silencioso, o grupo foi removido
         } else {
             console.error(`Falha ao atualizar o título para o grupo ${groupId}:`, e);
         }
@@ -327,7 +329,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     
                     await checkForRenamedOrEditedRules(oldSettings, newSettings);
                     
-                    // Otimização: Consolida a lógica de ativação/desativação dos listeners
                     const oldListenersState = oldSettings.autoGroupingEnabled || oldSettings.showTabCount;
                     const newListenersState = newSettings.autoGroupingEnabled || newSettings.showTabCount;
 
@@ -365,7 +366,6 @@ async function populateTabGroupMap() {
         for (const tab of allTabs) {
             tabGroupMap.set(tab.id, tab.groupId);
         }
-        console.log(`[ATG] Mapa de Aba-Grupo populado com ${tabGroupMap.size} entradas.`);
     } catch (e) {
         console.error("[ATG] Erro ao popular o mapa de Aba-Grupo:", e);
     }
@@ -377,11 +377,8 @@ async function main() {
         
         await populateTabGroupMap();
         
-        // Otimização: Atualiza a contagem de abas em paralelo na inicialização
         if (settings.showTabCount) {
              const allGroups = await browser.tabGroups.query({});
-             // Usamos Promise.allSettled para garantir que todas as atualizações tentem ser executadas
-             // mesmo que uma delas falhe (ex: grupo foi removido nesse meio tempo).
              const titleUpdatePromises = allGroups.map(group => updateGroupTitleWithCount(group.id));
              await Promise.allSettled(titleUpdatePromises);
         }
@@ -392,11 +389,9 @@ async function main() {
         browser.tabGroups.onUpdated.addListener(handleTabGroupUpdated);
         browser.tabGroups.onRemoved.addListener(handleTabGroupRemoved);
         
-        // Inicializa os módulos
         initializeContextMenus();
         await updateContextMenus();
 
-        // Inicializa os listeners e timers com base nas configurações
         toggleListeners(settings.autoGroupingEnabled || settings.showTabCount);
         updateAutoCollapseTimer();
         updateUngroupTimer();

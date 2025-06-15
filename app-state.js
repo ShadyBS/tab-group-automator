@@ -16,3 +16,11 @@ export let recentlyCreatedAutomaticGroups = new Set();
  * @type {Set<number>}
  */
 export let pendingClassificationGroups = new Set();
+
+/**
+ * NOVO: Um Map para rastrear falhas na injeção de scripts.
+ * A chave é o tabId, o valor é o número de tentativas falhadas.
+ * Usado para evitar tentativas repetidas em páginas protegidas ou com erros persistentes.
+ * @type {Map<number, number>}
+ */
+export let injectionFailureMap = new Map();
