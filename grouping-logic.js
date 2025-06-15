@@ -189,6 +189,7 @@ export async function processTabQueue(tabIds) {
             // --- 2. PROCESS PHASE ---
             const groupActions = new Map(); // { groupName: { tabsToGroup: [], color: '...' } }
             const tabsToUngroup = new Set();
+            const processedGroupNames = new Set(); // Otimização para evitar trabalho redundante
             
             // Mapear os nomes de grupo para todas as abas na janela para a lógica de minTabs
             const groupNamePromises = allTabsInWindow.map(async tab => ({ tabId: tab.id, groupName: await getFinalGroupName(tab) }));
@@ -206,6 +207,9 @@ export async function processTabQueue(tabIds) {
                 if (settings.manualGroupIds.includes(tab.groupId)) continue;
 
                 const finalGroupName = tabIdToGroupName.get(tab.id);
+                
+                if (processedGroupNames.has(finalGroupName)) continue; // Já processamos este grupo
+                
                 const currentGroup = tab.groupId ? allGroupsInWindow.find(g => g.id === tab.groupId) : null;
                 const currentCleanTitle = currentGroup ? (currentGroup.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') : null;
 
@@ -222,21 +226,36 @@ export async function processTabQueue(tabIds) {
                     const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
                     const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
                     const candidateCount = groupNameCounts.get(finalGroupName) || 0;
+                    
                     if (candidateCount < minTabsRequired) {
                         if (tab.groupId) tabsToUngroup.add(tab.id);
                         continue;
                     }
+                    
+                    // CORREÇÃO: Ao criar um novo grupo, encontrar todas as abas candidatas na janela.
+                    const allMatchingTabsInWindow = allTabsInWindow.filter(t => tabIdToGroupName.get(t.id) === finalGroupName);
+                    const tabsForNewGroup = allMatchingTabsInWindow
+                        .filter(t => !settings.manualGroupIds.includes(t.groupId))
+                        .map(t => t.id);
+
+                    if (tabsForNewGroup.length > 0) {
+                         groupActions.set(finalGroupName, {
+                            tabsToGroup: tabsForNewGroup,
+                            color: matchedRule && matchedRule.color ? matchedRule.color : getNextColor()
+                        });
+                        processedGroupNames.add(finalGroupName); // Marcar como processado
+                    }
+                } else {
+                    // Lógica para adicionar a um grupo existente
+                    if (!groupActions.has(finalGroupName)) {
+                        const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
+                        groupActions.set(finalGroupName, {
+                            tabsToGroup: [],
+                            color: matchedRule && matchedRule.color ? matchedRule.color : getNextColor()
+                        });
+                    }
+                    groupActions.get(finalGroupName).tabsToGroup.push(tab.id);
                 }
-                
-                // Adicionar ação de agrupamento
-                if (!groupActions.has(finalGroupName)) {
-                    const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
-                    groupActions.set(finalGroupName, {
-                        tabsToGroup: [],
-                        color: matchedRule && matchedRule.color ? matchedRule.color : getNextColor()
-                    });
-                }
-                groupActions.get(finalGroupName).tabsToGroup.push(tab.id);
             }
 
             // --- 3. WRITE PHASE ---
