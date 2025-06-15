@@ -4,6 +4,7 @@
  */
 
 import { settings, smartNameCache, saveSmartNameCache } from './settings-manager.js';
+import { recentlyCreatedAutomaticGroups } from './app-state.js';
 
 const colors = ["blue", "red", "green", "yellow", "purple", "pink", "cyan", "orange"];
 let colorIndex = 0;
@@ -44,9 +45,11 @@ function getBaseDomainName(url) {
 }
 
 export async function getFinalGroupName(tab) {
-    const { url, title, id: tabId } = tab;
-    if (!url || !url.startsWith('http')) return null;
+    if (!isTabGroupable(tab)) {
+        return null;
+    }
 
+    const { url, title, id: tabId } = tab;
     const hostname = getHostname(url);
     if (!hostname) return null;
 
@@ -69,6 +72,8 @@ export async function getFinalGroupName(tab) {
 
     if (settings.groupingMode === 'smart') {
         try {
+            // CORRIGIDO: Removido o prefixo "global." que foi adicionado por engano.
+            // O objeto 'browser' já é global no contexto da extensão.
             const injectionResults = await browser.scripting.executeScript({
                 target: { tabId: tabId },
                 files: ['content-script.js'],
@@ -87,24 +92,37 @@ export async function getFinalGroupName(tab) {
                 
                 if (smartName) {
                     smartNameCache.set(hostname, smartName);
-                    saveSmartNameCache(); // Salva o cache
+                    saveSmartNameCache();
                     return smartName;
                 }
 
                 if (details.pageTitle) {
-                    const titleParts = details.pageTitle.split(/\||–|-/);
-                    if (titleParts.length > 1) {
-                        const firstPart = titleParts[0].trim();
-                        const lastPart = titleParts[titleParts.length - 1].trim();
-                        const domainCore = getBaseDomainName(url).split('.')[0].toLowerCase();
-                        let brandName = null;
-                        if (firstPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) brandName = firstPart;
-                        else if (lastPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) brandName = lastPart;
-                        if (brandName && brandName.length < 40) {
-                            smartNameCache.set(hostname, brandName);
-                            saveSmartNameCache(); // Salva o cache
-                            return brandName;
+                    const pageTitle = details.pageTitle;
+                    const domainCore = getBaseDomainName(url).split('.')[0].toLowerCase();
+                    let brandName = null;
+
+                    if (pageTitle.length < 30 && pageTitle.toLowerCase().replace(/\s/g, '').includes(domainCore)) {
+                        brandName = pageTitle;
+                    }
+
+                    if (!brandName) {
+                        const titleParts = pageTitle.split(/\||–|-/);
+                        if (titleParts.length > 1) {
+                            const firstPart = titleParts[0].trim();
+                            const lastPart = titleParts[titleParts.length - 1].trim();
+                            
+                            if (firstPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) {
+                                brandName = firstPart;
+                            } else if (lastPart.toLowerCase().replace(/\s/g, '').includes(domainCore)) {
+                                brandName = lastPart;
+                            }
                         }
+                    }
+                    
+                    if (brandName && brandName.length < 40) {
+                        smartNameCache.set(hostname, brandName);
+                        saveSmartNameCache();
+                        return brandName;
                     }
                 }
             }
@@ -130,43 +148,36 @@ export async function processTabQueue(tabIds) {
         const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
         
         for (const tab of tabsToProcess) {
+            const finalGroupName = await getFinalGroupName(tab);
+            
             if (tab.groupId !== browser.tabs.TAB_ID_NONE && settings.manualGroupIds.includes(tab.groupId)) {
                 continue;
             }
 
-            if (!isTabGroupable(tab)) {
-                if (tab.groupId !== browser.tabs.TAB_ID_NONE) {
+            const wasAlreadyGrouped = tab.groupId !== browser.tabs.TAB_ID_NONE;
+            
+            if (!finalGroupName) {
+                if (wasAlreadyGrouped) {
                     await browser.tabs.ungroup([tab.id]);
                 }
                 continue;
             }
 
-            const finalGroupName = await getFinalGroupName(tab);
-            const wasAlreadyGrouped = tab.groupId !== browser.tabs.TAB_ID_NONE;
             let currentGroup = null;
-
             if (wasAlreadyGrouped) {
                 try {
                    currentGroup = await browser.tabGroups.get(tab.groupId);
                 } catch(e) {
-                    // CORREÇÃO: Se o grupo antigo não for encontrado (porque foi removido pelo navegador),
-                    // defina currentGroup como nulo e continue a execução. Isso evita
-                    // que um erro aqui interrompa a nomeação do novo grupo.
                     currentGroup = null;
                 }
             }
-
-            if (!finalGroupName) {
-                if (wasAlreadyGrouped) await browser.tabs.ungroup([tab.id]);
-                continue;
-            }
             
-            if (wasAlreadyGrouped && currentGroup && currentGroup.title.replace(/\s\(\d+\)$/, '') === finalGroupName) {
+            if (wasAlreadyGrouped && currentGroup && (currentGroup.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') === finalGroupName) {
                 continue;
             }
 
             const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId });
-            const targetGroup = existingGroups.find(g => g.title.replace(/\s\(\d+\)$/, '') === finalGroupName && !settings.manualGroupIds.includes(g.id));
+            const targetGroup = existingGroups.find(g => (g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') === finalGroupName && !settings.manualGroupIds.includes(g.id));
 
             if (targetGroup) {
                 await browser.tabs.group({ groupId: targetGroup.id, tabIds: [tab.id] });
@@ -174,7 +185,7 @@ export async function processTabQueue(tabIds) {
                 const allTabsInWindow = await browser.tabs.query({ windowId: tab.windowId });
                 const potentialTabs = [];
                 for(const t of allTabsInWindow) {
-                    if (isTabGroupable(t) && await getFinalGroupName(t) === finalGroupName) {
+                    if (await getFinalGroupName(t) === finalGroupName) {
                         potentialTabs.push(t);
                     }
                 }
@@ -189,7 +200,12 @@ export async function processTabQueue(tabIds) {
                 
                 if (potentialTabs.length > 0) {
                     const newGroupId = await browser.tabs.group({ createProperties: { windowId: tab.windowId }, tabIds: potentialTabs.map(t => t.id) });
-                    await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: getNextColor() });
+                    
+                    recentlyCreatedAutomaticGroups.add(newGroupId);
+
+                    const groupColor = matchedRule && matchedRule.color ? matchedRule.color : getNextColor();
+
+                    await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: groupColor });
                 }
             }
         }

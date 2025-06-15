@@ -4,7 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Declaração de Constantes ---
+    // --- Declaração de Constantes de UI ---
     const groupingModeSelect = document.getElementById('groupingMode');
     const suppressSingleTabGroupsCheckbox = document.getElementById('suppressSingleTabGroups');
     const uncollapseOnActivateCheckbox = document.getElementById('uncollapseOnActivate');
@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const rulesList = document.getElementById('rulesList');
     const saveButton = document.getElementById('saveButton');
-    const saveNotification = document.getElementById('saveNotification');
     const importBtn = document.getElementById('importBtn');
     const exportBtn = document.getElementById('exportBtn');
     const importFile = document.getElementById('importFile');
@@ -32,17 +31,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const ruleTypeSelect = document.getElementById('ruleType');
     const rulePatternsTextarea = document.getElementById('rulePatterns');
     const ruleMinTabsInput = document.getElementById('ruleMinTabs');
-    const saveRuleBtn = document.getElementById('saveRuleBtn');
+    const ruleColorSelect = document.getElementById('ruleColor'); // Referência ao novo select
 
-    const ruleTesterInput = document.getElementById('ruleTesterInput');
-    const ruleTesterResult = document.getElementById('ruleTesterResult');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmModalText = document.getElementById('confirmModalText');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const notificationContainer = document.getElementById('notification-container');
 
     let currentSettings = {};
     let sortableInstance = null;
+    let confirmCallback = null;
 
     checkForUrlAction();
     loadSettings();
     
+    // --- Funções de Notificação e Modal ---
+
+    function showNotification(message, type = 'info') {
+        const a_notification = document.createElement('div');
+        const colors = {
+            success: 'bg-green-100 border-green-500 text-green-800',
+            error: 'bg-red-100 border-red-500 text-red-800',
+            info: 'bg-blue-100 border-blue-500 text-blue-800',
+        };
+        a_notification.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${colors[type]}`;
+        a_notification.textContent = message;
+        
+        notificationContainer.appendChild(a_notification);
+        
+        setTimeout(() => {
+            a_notification.classList.remove('opacity-0', 'translate-y-2');
+        }, 10);
+
+        setTimeout(() => {
+            a_notification.classList.add('opacity-0');
+            a_notification.addEventListener('transitionend', () => a_notification.remove());
+        }, 4000);
+    }
+
+    function showConfirmModal(text, onConfirm) {
+        confirmModalText.textContent = text;
+        confirmCallback = onConfirm;
+        confirmModal.classList.remove('hidden');
+    }
+
+    function hideConfirmModal() {
+        confirmModal.classList.add('hidden');
+        confirmCallback = null;
+    }
+
+
     // --- Funções Principais ---
 
     async function loadSettings() {
@@ -63,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderRules();
         } catch (e) {
             console.error("Erro ao carregar as configurações:", e);
+            showNotification('Não foi possível carregar as configurações.', 'error');
         }
     }
 
@@ -84,9 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         browser.runtime.sendMessage({ action: 'updateSettings', settings: newSettings }).then(() => {
             currentSettings = newSettings;
-            saveNotification.classList.remove('opacity-0');
-            setTimeout(() => { saveNotification.classList.add('opacity-0'); }, 2500);
-        }).catch(e => console.error("Falha ao enviar mensagem de atualização:", e));
+            showNotification('Configurações salvas com sucesso!', 'success');
+        }).catch(e => {
+            console.error("Falha ao enviar mensagem de atualização:", e);
+            showNotification('Erro ao salvar as configurações.', 'error');
+        });
     }
     
     function renderRules() {
@@ -98,11 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const patterns = rule.patterns || [];
                 const displayPattern = patterns.length > 1 ? `${patterns[0]} (e mais ${patterns.length - 1})` : patterns[0] || 'Nenhum padrão';
                 const ruleElement = document.createElement('div');
+                // Pequena correção para usar a cor do nome no span de visualização
+                const colorMap = { grey: '#5A5A5A', blue: '#3498db', red: '#e74c3c', yellow: '#f1c40f', green: '#2ecc71', pink: '#e91e63', purple: '#9b59b6', cyan: '#1abc9c', orange: '#e67e22' };
+                const displayColor = colorMap[rule.color] || '#ccc';
+
                 ruleElement.className = 'rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm';
                 ruleElement.innerHTML = `
                     <div class="flex items-center space-x-4 flex-grow min-w-0">
                         <span class="drag-handle cursor-move p-2 text-slate-400">&#x2630;</span>
-                        <span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${rule.color || '#ccc'}"></span>
+                        <span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${displayColor}"></span>
                         <div class="flex-grow min-w-0">
                             <strong class="text-indigo-700">${rule.name}</strong>
                             <p class="text-sm text-slate-600 truncate" title="${patterns.join('\n')}">${displayPattern} <span class="text-xs bg-slate-200 text-slate-500 p-1 rounded">${rule.type}</span></p>
@@ -166,29 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    async function testRule() {
-        const urlToTest = ruleTesterInput.value.trim();
-        if (!urlToTest) {
-            ruleTesterResult.textContent = 'Aguardando URL...';
-            return;
-        }
-
-        try {
-            const { getFinalGroupName } = await import('../grouping-logic.js');
-            new URL(urlToTest);
-            const mockTab = { url: urlToTest, title: 'Aba de Teste', id: -1 };
-            const groupName = await getFinalGroupName(mockTab);
-            
-            if (groupName) {
-                ruleTesterResult.innerHTML = `Corresponderia ao grupo: <strong class="text-indigo-700">${groupName}</strong>`;
-            } else {
-                ruleTesterResult.textContent = 'Este URL não seria agrupado.';
-            }
-        } catch (e) {
-            ruleTesterResult.textContent = 'URL inválido ou erro ao testar.';
-        }
-    }
-
     function openModalForEdit(e) {
         const index = e.currentTarget.dataset.index;
         modalTitle.textContent = 'Editar Regra';
@@ -198,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleTypeSelect.value = rule.type;
         rulePatternsTextarea.value = (rule.patterns || []).join('\n');
         ruleMinTabsInput.value = rule.minTabs || 1;
-        document.getElementById('ruleColor').value = rule.color || '#cccccc';
+        ruleColorSelect.value = rule.color || 'grey';
         ruleModal.classList.remove('hidden');
     }
 
@@ -207,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleForm.reset();
         ruleIndexInput.value = '';
         ruleMinTabsInput.value = 1;
-        document.getElementById('ruleColor').value = '#cccccc';
+        ruleColorSelect.value = 'grey'; // CORRIGIDO: O valor padrão agora é um nome de cor válido.
         ruleModal.classList.remove('hidden');
     }
     
@@ -225,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
             name: ruleNameInput.value.trim(),
             type: ruleTypeSelect.value,
             patterns: rulePatternsTextarea.value.split('\n').map(p => p.trim()).filter(Boolean),
-            color: document.getElementById('ruleColor').value,
+            color: ruleColorSelect.value, // CORRIGIDO: Pega o valor do <select>
             minTabs: parseInt(ruleMinTabsInput.value, 10) || 1,
         };
         const index = ruleIndexInput.value;
@@ -245,11 +268,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function deleteRule(e) {
         const index = e.currentTarget.dataset.index;
         const ruleName = currentSettings.customRules[index].name;
-        if (confirm(`Tem a certeza que deseja excluir a regra "${ruleName}"?`)) {
+        
+        showConfirmModal(`Tem a certeza que deseja excluir a regra "${ruleName}"?`, () => {
             currentSettings.customRules.splice(index, 1);
             saveAllSettings();
             renderRules();
-        }
+            showNotification(`Regra "${ruleName}" excluída.`, 'info');
+        });
     }
     
     // --- Event Listeners ---
@@ -276,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
     addRuleBtn.addEventListener('click', openModalForAdd);
     cancelRuleBtn.addEventListener('click', closeModal);
     ruleForm.addEventListener('submit', handleRuleFormSubmit);
-    ruleTesterInput.addEventListener('input', testRule);
     
     importBtn.addEventListener('click', () => importFile.click());
     importFile.addEventListener('change', (event) => {
@@ -286,17 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.onload = async (e) => {
             try {
                 const importedSettings = JSON.parse(e.target.result);
-                if (importedSettings && importedSettings.customRules) {
-                    const mergedSettings = { ...DEFAULT_SETTINGS, ...importedSettings };
-                    await browser.runtime.sendMessage({ action: 'updateSettings', settings: mergedSettings });
-                    alert('Configurações importadas com sucesso!');
+                if (importedSettings && typeof importedSettings === 'object' && 'customRules' in importedSettings) {
+                    await browser.runtime.sendMessage({ action: 'updateSettings', settings: importedSettings });
+                    showNotification('Configurações importadas com sucesso!', 'success');
                     loadSettings();
                 } else {
-                    alert('Erro: Ficheiro de configuração inválido.');
+                    showNotification('Erro: Ficheiro de configuração inválido.', 'error');
                 }
-            } catch (err) { alert('Erro ao ler o ficheiro.'); }
+            } catch (err) { 
+                showNotification('Erro ao ler o ficheiro de importação.', 'error');
+            }
         };
         reader.readAsText(file);
+        importFile.value = '';
     });
 
     exportBtn.addEventListener('click', async () => {
@@ -312,6 +338,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ruleModal.addEventListener('click', (e) => {
         if (e.target === ruleModal) closeModal();
+    });
+
+    confirmCancelBtn.addEventListener('click', hideConfirmModal);
+    confirmOkBtn.addEventListener('click', () => {
+        if (typeof confirmCallback === 'function') {
+            confirmCallback();
+        }
+        hideConfirmModal();
     });
 
     browser.runtime.onMessage.addListener((message) => {

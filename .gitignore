@@ -3,8 +3,10 @@ src/
 node_modules/
 dist/
 build/
-
+__tests__/
 # Optional: Common ignores
 .env
 .DS_Store
 *.log
+babel.config.js
+jest.config.js

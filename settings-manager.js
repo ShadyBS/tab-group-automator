@@ -22,6 +22,9 @@ export const DEFAULT_SETTINGS = {
 export let settings = { ...DEFAULT_SETTINGS };
 export let smartNameCache = new Map();
 
+// Variável para controlar o timeout do debounce ao salvar o cache.
+let saveCacheTimeout = null;
+
 function getStorageArea() {
     return browser.storage.local;
 }
@@ -61,15 +64,26 @@ export async function updateSettings(newSettings) {
 }
 
 /**
- * Saves the smart name cache to persistent storage.
+ * Saves the smart name cache to persistent storage using a debounce mechanism
+ * to prevent excessive writes.
  */
-export async function saveSmartNameCache() {
-    const storageArea = getStorageArea();
-    try {
-        await storageArea.set({ smartNameCache: Object.fromEntries(smartNameCache) });
-    } catch (e) {
-        console.error("Error saving smart name cache:", e);
+export function saveSmartNameCache() {
+    // Limpa qualquer operação de salvamento pendente para reiniciar o contador.
+    if (saveCacheTimeout) {
+        clearTimeout(saveCacheTimeout);
     }
+
+    // Agenda uma nova operação de salvamento para daqui a 2 segundos.
+    saveCacheTimeout = setTimeout(async () => {
+        const storageArea = getStorageArea();
+        try {
+            await storageArea.set({ smartNameCache: Object.fromEntries(smartNameCache) });
+            console.log("[ATG] Smart name cache salvo no armazenamento após debounce.");
+        } catch (e) {
+            console.error("Erro ao salvar o smart name cache:", e);
+        }
+        saveCacheTimeout = null; // Limpa o ID do timeout após a execução.
+    }, 2000); // Atraso de 2000ms (2 segundos)
 }
 
 /**
@@ -77,6 +91,13 @@ export async function saveSmartNameCache() {
  */
 export function clearSmartNameCache() {
     smartNameCache.clear();
+    
+    // Cancela qualquer salvamento pendente, pois estamos a limpar o cache.
+    if (saveCacheTimeout) {
+        clearTimeout(saveCacheTimeout);
+        saveCacheTimeout = null;
+    }
+
     const storageArea = getStorageArea();
     storageArea.remove('smartNameCache');
     console.log("Smart name cache cleared.");
