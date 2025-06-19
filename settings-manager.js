@@ -16,6 +16,21 @@ export const DEFAULT_SETTINGS = {
   showTabCount: true,
   syncEnabled: false,
   manualGroupIds: [],
+  logLevel: 'INFO',
+  // NOVO: Configuração do tema da interface
+  theme: 'auto', // 'auto', 'light', 'dark'
+  domainSanitizationTlds: [
+    '.rs.gov.br', '.sp.gov.br', '.rj.gov.br',
+    '.com.br', '.net.br', '.org.br', '.gov.br', '.edu.br',
+    '.gov.uk', '.ac.uk', '.co.uk',
+    '.gov.au', '.com.au',
+    '.com', '.org', '.net', '.dev', '.io', '.gov', '.edu', 
+    '.co', '.app', '.xyz', '.info', '.biz',
+    '.br', '.rs', '.uk', '.de', '.jp', '.fr', '.au', '.us'
+  ],
+  titleSanitizationNoise: [
+    'login', 'sign in', 'dashboard', 'homepage', 'painel'
+  ],
 };
 
 // In-memory objects
@@ -41,11 +56,11 @@ export async function loadSettings() {
         if (data.smartNameCache) {
             smartNameCache = new Map(Object.entries(data.smartNameCache));
         }
-        console.log("Settings and cache loaded. Manual Groups:", settings.manualGroupIds.length);
     } catch(e) {
         console.error("Fatal error loading settings:", e);
         settings = { ...DEFAULT_SETTINGS };
         smartNameCache = new Map();
+        throw e;
     }
 }
 
@@ -68,22 +83,19 @@ export async function updateSettings(newSettings) {
  * to prevent excessive writes.
  */
 export function saveSmartNameCache() {
-    // Limpa qualquer operação de salvamento pendente para reiniciar o contador.
     if (saveCacheTimeout) {
         clearTimeout(saveCacheTimeout);
     }
 
-    // Agenda uma nova operação de salvamento para daqui a 2 segundos.
     saveCacheTimeout = setTimeout(async () => {
         const storageArea = getStorageArea();
         try {
             await storageArea.set({ smartNameCache: Object.fromEntries(smartNameCache) });
-            console.log("[ATG] Smart name cache salvo no armazenamento após debounce.");
         } catch (e) {
             console.error("Erro ao salvar o smart name cache:", e);
         }
-        saveCacheTimeout = null; // Limpa o ID do timeout após a execução.
-    }, 2000); // Atraso de 2000ms (2 segundos)
+        saveCacheTimeout = null;
+    }, 2000);
 }
 
 /**
@@ -92,7 +104,6 @@ export function saveSmartNameCache() {
 export function clearSmartNameCache() {
     smartNameCache.clear();
     
-    // Cancela qualquer salvamento pendente, pois estamos a limpar o cache.
     if (saveCacheTimeout) {
         clearTimeout(saveCacheTimeout);
         saveCacheTimeout = null;
@@ -100,5 +111,4 @@ export function clearSmartNameCache() {
 
     const storageArea = getStorageArea();
     storageArea.remove('smartNameCache');
-    console.log("Smart name cache cleared.");
 }

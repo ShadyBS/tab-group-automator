@@ -50,17 +50,18 @@ const details = {
     pageTitle: document.title || null
 };
 
-// --- Bloco de Debugging ---
-console.groupCollapsed(`[Auto Tab Grouper] Detalhes da Página para: ${hostname}`);
-console.log(`Open Graph (og:site_name):`, details.ogSiteName);
-console.log(`Nome da Aplicação (application-name):`, details.applicationName);
-console.log(`Schema.org (WebSite/Organization):`, details.schemaName);
-console.log(`Twitter Site (@...):`, details.twitterSite);
-console.log(`Twitter App Name:`, details.twitterAppName);
-console.log(`Dublin Core (Publisher):`, details.dcPublisher);
-console.log(`Texto Alt do Logótipo:`, details.logoAltText);
-console.log(`Título da Página:`, details.pageTitle);
-console.groupEnd();
-// --- FIM do Bloco de Debugging ---
+// Envia os detalhes para o background script para serem registados (log).
+browser.runtime.sendMessage({
+  action: 'log',
+  level: 'debug', // Usa 'debug' para não poluir a consola por defeito.
+  context: `ContentScript:${hostname}`,
+  message: 'Detalhes da página extraídos.',
+  details: [details] // Envia o objeto de detalhes para inspeção.
+}).catch(e => {
+  // Ignora o erro, que é comum se o background script for recarregado
+  // ou a página for fechada enquanto a mensagem está em trânsito.
+});
 
-details; // The value of the last expression is returned by executeScript.
+
+// A última expressão é retornada para o chamador de `executeScript`.
+details;

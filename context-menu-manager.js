@@ -3,13 +3,11 @@
  * @description Gere toda a lógica de criação, atualização e eventos para o menu de contexto do browser.
  */
 
+import Logger from './logger.js';
 import { settings, updateSettings } from './settings-manager.js';
 import { processTabQueue, getFinalGroupName, isTabGroupable, getNextColor } from './grouping-logic.js';
 import { recentlyCreatedAutomaticGroups } from './app-state.js';
 
-/**
- * Cria ou atualiza todos os itens do menu de contexto.
- */
 export async function updateContextMenus() {
     await browser.menus.removeAll();
     const validContexts = ["page", "tab"];
@@ -39,13 +37,9 @@ export async function updateContextMenus() {
     browser.menus.create({ id: "open-options", parentId: mainParentId, title: "⚙️ Opções da Extensão", contexts: validContexts });
 }
 
-/**
- * Lida com cliques nos itens do menu de contexto.
- * @param {browser.menus.OnClickData} info Informação sobre o item clicado.
- * @param {browser.tabs.Tab} tab A aba onde o clique ocorreu.
- */
 async function handleContextMenuClick(info, tab) {
     if (!tab) return; 
+    Logger.info('handleContextMenuClick', `Item de menu '${info.menuItemId}' clicado.`, { info, tab });
     
     const tabGroupId = tab.groupId;
 
@@ -60,7 +54,7 @@ async function handleContextMenuClick(info, tab) {
                     await updateSettings({ customRules: settings.customRules });
                 }
             }
-        } catch (e) { console.error("Erro ao adicionar padrão:", e); }
+        } catch (e) { Logger.error("handleContextMenuClick", "Erro ao adicionar padrão à regra:", e); }
         return;
     }
 
@@ -75,27 +69,22 @@ async function handleContextMenuClick(info, tab) {
                     const domain = new URL(tab.url).hostname;
                     if (domain && !settings.exceptions.includes(domain)) {
                         await updateSettings({ exceptions: [...settings.exceptions, domain] });
+                        Logger.info('handleContextMenuClick', `Adicionada exceção para o domínio: ${domain}`);
                     }
-                } catch (e) { console.error("Erro ao adicionar exceção:", e); }
+                } catch (e) { Logger.error("handleContextMenuClick", "Erro ao adicionar exceção:", e); }
             }
             break;
         case "group-similar-now":
             try {
                 const finalGroupName = await getFinalGroupName(tab);
                 if (!finalGroupName) return;
-                
                 const allTabsInWindow = await browser.tabs.query({ windowId: tab.windowId, pinned: false });
                 const matchingTabs = [];
-
                 for (const t of allTabsInWindow) {
-                    if (isTabGroupable(t)) {
-                        const groupNameForOtherTab = await getFinalGroupName(t);
-                        if (groupNameForOtherTab === finalGroupName) {
-                            matchingTabs.push(t.id);
-                        }
+                    if (isTabGroupable(t) && await getFinalGroupName(t) === finalGroupName) {
+                        matchingTabs.push(t.id);
                     }
                 }
-                
                 if (matchingTabs.length > 0) {
                      const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId, title: finalGroupName });
                      if (existingGroups.length > 0) {
@@ -106,7 +95,7 @@ async function handleContextMenuClick(info, tab) {
                          await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: getNextColor() });
                      }
                 }
-            } catch (e) { console.error("Erro ao agrupar abas:", e); }
+            } catch (e) { Logger.error("handleContextMenuClick", "Erro ao agrupar abas semelhantes:", e); }
             break;
         case "open-options":
             browser.runtime.openOptionsPage();
@@ -117,9 +106,7 @@ async function handleContextMenuClick(info, tab) {
                 const urls = tabs.map(t => t.url).join('\n');
                 await browser.scripting.executeScript({
                     target: { tabId: tab.id },
-                    func: (text) => {
-                        navigator.clipboard.writeText(text);
-                    },
+                    func: (text) => navigator.clipboard.writeText(text),
                     args: [urls]
                 });
             }
@@ -139,27 +126,17 @@ async function handleContextMenuClick(info, tab) {
             if (tabGroupId && settings.manualGroupIds.includes(tabGroupId)) {
                 const newManualIds = settings.manualGroupIds.filter(id => id !== tabGroupId);
                 await updateSettings({ manualGroupIds: newManualIds });
-
                 const group = await browser.tabGroups.get(tabGroupId);
                 if (group.title.startsWith('📌 ')) {
                     await browser.tabGroups.update(tabGroupId, { title: group.title.replace('📌 ', '') });
                 }
-
                 const tabsInGroup = await browser.tabs.query({ groupId: tabGroupId });
-                const newIds = await processTabQueue(tabsInGroup.map(t => t.id));
-                for (const id of newIds) {
-                    recentlyCreatedAutomaticGroups.add(id);
-                }
+                processTabQueue(tabsInGroup.map(t => t.id));
             }
             break;
     }
 }
 
-/**
- * Lida com a visibilidade dos itens do menu de contexto.
- * @param {browser.menus.OnShowData} info 
- * @param {browser.tabs.Tab} tab 
- */
 async function handleMenuShown(info, tab) {
     if (tab && tab.url) {
         try {
@@ -179,9 +156,6 @@ async function handleMenuShown(info, tab) {
     browser.menus.refresh();
 }
 
-/**
- * Adiciona os listeners de eventos para o menu de contexto.
- */
 export function initializeContextMenus() {
     browser.menus.onClicked.addListener(handleContextMenuClick);
     browser.menus.onShown.addListener(handleMenuShown);

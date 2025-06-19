@@ -3,6 +3,7 @@
  * @description Ponto de entrada principal da extensão, gere eventos e a fila de processamento.
  */
 
+import Logger from './logger.js';
 import { settings, loadSettings, updateSettings } from './settings-manager.js';
 import { processTabQueue } from './grouping-logic.js';
 import { initializeContextMenus, updateContextMenus } from './context-menu-manager.js';
@@ -26,15 +27,18 @@ let singleTabGroupTimestamps = new Map();
 // --- Lógica de Processamento e Gestão de Eventos ---
 
 function scheduleQueueProcessing() {
+    Logger.debug('scheduleQueueProcessing', 'Agendamento de processamento da fila.');
     if (queueTimeout) clearTimeout(queueTimeout);
     queueTimeout = setTimeout(async () => {
         const tabsToProcess = Array.from(tabProcessingQueue);
         tabProcessingQueue.clear();
+        Logger.info('Queue', `A processar ${tabsToProcess.length} abas.`, tabsToProcess);
         await processTabQueue(tabsToProcess);
     }, QUEUE_DELAY);
 }
 
 function handleTabUpdated(tabId, changeInfo, tab) {
+    Logger.debug('handleTabUpdated', `Aba ${tabId} atualizada. Status: ${changeInfo.status}`, { changeInfo, tab });
     if (changeInfo.groupId !== undefined) {
         const oldGroupId = tabGroupMap.get(tabId);
         if (oldGroupId) {
@@ -52,6 +56,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
 }
 
 function handleTabRemoved(tabId, removeInfo) {
+    Logger.debug('handleTabRemoved', `Aba ${tabId} removida.`, { removeInfo });
     const oldGroupId = tabGroupMap.get(tabId);
     if (oldGroupId) {
         scheduleTitleUpdate(oldGroupId);
@@ -84,6 +89,7 @@ function toggleListeners(enable) {
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
 function updateAutoCollapseTimer() {
+    Logger.debug('Timers', `Timer de auto-collapse ${settings.autoCollapseTimeout > 0 ? `ativado (${settings.autoCollapseTimeout}s)`: 'desativado'}.`);
     if (collapseInterval) clearInterval(collapseInterval);
     collapseInterval = null;
     if (settings.autoCollapseTimeout > 0) {
@@ -104,32 +110,26 @@ function updateAutoCollapseTimer() {
                         }
                         const lastActivityTime = groupActivity.get(group.id) || Date.now();
                         if (now - lastActivityTime > timeoutMs) {
+                            Logger.debug('checkAutoCollapse', `Grupo inativo ${group.id} a ser recolhido.`);
                             await browser.tabGroups.update(group.id, { collapsed: true });
                             groupActivity.delete(group.id);
                         }
                     }
                 }
-            } catch (e) { console.error("Erro ao verificar grupos inativos:", e); }
+            } catch (e) { Logger.error("checkAutoCollapse", "Erro ao verificar grupos inativos:", e); }
         }, 5000);
     }
 }
 
-/**
- * [OTIMIZADO] Verifica e desagrupa grupos com uma única aba.
- * Esta função foi refatorada para usar apenas uma chamada de API e processamento
- * em memória, evitando o problema de "N+1 queries".
- */
 async function checkSingleTabGroups() {
     if (!settings.ungroupSingleTabs || settings.ungroupSingleTabsTimeout <= 0) return;
     const timeoutMs = settings.ungroupSingleTabsTimeout * 1000;
     const now = Date.now();
 
     try {
-        // 1. READ: Obtém todas as abas de uma só vez.
         const allTabs = await browser.tabs.query({});
-        const groupInfo = new Map(); // Armazena { count: number, tabId: number }
+        const groupInfo = new Map();
 
-        // 2. PROCESS (parte 1): Conta as abas por grupo em memória.
         for (const tab of allTabs) {
             if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
                 if (!groupInfo.has(tab.groupId)) {
@@ -137,11 +137,10 @@ async function checkSingleTabGroups() {
                 }
                 const info = groupInfo.get(tab.groupId);
                 info.count++;
-                info.tabId = tab.id; // Guarda o ID da última aba encontrada (suficiente para grupos de 1)
+                info.tabId = tab.id;
             }
         }
 
-        // 3. PROCESS (parte 2) & WRITE: Toma as ações necessárias.
         for (const [groupId, info] of groupInfo.entries()) {
             if (info.count === 1) {
                 if (settings.manualGroupIds.includes(groupId)) continue;
@@ -151,19 +150,18 @@ async function checkSingleTabGroups() {
                 } else {
                     const timeEnteredState = singleTabGroupTimestamps.get(groupId);
                     if (now - timeEnteredState > timeoutMs) {
+                        Logger.debug('checkSingleTabGroups', `Grupo ${groupId} solitário há ${now - timeEnteredState}ms. A desagrupar a aba ${info.tabId}.`);
                         await browser.tabs.ungroup([info.tabId]);
-                        singleTabGroupTimestamps.delete(groupId); // Limpa o timestamp após desagrupar
+                        singleTabGroupTimestamps.delete(groupId);
                     }
                 }
             } else {
-                // Se um grupo que antes era solitário agora tem mais abas, remove o seu timestamp.
                 if (singleTabGroupTimestamps.has(groupId)) {
                     singleTabGroupTimestamps.delete(groupId);
                 }
             }
         }
         
-        // Limpeza final: remove timestamps de grupos que já não existem
         for (const groupId of singleTabGroupTimestamps.keys()) {
             if (!groupInfo.has(groupId)) {
                 singleTabGroupTimestamps.delete(groupId);
@@ -171,12 +169,13 @@ async function checkSingleTabGroups() {
         }
 
     } catch (e) {
-        console.error("Erro ao verificar grupos com abas únicas:", e);
+        Logger.error("checkSingleTabGroups", "Erro ao verificar grupos com abas únicas:", e);
     }
 }
 
 
 function updateUngroupTimer() {
+    Logger.debug('Timers', `Timer de desagrupar abas únicas ${settings.ungroupSingleTabs ? `ativado (${settings.ungroupSingleTabsTimeout}s)`: 'desativado'}.`);
     if (ungroupInterval) clearInterval(ungroupInterval);
     ungroupInterval = null;
     if (settings.ungroupSingleTabs && settings.ungroupSingleTabsTimeout > 0) {
@@ -193,9 +192,12 @@ async function handleTabActivated({ tabId }) {
       const now = Date.now();
       groupActivity.set(groupId, now);
       const group = await browser.tabGroups.get(groupId);
-      if (group && group.collapsed) await browser.tabGroups.update(groupId, { collapsed: false });
+      if (group && group.collapsed) {
+        Logger.debug('handleTabActivated', `A expandir o grupo ${groupId} devido à ativação da aba ${tabId}.`);
+        await browser.tabGroups.update(groupId, { collapsed: false });
+      }
     }
-  } catch (error) {}
+  } catch (error) { /* Silencioso, a aba pode ter sido fechada */ }
 }
 
 
@@ -209,7 +211,6 @@ async function updateGroupTitleWithCount(groupId) {
         const count = tabsInGroup.length;
         
         let cleanTitle = (group.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '');
-
         let newTitle = count > 0 ? `${cleanTitle} (${count})` : cleanTitle;
 
         if (settings.manualGroupIds.includes(groupId)) {
@@ -217,13 +218,12 @@ async function updateGroupTitleWithCount(groupId) {
         }
 
         if (group.title !== newTitle) {
+            Logger.debug('updateGroupTitle', `A atualizar o título do grupo ${groupId} para '${newTitle}'.`);
             await browser.tabGroups.update(groupId, { title: newTitle });
         }
     } catch (e) {
-        if (e.message.includes("No group with id")) {
-            // Silencioso, o grupo foi removido
-        } else {
-            console.error(`Falha ao atualizar o título para o grupo ${groupId}:`, e);
+        if (!e.message.includes("No group with id")) {
+            Logger.warn(`updateGroupTitle`, `Falha ao atualizar o título para o grupo ${groupId}:`, e);
         }
     }
 }
@@ -243,18 +243,20 @@ function scheduleTitleUpdate(groupId) {
 // --- Lógica de Grupos Manuais e Edição de Regras ---
 
 async function handleTabGroupCreated(group) {
+    Logger.info('handleTabGroupCreated', `Grupo ${group.id} criado, a aguardar classificação.`, group);
     pendingClassificationGroups.add(group.id);
     
     setTimeout(async () => {
         if (recentlyCreatedAutomaticGroups.has(group.id)) {
             recentlyCreatedAutomaticGroups.delete(group.id);
             pendingClassificationGroups.delete(group.id);
+            Logger.debug('handleTabGroupCreated', `Grupo ${group.id} classificado como automático.`);
             return;
         }
         
         if (pendingClassificationGroups.has(group.id)) {
             pendingClassificationGroups.delete(group.id);
-            
+            Logger.info('handleTabGroupCreated', `Grupo ${group.id} classificado como manual.`);
             if (!settings.manualGroupIds.includes(group.id)) {
                 const newManualIds = [...settings.manualGroupIds, group.id];
                 await updateSettings({ manualGroupIds: newManualIds });
@@ -270,6 +272,7 @@ async function handleTabGroupCreated(group) {
 }
 
 async function handleTabGroupUpdated(group) {
+    Logger.debug('handleTabGroupUpdated', `Grupo ${group.id} atualizado.`, group);
     const isManual = settings.manualGroupIds.includes(group.id);
     const title = group.title || '';
     const hasPin = title.startsWith('📌 ');
@@ -282,6 +285,7 @@ async function handleTabGroupUpdated(group) {
 }
 
 async function handleTabGroupRemoved(group) {
+    Logger.info('handleTabGroupRemoved', `Grupo ${group.id} removido.`, group);
     pendingClassificationGroups.delete(group.id);
     recentlyCreatedAutomaticGroups.delete(group.id);
     if (settings.manualGroupIds.includes(group.id)) {
@@ -297,38 +301,25 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
 
     for (let i = 0; i < oldRules.length; i++) {
         if (newRules[i] && (oldRules[i].name !== newRules[i].name || oldRules[i].color !== newRules[i].color)) {
-            changedRules.push({
-                oldName: oldRules[i].name,
-                newName: newRules[i].name,
-                newColor: newRules[i].color
-            });
+            changedRules.push({ oldName: oldRules[i].name, newName: newRules[i].name, newColor: newRules[i].color });
         }
     }
     
     if (changedRules.length === 0) return;
+    Logger.info('checkForRenamedRules', 'Regras renomeadas ou editadas detetadas, a atualizar grupos existentes...', changedRules);
 
     const allGroups = await browser.tabGroups.query({});
     for (const change of changedRules) {
-        const targetGroup = allGroups.find(g => {
-            const cleanTitle = (g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '');
-            return cleanTitle === change.oldName;
-        });
+        const targetGroup = allGroups.find(g => (g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') === change.oldName);
 
         if (targetGroup) {
             try {
                 const updatePayload = {};
-                const currentTitle = targetGroup.title || '';
-                if (change.oldName !== change.newName) {
-                    updatePayload.title = currentTitle.replace(change.oldName, change.newName);
-                }
-                if (change.newColor && targetGroup.color !== change.newColor) {
-                    updatePayload.color = change.newColor;
-                }
-                if (Object.keys(updatePayload).length > 0) {
-                     await browser.tabGroups.update(targetGroup.id, updatePayload);
-                }
+                if (change.oldName !== change.newName) updatePayload.title = (targetGroup.title || '').replace(change.oldName, change.newName);
+                if (change.newColor && targetGroup.color !== change.newColor) updatePayload.color = change.newColor;
+                if (Object.keys(updatePayload).length > 0) await browser.tabGroups.update(targetGroup.id, updatePayload);
             } catch (e) {
-                console.error(`Erro ao atualizar o grupo para a regra renomeada de "${change.oldName}":`, e);
+                Logger.error('checkForRenamedRules', `Erro ao atualizar o grupo para a regra renomeada de "${change.oldName}":`, e);
             }
         }
     }
@@ -338,6 +329,7 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     (async () => {
+        Logger.info('onMessage', `Ação '${message.action}' recebida.`, message);
         try {
             switch (message.action) {
                 case 'getSettings':
@@ -345,14 +337,12 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     break;
                 case 'updateSettings':
                     const { oldSettings, newSettings } = await updateSettings(message.settings);
+                    Logger.setLevel(newSettings.logLevel); // Atualiza o nível do logger
                     
                     await checkForRenamedOrEditedRules(oldSettings, newSettings);
                     
-                    const oldListenersState = oldSettings.autoGroupingEnabled || oldSettings.showTabCount;
-                    const newListenersState = newSettings.autoGroupingEnabled || newSettings.showTabCount;
-
-                    if (oldListenersState !== newListenersState) {
-                        toggleListeners(newListenersState);
+                    if ((oldSettings.autoGroupingEnabled || oldSettings.showTabCount) !== (newSettings.autoGroupingEnabled || newSettings.showTabCount)) {
+                        toggleListeners(newSettings.autoGroupingEnabled || newSettings.showTabCount);
                     }
                     
                     if (newSettings.autoCollapseTimeout !== oldSettings.autoCollapseTimeout) updateAutoCollapseTimer();
@@ -366,12 +356,19 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     await processTabQueue((await browser.tabs.query({ currentWindow: true, pinned: false })).map(t => t.id));
                     sendResponse({ status: "ok" });
                     break;
+                // NOVO: Case para receber logs de outros scripts
+                case 'log':
+                    if (sender.tab && message.level && message.context && message.message) {
+                        Logger[message.level](`ContentScript: ${message.context}`, message.message, ...(message.details || []));
+                    }
+                    break;
                 default:
+                    Logger.warn('onMessage', `Ação desconhecida recebida: ${message.action}`);
                     sendResponse({ error: `Ação desconhecida: ${message.action}` });
                     break;
             }
         } catch (error) {
-            console.error(`Erro ao processar a ação "${message.action}":`, error);
+            Logger.error('onMessage', `Erro ao processar a ação "${message.action}":`, error);
             sendResponse({ error: error.message });
         }
     })();
@@ -386,13 +383,15 @@ async function populateTabGroupMap() {
             tabGroupMap.set(tab.id, tab.groupId);
         }
     } catch (e) {
-        console.error("[ATG] Erro ao popular o mapa de Aba-Grupo:", e);
+        Logger.error("populateTabGroupMap", "Erro ao popular o mapa de Aba-Grupo:", e);
     }
 }
 
 async function main() {
     try {
+        Logger.info('Main', 'Extensão a inicializar...');
         await loadSettings();
+        Logger.setLevel(settings.logLevel);
         
         await populateTabGroupMap();
         
@@ -415,9 +414,9 @@ async function main() {
         updateAutoCollapseTimer();
         updateUngroupTimer();
         
-        console.log("Auto Tab Grouper inicializado com sucesso e refatorado.");
+        Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", { settings });
     } catch (e) {
-        console.error("Falha crítica durante a inicialização da extensão:", e);
+        Logger.error("Main", "Falha crítica durante a inicialização da extensão:", e);
     }
 }
 

@@ -5,12 +5,12 @@
   <link rel="stylesheet" href="../vendor/tailwind.css">
   <link rel="stylesheet" href="popup.css">
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans w-64">
+<body class="bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-gray-200 font-sans w-64 transition-colors duration-300">
   <div class="p-4">
-    <h1 class="text-xl font-bold mb-4 text-center text-gray-700">Auto Tab Grouper</h1>
+    <h1 class="text-xl font-bold mb-4 text-center text-gray-700 dark:text-gray-300">Auto Tab Grouper</h1>
     
-    <div class="flex items-center justify-between bg-white p-3 rounded-lg shadow-sm">
-      <label for="autoGroupingToggle" class="font-medium text-gray-700">Ativar Agrupamento</label>
+    <div class="flex items-center justify-between bg-white dark:bg-slate-700 p-3 rounded-lg shadow-sm">
+      <label for="autoGroupingToggle" class="font-medium text-gray-700 dark:text-gray-300">Ativar Agrupamento</label>
       <label class="switch">
         <input type="checkbox" id="autoGroupingToggle">
         <span class="slider round"></span>
@@ -26,6 +26,6 @@
       Opções
     </button>
   </div>
-  <script src="popup.js"></script>
+  <script src="popup.js" type="module"></script>
 </body>
 </html>
