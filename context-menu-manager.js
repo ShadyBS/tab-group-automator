@@ -76,23 +76,33 @@ async function handleContextMenuClick(info, tab) {
             break;
         case "group-similar-now":
             try {
-                const finalGroupName = await getFinalGroupName(tab);
-                if (!finalGroupName) return;
+                const targetGroupName = await getFinalGroupName(tab);
+                if (!targetGroupName) return;
+
                 const allTabsInWindow = await browser.tabs.query({ windowId: tab.windowId, pinned: false });
-                const matchingTabs = [];
-                for (const t of allTabsInWindow) {
-                    if (isTabGroupable(t) && await getFinalGroupName(t) === finalGroupName) {
-                        matchingTabs.push(t.id);
-                    }
-                }
-                if (matchingTabs.length > 0) {
-                     const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId, title: finalGroupName });
+                
+                // OTIMIZAÇÃO: Executa a obtenção de nomes de grupo em paralelo para um desempenho muito mais rápido.
+                const groupNamePromises = allTabsInWindow
+                    .filter(isTabGroupable)
+                    .map(async (t) => ({
+                        id: t.id,
+                        groupName: await getFinalGroupName(t)
+                    }));
+                
+                const tabGroupNames = await Promise.all(groupNamePromises);
+                
+                const matchingTabIds = tabGroupNames
+                    .filter(item => item.groupName === targetGroupName)
+                    .map(item => item.id);
+
+                if (matchingTabIds.length > 0) {
+                     const existingGroups = await browser.tabGroups.query({ windowId: tab.windowId, title: targetGroupName });
                      if (existingGroups.length > 0) {
-                         await browser.tabs.group({ groupId: existingGroups[0].id, tabIds: matchingTabs });
+                         await browser.tabs.group({ groupId: existingGroups[0].id, tabIds: matchingTabIds });
                      } else {
-                         const newGroupId = await browser.tabs.group({ tabIds: matchingTabs, createProperties: { windowId: tab.windowId } });
+                         const newGroupId = await browser.tabs.group({ tabIds: matchingTabIds, createProperties: { windowId: tab.windowId } });
                          recentlyCreatedAutomaticGroups.add(newGroupId);
-                         await browser.tabGroups.update(newGroupId, { title: finalGroupName, color: getNextColor() });
+                         await browser.tabGroups.update(newGroupId, { title: targetGroupName, color: getNextColor() });
                      }
                 }
             } catch (e) { Logger.error("handleContextMenuClick", "Erro ao agrupar abas semelhantes:", e); }
@@ -104,9 +114,12 @@ async function handleContextMenuClick(info, tab) {
             if (tabGroupId) {
                 const tabs = await browser.tabs.query({ groupId: tabGroupId });
                 const urls = tabs.map(t => t.url).join('\n');
+                // Usa scripting.executeScript para aceder à área de transferência de uma forma mais segura no MV3
                 await browser.scripting.executeScript({
                     target: { tabId: tab.id },
-                    func: (text) => navigator.clipboard.writeText(text),
+                    func: (textToCopy) => {
+                        navigator.clipboard.writeText(textToCopy);
+                    },
                     args: [urls]
                 });
             }
@@ -117,7 +130,7 @@ async function handleContextMenuClick(info, tab) {
                 const group = await browser.tabGroups.get(tabGroupId);
                 const hostnames = new Set(tabs.map(t => { try { return `*${new URL(t.url).hostname}*`; } catch { return null; }}).filter(Boolean));
                 const patterns = Array.from(hostnames).join('\n');
-                const cleanTitle = group.title.replace(/\s\(\d+\)$/, '').replace('📌 ', '');
+                const cleanTitle = (group.title || '').replace(/\s\(\d+\)$/, '').replace('📌 ', '');
                 const rulePath = `options/options.html?action=new_rule&name=${encodeURIComponent(cleanTitle)}&patterns=${encodeURIComponent(patterns)}`;
                 browser.tabs.create({ url: browser.runtime.getURL(rulePath) });
             }
@@ -127,7 +140,7 @@ async function handleContextMenuClick(info, tab) {
                 const newManualIds = settings.manualGroupIds.filter(id => id !== tabGroupId);
                 await updateSettings({ manualGroupIds: newManualIds });
                 const group = await browser.tabGroups.get(tabGroupId);
-                if (group.title.startsWith('📌 ')) {
+                if ((group.title || '').startsWith('📌 ')) {
                     await browser.tabGroups.update(tabGroupId, { title: group.title.replace('📌 ', '') });
                 }
                 const tabsInGroup = await browser.tabs.query({ groupId: tabGroupId });
@@ -142,7 +155,9 @@ async function handleMenuShown(info, tab) {
         try {
             const domain = new URL(tab.url).hostname;
             browser.menus.update("never-group-domain", { title: `🚫 Nunca agrupar o domínio "${domain}"` });
-        } catch(e) {}
+        } catch(e) {
+            // Ignora erros de URL inválida (ex: about:blank)
+        }
     }
 
     const isGrouped = tab && tab.groupId !== browser.tabs.TAB_ID_NONE;

@@ -2,6 +2,7 @@
  * @file settings-manager.js
  * @description Gere as configurações da extensão e o armazenamento, com suporte para sincronização.
  */
+import Logger from './logger.js';
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
@@ -58,11 +59,11 @@ export async function loadSettings() {
         let loadedSettings = null;
 
         if (syncData && syncData.settings) {
-            console.log("A carregar configurações do sync.");
+            Logger.info("SettingsManager", "A carregar configurações do armazenamento sync.");
             loadedSettings = syncData.settings;
         } else {
             // Recorre ao armazenamento local se não estiver no sync.
-            console.log("Sem configurações no sync, a tentar local.");
+            Logger.info("SettingsManager", "Sem configurações no sync, a tentar armazenamento local.");
             const localData = await browser.storage.local.get('settings');
             if (localData && localData.settings) {
                 loadedSettings = localData.settings;
@@ -78,7 +79,7 @@ export async function loadSettings() {
         }
 
     } catch(e) {
-        console.error("Erro fatal ao carregar configurações:", e);
+        Logger.error("SettingsManager", "Erro fatal ao carregar configurações:", e);
         // Em caso de erro fatal, reverte para os padrões.
         settings = { ...DEFAULT_SETTINGS };
         smartNameCache = new Map();
@@ -103,18 +104,18 @@ export async function updateSettings(newSettings) {
 
     try {
         await targetStorage.set({ settings });
-        console.log(`Configurações guardadas no armazenamento ${newSyncStatus ? 'sync' : 'local'}.`);
+        Logger.info("SettingsManager", `Configurações guardadas no armazenamento ${newSyncStatus ? 'sync' : 'local'}.`);
 
         // Se o estado de sincronização mudou, remove as configurações da localização antiga.
         if (oldSyncStatus !== newSyncStatus) {
             const sourceStorage = getStorage(oldSyncStatus);
             await sourceStorage.remove('settings');
-            console.log(`Configurações removidas do armazenamento ${oldSyncStatus ? 'sync' : 'local'}.`);
+            Logger.info("SettingsManager", `Configurações removidas do armazenamento ${oldSyncStatus ? 'sync' : 'local'}.`);
         }
 
     } catch (e) {
-        console.error(`Erro ao guardar configurações no armazenamento ${newSyncStatus ? 'sync' : 'local'}:`, e);
-        // Opcionalmente, reverte as configurações em caso de falha
+        Logger.error("SettingsManager", `Erro ao guardar configurações no armazenamento ${newSyncStatus ? 'sync' : 'local'}:`, e);
+        // Reverte as configurações em memória em caso de falha na gravação.
         settings = oldSettings;
         throw e;
     }
@@ -136,14 +137,14 @@ export function saveSmartNameCache() {
             // Usa explicitamente o armazenamento local para o cache.
             await browser.storage.local.set({ smartNameCache: Object.fromEntries(smartNameCache) });
         } catch (e) {
-            console.error("Erro ao guardar o cache de nomes inteligentes:", e);
+            Logger.error("SettingsManager", "Erro ao guardar o cache de nomes inteligentes:", e);
         }
         saveCacheTimeout = null;
     }, 2000);
 }
 
 /**
- * Limpa o cache de nomes inteligentes da memória и do armazenamento local.
+ * Limpa o cache de nomes inteligentes da memória e do armazenamento local.
  */
 export function clearSmartNameCache() {
     smartNameCache.clear();

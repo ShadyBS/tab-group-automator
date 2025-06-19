@@ -44,12 +44,84 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleTesterResult: document.getElementById('ruleTesterResult'),
     };
 
+    // --- Variáveis de Estado ---
     let currentSettings = {};
     let sortableInstance = null;
     let confirmCallback = null;
     let saveTimeout = null;
 
-    // --- LÓGICA DE TEMA ---
+    // --- GESTÃO DE DADOS E CONFIGURAÇÕES ---
+
+    async function loadSettings() {
+        try {
+            const settingsFromBg = await browser.runtime.sendMessage({ action: 'getSettings' });
+            currentSettings = settingsFromBg || {};
+            populateForm(currentSettings);
+            applyTheme(currentSettings.theme);
+            updateDynamicUI();
+            testCurrentRule();
+        } catch (e) {
+            console.error("Erro ao carregar as configurações:", e);
+            showNotification('Não foi possível carregar as configurações.', 'error');
+        }
+    }
+
+    function scheduleSave() {
+        clearTimeout(saveTimeout);
+        updateSaveStatus('saving');
+        
+        saveTimeout = setTimeout(async () => {
+            const newSettings = collectSettingsFromForm();
+            try {
+                await browser.runtime.sendMessage({ action: 'updateSettings', settings: newSettings });
+                currentSettings = newSettings;
+                updateSaveStatus('saved');
+            } catch (e) {
+                console.error("Falha ao enviar mensagem de atualização:", e);
+                updateSaveStatus('error');
+                showNotification('Erro ao guardar as configurações.', 'error');
+            }
+        }, 750);
+    }
+    
+    function collectSettingsFromForm() {
+        return {
+            ...currentSettings,
+            theme: ui.theme.value,
+            groupingMode: ui.groupingMode.value,
+            suppressSingleTabGroups: ui.suppressSingleTabGroups.checked,
+            uncollapseOnActivate: ui.uncollapseOnActivate.checked,
+            autoCollapseTimeout: parseInt(ui.autoCollapseTimeout.value, 10) || 0,
+            ungroupSingleTabs: ui.ungroupSingleTabs.checked,
+            ungroupSingleTabsTimeout: parseInt(ui.ungroupSingleTabsTimeout.value, 10) || 10,
+            exceptions: ui.exceptionsList.value.split('\n').map(e => e.trim()).filter(Boolean),
+            showTabCount: ui.showTabCount.checked,
+            syncEnabled: ui.syncEnabled.checked,
+            logLevel: ui.logLevel.value,
+            domainSanitizationTlds: ui.domainSanitizationTlds.value.split('\n').map(e => e.trim()).filter(Boolean),
+            titleSanitizationNoise: ui.titleSanitizationNoise.value.split('\n').map(e => e.trim()).filter(Boolean),
+            customRules: currentSettings.customRules || [] // Preserva as regras
+        };
+    }
+
+    // --- RENDERIZAÇÃO E ATUALIZAÇÃO DA UI ---
+
+    function populateForm(settings) {
+        ui.theme.value = settings.theme || 'auto';
+        ui.groupingMode.value = settings.groupingMode;
+        ui.suppressSingleTabGroups.checked = settings.suppressSingleTabGroups;
+        ui.uncollapseOnActivate.checked = settings.uncollapseOnActivate;
+        ui.autoCollapseTimeout.value = settings.autoCollapseTimeout;
+        ui.ungroupSingleTabs.checked = settings.ungroupSingleTabs;
+        ui.ungroupSingleTabsTimeout.value = settings.ungroupSingleTabsTimeout;
+        ui.exceptionsList.value = (settings.exceptions || []).join('\n');
+        ui.showTabCount.checked = settings.showTabCount;
+        ui.syncEnabled.checked = settings.syncEnabled;
+        ui.logLevel.value = settings.logLevel || 'INFO';
+        ui.domainSanitizationTlds.value = (settings.domainSanitizationTlds || []).join('\n');
+        ui.titleSanitizationNoise.value = (settings.titleSanitizationNoise || []).join('\n');
+        renderRules();
+    }
 
     function applyTheme(theme) {
         if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -59,140 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (ui.theme.value === 'auto') {
-            applyTheme('auto');
-        }
-    });
-
-    // --- FUNÇÕES DE FEEDBACK (NOTIFICAÇÃO, MODAL, ESTADO DE GRAVAÇÃO) ---
-
-    function showNotification(message, type = 'info') {
-        const a_notification = document.createElement('div');
-        const colors = {
-            success: 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-200',
-            error: 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-200',
-            info: 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-200',
-        };
-        a_notification.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${colors[type]}`;
-        a_notification.textContent = message;
-        
-        ui.notificationContainer.appendChild(a_notification);
-        
-        setTimeout(() => {
-            a_notification.classList.remove('opacity-0', 'translate-y-2');
-        }, 10);
-
-        setTimeout(() => {
-            a_notification.classList.add('opacity-0');
-            a_notification.addEventListener('transitionend', () => a_notification.remove());
-        }, 4000);
-    }
-
-    function showConfirmModal(text, onConfirm) {
-        ui.confirmModalText.textContent = text;
-        confirmCallback = onConfirm;
-        ui.confirmModal.classList.remove('hidden');
-    }
-
-    function hideConfirmModal() {
-        ui.confirmModal.classList.add('hidden');
-        confirmCallback = null;
-    }
-
-    function updateSaveStatus(status) {
-        switch (status) {
-            case 'saving':
-                ui.saveStatus.textContent = 'A guardar...';
-                ui.saveStatus.className = 'text-yellow-500';
-                break;
-            case 'saved':
-                ui.saveStatus.textContent = 'Alterações guardadas.';
-                ui.saveStatus.className = 'text-green-500';
-                break;
-            case 'error':
-                 ui.saveStatus.textContent = 'Erro ao guardar.';
-                 ui.saveStatus.className = 'text-red-500';
-                break;
-            default:
-                 ui.saveStatus.textContent = '';
-        }
-    }
-
-    // --- FUNÇÕES PRINCIPAIS DE GESTÃO DE DADOS ---
-
-    async function loadSettings() {
-        try {
-            const settingsFromBg = await browser.runtime.sendMessage({ action: 'getSettings' });
-            currentSettings = settingsFromBg || {};
-            
-            // Popula os campos do formulário com as configurações carregadas
-            ui.theme.value = currentSettings.theme || 'auto';
-            ui.groupingMode.value = currentSettings.groupingMode;
-            ui.suppressSingleTabGroups.checked = currentSettings.suppressSingleTabGroups;
-            ui.uncollapseOnActivate.checked = currentSettings.uncollapseOnActivate;
-            ui.autoCollapseTimeout.value = currentSettings.autoCollapseTimeout;
-            ui.ungroupSingleTabs.checked = currentSettings.ungroupSingleTabs;
-            ui.ungroupSingleTabsTimeout.value = currentSettings.ungroupSingleTabsTimeout;
-            ui.exceptionsList.value = (currentSettings.exceptions || []).join('\n');
-            ui.showTabCount.checked = currentSettings.showTabCount;
-            ui.syncEnabled.checked = currentSettings.syncEnabled;
-            ui.logLevel.value = currentSettings.logLevel || 'INFO';
-            ui.domainSanitizationTlds.value = (currentSettings.domainSanitizationTlds || []).join('\n');
-            ui.titleSanitizationNoise.value = (currentSettings.titleSanitizationNoise || []).join('\n');
-            
-            renderRules();
-            applyTheme(currentSettings.theme);
-            updateDynamicUI();
-            testCurrentRule(); // Testa a regra ao carregar
-        } catch (e) {
-            console.error("Erro ao carregar as configurações:", e);
-            showNotification('Não foi possível carregar as configurações.', 'error');
-        }
-    }
-
-    // NOVA FUNÇÃO: Guarda as configurações com debounce
-    function scheduleSave() {
-        clearTimeout(saveTimeout);
-        updateSaveStatus('saving');
-        
-        saveTimeout = setTimeout(async () => {
-            const exceptions = ui.exceptionsList.value.split('\n').map(e => e.trim()).filter(Boolean);
-            const domainTlds = ui.domainSanitizationTlds.value.split('\n').map(e => e.trim()).filter(Boolean);
-            const titleNoise = ui.titleSanitizationNoise.value.split('\n').map(e => e.trim()).filter(Boolean);
-
-            const newSettings = {
-                ...currentSettings,
-                theme: ui.theme.value,
-                groupingMode: ui.groupingMode.value,
-                suppressSingleTabGroups: ui.suppressSingleTabGroups.checked,
-                uncollapseOnActivate: ui.uncollapseOnActivate.checked,
-                autoCollapseTimeout: parseInt(ui.autoCollapseTimeout.value, 10) || 0,
-                ungroupSingleTabs: ui.ungroupSingleTabs.checked,
-                ungroupSingleTabsTimeout: parseInt(ui.ungroupSingleTabsTimeout.value, 10) || 10,
-                exceptions: exceptions,
-                showTabCount: ui.showTabCount.checked,
-                syncEnabled: ui.syncEnabled.checked,
-                logLevel: ui.logLevel.value,
-                domainSanitizationTlds: domainTlds,
-                titleSanitizationNoise: titleNoise,
-            };
-            
-            try {
-                await browser.runtime.sendMessage({ action: 'updateSettings', settings: newSettings });
-                currentSettings = newSettings; // Atualiza o estado local
-                updateSaveStatus('saved');
-            } catch (e) {
-                console.error("Falha ao enviar mensagem de atualização:", e);
-                updateSaveStatus('error');
-                showNotification('Erro ao guardar as configurações.', 'error');
-            }
-        }, 750); // Atraso de 750ms antes de guardar
-    }
-    
-    // --- FUNÇÕES DE RENDERIZAÇÃO E UI ---
-
-    // NOVA FUNÇÃO: Atualiza a UI com base nas configurações
     function updateDynamicUI() {
         ui.ungroupSingleTabsTimeout.disabled = !ui.ungroupSingleTabs.checked;
         ui.ungroupSingleTabsTimeout.parentElement.style.opacity = ui.ungroupSingleTabs.checked ? 1 : 0.6;
@@ -200,21 +138,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderRules() {
         ui.rulesList.innerHTML = '';
-        if (!currentSettings.customRules || currentSettings.customRules.length === 0) {
+        const rules = currentSettings.customRules || [];
+        if (rules.length === 0) {
             ui.rulesList.innerHTML = '<p class="text-slate-500 italic text-center p-4 dark:text-slate-400">Nenhuma regra personalizada ainda.</p>';
         } else {
-            currentSettings.customRules.forEach((rule, index) => {
+            rules.forEach((rule, index) => {
                 const patterns = rule.patterns || [];
                 const displayPattern = patterns.length > 1 ? `${patterns[0]} (e mais ${patterns.length - 1})` : patterns[0] || 'Nenhum padrão';
                 const ruleElement = document.createElement('div');
                 const colorMap = { grey: '#5A5A5A', blue: '#3498db', red: '#e74c3c', yellow: '#f1c40f', green: '#2ecc71', pink: '#e91e63', purple: '#9b59b6', cyan: '#1abc9c', orange: '#e67e22' };
-                const displayColor = colorMap[rule.color] || '#ccc';
-
                 ruleElement.className = 'rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50';
                 ruleElement.innerHTML = `
                     <div class="flex items-center space-x-4 flex-grow min-w-0">
                         <span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span>
-                        <span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${displayColor}"></span>
+                        <span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span>
                         <div class="flex-grow min-w-0">
                             <strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong>
                             <p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${patterns.join('\n')}">${displayPattern} <span class="text-xs bg-slate-200 text-slate-500 dark:bg-slate-600 dark:text-slate-400 p-1 rounded">${rule.type}</span></p>
@@ -231,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         initSortable();
     }
-    
+
     function initSortable() {
         if (sortableInstance) sortableInstance.destroy();
         if (ui.rulesList && currentSettings.customRules && currentSettings.customRules.length > 0) {
@@ -247,6 +184,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function testCurrentRule() {
+        const url = ui.ruleTesterInput.value.trim();
+        if (!url) {
+            ui.ruleTesterResult.innerHTML = 'Aguardando URL...';
+            return;
+        }
+        const rules = currentSettings.customRules || [];
+        for (const rule of rules) {
+            for (const pattern of rule.patterns || []) {
+                try {
+                    if (!pattern.trim()) continue;
+                    let isMatch = false;
+                    if (rule.type === 'url-wildcard') {
+                        isMatch = new RegExp(pattern.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*')).test(url);
+                    } else if (rule.type === 'url-regex') {
+                        isMatch = new RegExp(pattern.trim()).test(url);
+                    }
+                    if (isMatch) {
+                        ui.ruleTesterResult.innerHTML = `Correspondeu: <strong class="text-indigo-600 dark:text-indigo-400">${rule.name}</strong>`;
+                        return;
+                    }
+                } catch (e) { /* Ignora regex inválida durante o teste */ }
+            }
+        }
+        ui.ruleTesterResult.innerHTML = 'Nenhuma regra personalizada correspondeu. Usará a estratégia de nomenclatura padrão.';
+    }
+
+    // --- GESTÃO DE MODAIS E NOTIFICAÇÕES ---
+
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        const colors = { success: 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-200', error: 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-200', info: 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-200' };
+        notification.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${colors[type]}`;
+        notification.textContent = message;
+        ui.notificationContainer.appendChild(notification);
+        setTimeout(() => notification.classList.remove('opacity-0', 'translate-y-2'), 10);
+        setTimeout(() => {
+            notification.classList.add('opacity-0');
+            notification.addEventListener('transitionend', () => notification.remove());
+        }, 4000);
+    }
+    
+    function showConfirmModal(text, onConfirm) { ui.confirmModalText.textContent = text; confirmCallback = onConfirm; ui.confirmModal.classList.remove('hidden'); }
+    function hideConfirmModal() { ui.confirmModal.classList.add('hidden'); confirmCallback = null; }
     function openModalForEdit(index) {
         ui.modalTitle.textContent = 'Editar Regra';
         const rule = currentSettings.customRules[index];
@@ -258,146 +239,111 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.ruleColor.value = rule.color || 'grey';
         ui.ruleModal.classList.remove('hidden');
     }
-
-    function openModalForAdd() {
-        ui.modalTitle.textContent = 'Adicionar Nova Regra';
-        ui.ruleForm.reset();
-        ui.ruleIndex.value = '';
-        ui.ruleMinTabs.value = 1;
-        ui.ruleColor.value = 'grey';
-        ui.ruleModal.classList.remove('hidden');
-    }
-    
+    function openModalForAdd() { ui.modalTitle.textContent = 'Adicionar Nova Regra'; ui.ruleForm.reset(); ui.ruleIndex.value = ''; ui.ruleMinTabs.value = 1; ui.ruleColor.value = 'grey'; ui.ruleModal.classList.remove('hidden'); }
     function closeModal() {
         ui.ruleModal.classList.add('hidden');
-        const cleanUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
         if (window.history.replaceState) {
+            const cleanUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
             window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
         }
     }
 
     function handleRuleFormSubmit(e) {
         e.preventDefault();
-        const rule = {
-            name: ui.ruleName.value.trim(),
-            type: ui.ruleType.value,
-            patterns: ui.rulePatterns.value.split('\n').map(p => p.trim()).filter(Boolean),
-            color: ui.ruleColor.value,
-            minTabs: parseInt(ui.ruleMinTabs.value, 10) || 1,
-        };
+        const rule = { name: ui.ruleName.value.trim(), type: ui.ruleType.value, patterns: ui.rulePatterns.value.split('\n').map(p => p.trim()).filter(Boolean), color: ui.ruleColor.value, minTabs: parseInt(ui.ruleMinTabs.value, 10) || 1 };
         const index = ui.ruleIndex.value;
-
-        if (index !== '') {
-            currentSettings.customRules[index] = rule;
-        } else {
-            if (!currentSettings.customRules) currentSettings.customRules = [];
-            currentSettings.customRules.push(rule);
-        }
-        
+        if (index !== '') currentSettings.customRules[index] = rule;
+        else currentSettings.customRules.push(rule);
         closeModal();
-        scheduleSave();
         renderRules();
+        scheduleSave();
     }
-    
+
     function deleteRule(index) {
         const ruleName = currentSettings.customRules[index].name;
         showConfirmModal(`Tem a certeza que deseja excluir a regra "${ruleName}"?`, () => {
             currentSettings.customRules.splice(index, 1);
-            scheduleSave();
             renderRules();
+            scheduleSave();
             showNotification(`Regra "${ruleName}" excluída.`, 'info');
         });
     }
 
     function duplicateRule(index) {
-        const originalRule = currentSettings.customRules[index];
-        const newRule = JSON.parse(JSON.stringify(originalRule));
+        const newRule = JSON.parse(JSON.stringify(currentSettings.customRules[index]));
         newRule.name += " (cópia)";
         currentSettings.customRules.splice(index + 1, 0, newRule);
-        scheduleSave();
         renderRules();
-        showNotification(`Regra "${originalRule.name}" duplicada.`, 'info');
+        scheduleSave();
+        showNotification(`Regra "${newRule.name.replace(' (cópia)', '')}" duplicada.`, 'info');
+    }
+    
+    function updateSaveStatus(status) {
+        const statusMap = { saving: ['A guardar...', 'text-yellow-500'], saved: ['Alterações guardadas.', 'text-green-500'], error: ['Erro ao guardar.', 'text-red-500'] };
+        const [text, color] = statusMap[status] || ['', ''];
+        ui.saveStatus.textContent = text;
+        ui.saveStatus.className = `h-6 text-center font-semibold transition-colors ${color}`;
     }
 
-    // --- LÓGICA DO TESTADOR DE REGRAS ---
-    function testCurrentRule() {
-        const url = ui.ruleTesterInput.value.trim();
-        if (!url) {
-            ui.ruleTesterResult.innerHTML = 'Aguardando URL...';
-            return;
-        }
-
-        const rules = currentSettings.customRules || [];
-        let matchFound = false;
-
-        for (const rule of rules) {
-            for (const pattern of rule.patterns || []) {
-                try {
-                    const trimmedPattern = pattern.trim();
-                    if (!trimmedPattern) continue;
-                    
-                    let isMatch = false;
-                    if (rule.type === 'url-wildcard') {
-                        const regex = new RegExp(trimmedPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*'));
-                        isMatch = regex.test(url);
-                    } else if (rule.type === 'url-regex') {
-                        isMatch = new RegExp(trimmedPattern).test(url);
-                    }
-                    // O tipo 'title-match' não pode ser testado aqui, pois não temos o título da página.
-
-                    if (isMatch) {
-                        ui.ruleTesterResult.innerHTML = `Correspondeu: <strong class="text-indigo-600 dark:text-indigo-400">${rule.name}</strong>`;
-                        matchFound = true;
-                        break;
-                    }
-                } catch (e) {
-                     // Ignora erros de regex inválida durante o teste
-                }
-            }
-            if (matchFound) break;
-        }
-
-        if (!matchFound) {
-            ui.ruleTesterResult.innerHTML = 'Nenhuma regra personalizada correspondeu. Usará a estratégia de nomenclatura padrão.';
+    function handleUrlParameters() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('action') !== 'new_rule') return;
+        
+        openModalForAdd();
+        ui.ruleName.value = decodeURIComponent(params.get('name') || '');
+        const url = decodeURIComponent(params.get('url') || '');
+        const patterns = decodeURIComponent(params.get('patterns') || '');
+        
+        if (patterns) {
+             ui.rulePatterns.value = patterns;
+        } else if (url) {
+            try { ui.rulePatterns.value = `*${new URL(url).hostname}*`; } catch(e) {}
         }
     }
-
 
     // --- INICIALIZAÇÃO E EVENT LISTENERS ---
 
     loadSettings();
-    
-    // Listeners para os campos do formulário que guardam automaticamente
-    const fieldsToAutoSave = [
-        'theme', 'groupingMode', 'suppressSingleTabGroups', 'uncollapseOnActivate', 
-        'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList',
-        'showTabCount', 'syncEnabled', 'logLevel', 'domainSanitizationTlds', 'titleSanitizationNoise'
-    ];
-    fieldsToAutoSave.forEach(id => {
-        const element = ui[id];
-        const eventType = element.type === 'checkbox' ? 'change' : 'input';
-        element.addEventListener(eventType, scheduleSave);
+    handleUrlParameters();
+
+    // Listeners para os campos que guardam automaticamente
+    Object.keys(ui).forEach(key => {
+        const element = ui[key];
+        if (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') {
+            const eventType = element.type === 'checkbox' || element.tagName === 'SELECT' ? 'change' : 'input';
+            element.addEventListener(eventType, scheduleSave);
+        }
     });
 
-    // Listeners específicos
+    // Listeners para UI dinâmica e Testador de Regras
     ui.theme.addEventListener('change', () => applyTheme(ui.theme.value));
     ui.ungroupSingleTabs.addEventListener('change', updateDynamicUI);
     ui.ruleTesterInput.addEventListener('input', testCurrentRule);
 
+    // Listeners para botões e modais
+    ui.addRuleBtn.addEventListener('click', openModalForAdd);
+    ui.cancelRuleBtn.addEventListener('click', closeModal);
+    ui.ruleForm.addEventListener('submit', handleRuleFormSubmit);
+    ui.ruleModal.addEventListener('click', (e) => { if (e.target === ui.ruleModal) closeModal(); });
+    ui.confirmCancelBtn.addEventListener('click', hideConfirmModal);
+    ui.confirmOkBtn.addEventListener('click', () => { if (typeof confirmCallback === 'function') confirmCallback(); hideConfirmModal(); });
+
     ui.rulesList.addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (!button) return;
-        const index = button.dataset.index;
+        const index = parseInt(button.dataset.index, 10);
         if (button.classList.contains('edit-rule-btn')) openModalForEdit(index);
         else if (button.classList.contains('delete-rule-btn')) deleteRule(index);
         else if (button.classList.contains('duplicate-rule-btn')) duplicateRule(index);
     });
-    
-    ui.addRuleBtn.addEventListener('click', openModalForAdd);
-    ui.cancelRuleBtn.addEventListener('click', closeModal);
-    ui.ruleForm.addEventListener('submit', handleRuleFormSubmit);
-    
+
+    // Listeners para Importar/Exportar
     ui.importBtn.addEventListener('click', () => ui.importFile.click());
+    ui.exportBtn.addEventListener('click', async () => {
+        const settingsToExport = await browser.runtime.sendMessage({ action: 'getSettings' });
+        const blob = new Blob([JSON.stringify(settingsToExport, null, 2)], { type: 'application/json' });
+        browser.downloads.download({ url: URL.createObjectURL(blob), filename: `auto-tab-grouper-settings-${new Date().toISOString().slice(0,10)}.json`, saveAs: true });
+    });
     ui.importFile.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -407,46 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const importedSettings = JSON.parse(e.target.result);
                 if (importedSettings && typeof importedSettings === 'object') {
                     await browser.runtime.sendMessage({ action: 'updateSettings', settings: importedSettings });
-                    showNotification('Configurações importadas com sucesso!', 'success');
                     await loadSettings();
+                    showNotification('Configurações importadas com sucesso!', 'success');
                 } else {
                     showNotification('Erro: Ficheiro de configuração inválido.', 'error');
                 }
-            } catch (err) { 
-                showNotification('Erro ao ler o ficheiro de importação.', 'error');
-            }
+            } catch (err) { showNotification('Erro ao ler o ficheiro de importação.', 'error'); }
         };
         reader.readAsText(file);
-        ui.importFile.value = '';
+        event.target.value = ''; // Limpa o input para permitir re-importar o mesmo ficheiro
     });
-
-    ui.exportBtn.addEventListener('click', async () => {
-        const settingsToExport = await browser.runtime.sendMessage({ action: 'getSettings' });
-        const jsonString = JSON.stringify(settingsToExport, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        browser.downloads.download({
-            url: URL.createObjectURL(blob),
-            filename: `auto-tab-grouper-settings-${new Date().toISOString().slice(0,10)}.json`,
-            saveAs: true
-        });
-    });
-
-    ui.ruleModal.addEventListener('click', (e) => { if (e.target === ui.ruleModal) closeModal(); });
-    ui.confirmCancelBtn.addEventListener('click', hideConfirmModal);
-    ui.confirmOkBtn.addEventListener('click', () => {
-        if (typeof confirmCallback === 'function') confirmCallback();
-        hideConfirmModal();
-    });
-
-    // Verifica se a página foi aberta com uma ação específica (ex: 'criar regra')
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('action') === 'new_rule') {
-        openModalForAdd();
-        ui.ruleName.value = decodeURIComponent(params.get('name') || '');
-        ui.rulePatterns.value = decodeURIComponent(params.get('patterns') || '');
-        const url = decodeURIComponent(params.get('url') || '');
-        if (url) {
-            try { ui.rulePatterns.value = `*${new URL(url).hostname}*`; } catch(e) {}
-        }
-    }
 });
