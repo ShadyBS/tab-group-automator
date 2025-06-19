@@ -1,6 +1,6 @@
 /**
  * @file settings-manager.js
- * @description Manages extension settings and storage.
+ * @description Gere as configurações da extensão e o armazenamento, com suporte para sincronização.
  */
 
 export const DEFAULT_SETTINGS = {
@@ -14,11 +14,10 @@ export const DEFAULT_SETTINGS = {
   ungroupSingleTabsTimeout: 10,
   exceptions: [],
   showTabCount: true,
-  syncEnabled: false,
+  syncEnabled: false, // A sincronização é opcional
   manualGroupIds: [],
   logLevel: 'INFO',
-  // NOVO: Configuração do tema da interface
-  theme: 'auto', // 'auto', 'light', 'dark'
+  theme: 'auto',
   domainSanitizationTlds: [
     '.rs.gov.br', '.sp.gov.br', '.rj.gov.br',
     '.com.br', '.net.br', '.org.br', '.gov.br', '.edu.br',
@@ -33,31 +32,54 @@ export const DEFAULT_SETTINGS = {
   ],
 };
 
-// In-memory objects
+// Objetos em memória
 export let settings = { ...DEFAULT_SETTINGS };
 export let smartNameCache = new Map();
 
-// Variável para controlar o timeout do debounce ao salvar o cache.
+// Timeout para o debounce da gravação do cache.
 let saveCacheTimeout = null;
 
-function getStorageArea() {
-    return browser.storage.local;
+/**
+ * Determina qual área de armazenamento usar (sync ou local).
+ * @param {boolean} useSync - Se deve usar o armazenamento sync.
+ * @returns {browser.storage.StorageArea} A área de armazenamento apropriada.
+ */
+function getStorage(useSync) {
+    return useSync ? browser.storage.sync : browser.storage.local;
 }
 
 /**
- * Loads settings from storage into the in-memory object.
+ * Carrega as configurações do armazenamento. O armazenamento sync é prioritário.
  */
 export async function loadSettings() {
-    const storageArea = getStorageArea();
     try {
-        const data = await storageArea.get(['settings', 'smartNameCache']);
-        settings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
-        
-        if (data.smartNameCache) {
-            smartNameCache = new Map(Object.entries(data.smartNameCache));
+        // Prioriza o armazenamento sync.
+        const syncData = await browser.storage.sync.get('settings');
+        let loadedSettings = null;
+
+        if (syncData && syncData.settings) {
+            console.log("A carregar configurações do sync.");
+            loadedSettings = syncData.settings;
+        } else {
+            // Recorre ao armazenamento local se não estiver no sync.
+            console.log("Sem configurações no sync, a tentar local.");
+            const localData = await browser.storage.local.get('settings');
+            if (localData && localData.settings) {
+                loadedSettings = localData.settings;
+            }
         }
+        
+        settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
+
+        // O cache de nomes inteligentes é sempre local, pois pode ser grande e específico da máquina.
+        const cacheData = await browser.storage.local.get('smartNameCache');
+        if (cacheData && cacheData.smartNameCache) {
+            smartNameCache = new Map(Object.entries(cacheData.smartNameCache));
+        }
+
     } catch(e) {
-        console.error("Fatal error loading settings:", e);
+        console.error("Erro fatal ao carregar configurações:", e);
+        // Em caso de erro fatal, reverte para os padrões.
         settings = { ...DEFAULT_SETTINGS };
         smartNameCache = new Map();
         throw e;
@@ -65,22 +87,44 @@ export async function loadSettings() {
 }
 
 /**
- * Updates a specific part of the settings and saves to storage.
- * @param {object} newSettings - The new settings to apply.
+ * Atualiza uma parte das configurações, guarda na área de armazenamento correta
+ * e lida com a movimentação das configurações entre o armazenamento local e sync.
+ * @param {object} newSettings - As novas configurações a aplicar.
  */
 export async function updateSettings(newSettings) {
     const oldSettings = { ...settings };
+    const oldSyncStatus = oldSettings.syncEnabled;
+
+    // Aplica as novas configurações ao nosso objeto em memória
     settings = { ...settings, ...newSettings };
-    
-    const storageArea = getStorageArea();
-    await storageArea.set({ settings });
+    const newSyncStatus = settings.syncEnabled;
+
+    const targetStorage = getStorage(newSyncStatus);
+
+    try {
+        await targetStorage.set({ settings });
+        console.log(`Configurações guardadas no armazenamento ${newSyncStatus ? 'sync' : 'local'}.`);
+
+        // Se o estado de sincronização mudou, remove as configurações da localização antiga.
+        if (oldSyncStatus !== newSyncStatus) {
+            const sourceStorage = getStorage(oldSyncStatus);
+            await sourceStorage.remove('settings');
+            console.log(`Configurações removidas do armazenamento ${oldSyncStatus ? 'sync' : 'local'}.`);
+        }
+
+    } catch (e) {
+        console.error(`Erro ao guardar configurações no armazenamento ${newSyncStatus ? 'sync' : 'local'}:`, e);
+        // Opcionalmente, reverte as configurações em caso de falha
+        settings = oldSettings;
+        throw e;
+    }
 
     return { oldSettings, newSettings: settings };
 }
 
 /**
- * Saves the smart name cache to persistent storage using a debounce mechanism
- * to prevent excessive writes.
+ * Guarda o cache de nomes inteligentes no armazenamento local com debounce.
+ * Este cache NÃO deve ser sincronizado.
  */
 export function saveSmartNameCache() {
     if (saveCacheTimeout) {
@@ -88,18 +132,18 @@ export function saveSmartNameCache() {
     }
 
     saveCacheTimeout = setTimeout(async () => {
-        const storageArea = getStorageArea();
         try {
-            await storageArea.set({ smartNameCache: Object.fromEntries(smartNameCache) });
+            // Usa explicitamente o armazenamento local para o cache.
+            await browser.storage.local.set({ smartNameCache: Object.fromEntries(smartNameCache) });
         } catch (e) {
-            console.error("Erro ao salvar o smart name cache:", e);
+            console.error("Erro ao guardar o cache de nomes inteligentes:", e);
         }
         saveCacheTimeout = null;
     }, 2000);
 }
 
 /**
- * Clears the smart name cache from memory and storage.
+ * Limpa o cache de nomes inteligentes da memória и do armazenamento local.
  */
 export function clearSmartNameCache() {
     smartNameCache.clear();
@@ -108,7 +152,7 @@ export function clearSmartNameCache() {
         clearTimeout(saveCacheTimeout);
         saveCacheTimeout = null;
     }
-
-    const storageArea = getStorageArea();
-    storageArea.remove('smartNameCache');
+    
+    // Usa explicitamente o armazenamento local para o cache.
+    browser.storage.local.remove('smartNameCache');
 }
