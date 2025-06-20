@@ -7,7 +7,6 @@ import Logger from './logger.js';
 import { settings, loadSettings, updateSettings } from './settings-manager.js';
 import { processTabQueue } from './grouping-logic.js';
 import { initializeContextMenus, updateContextMenus } from './context-menu-manager.js';
-// O `pendingClassificationGroups` foi removido pois a nova lógica não precisa dele.
 import { recentlyCreatedAutomaticGroups, injectionFailureMap } from './app-state.js';
 
 // --- Constantes e Variáveis de Estado ---
@@ -215,7 +214,6 @@ async function updateGroupTitleWithCount(groupId) {
             await browser.tabGroups.update(groupId, { title: newTitle });
         }
     } catch (e) {
-        // CORREÇÃO: Ignora o erro se o grupo já não existir. É um caso esperado.
         if (e.message.includes("No group with id") || e.message.includes("Invalid tab group ID")) {
             // Não faz nada, o grupo foi removido antes da atualização do título.
         } else {
@@ -238,31 +236,50 @@ function scheduleTitleUpdate(groupId) {
 
 // --- Lógica de Grupos Manuais e Edição de Regras ---
 
-// CORREÇÃO: Lógica de classificação de grupo refeita para ser determinística e sem race conditions.
-async function handleTabGroupCreated(group) {
-    // Se o ID do grupo está em `recentlyCreatedAutomaticGroups`, significa que foi criado
-    // pela nossa lógica de agrupamento automático. Apenas o removemos do conjunto e paramos.
-    if (recentlyCreatedAutomaticGroups.has(group.id)) {
-        recentlyCreatedAutomaticGroups.delete(group.id);
-        Logger.debug('handleTabGroupCreated', `Grupo ${group.id} classificado como automático.`);
-        return;
-    }
-
-    // Se o grupo não foi marcado como automático, assumimos que foi criado manualmente pelo utilizador.
-    Logger.info('handleTabGroupCreated', `Grupo ${group.id} classificado como manual.`);
-    if (!settings.manualGroupIds.includes(group.id)) {
-        const newManualIds = [...settings.manualGroupIds, group.id];
-        await updateSettings({ manualGroupIds: newManualIds });
-        
-        // Adiciona o pino ao título para identificação visual.
-        try {
-            const currentGroup = await browser.tabGroups.get(group.id);
-            const cleanTitle = (currentGroup.title || 'Grupo').replace(/📌\s*/, '');
-            await browser.tabGroups.update(group.id, { title: `📌 ${cleanTitle}` });
-        } catch (e) {
-            Logger.warn('handleTabGroupCreated', `Não foi possível adicionar pino ao grupo manual ${group.id} pois ele foi removido rapidamente.`, e);
+/**
+ * Lida com a criação de um novo grupo de abas.
+ */
+function handleTabGroupCreated(group) {
+    /**
+     * WORKAROUND PARA CONDIÇÃO DE CORRIDA (RACE CONDITION):
+     * A criação de um grupo (`browser.tabs.group`) e o evento `onCreated` que se segue
+     * podem ocorrer de forma quase simultânea. Isto pode levar o nosso listener a ser executado
+     * ANTES que a nossa lógica de agrupamento (`processTabQueue`) tenha tido tempo de marcar
+     * o grupo como automático (adicionando-o a `recentlyCreatedAutomaticGroups`).
+     *
+     * Para resolver isto, usamos um `setTimeout` com um atraso mínimo (ex: 50ms).
+     * Este atraso, embora impercetível para o utilizador, é suficiente para garantir que
+     * a lógica de agrupamento termine a sua execução primeiro. Assim, quando este código
+     * for executado, a verificação `recentlyCreatedAutomaticGroups.has(group.id)`
+     * será fiável, evitando que grupos automáticos sejam incorretamente classificados
+     * como manuais.
+     */
+    setTimeout(async () => {
+        if (recentlyCreatedAutomaticGroups.has(group.id)) {
+            // Se o ID está no conjunto, foi criado automaticamente. Apenas o removemos e paramos.
+            recentlyCreatedAutomaticGroups.delete(group.id);
+            Logger.debug('handleTabGroupCreated', `Grupo ${group.id} classificado como automático.`);
+            return;
         }
-    }
+
+        // Se, mesmo após o atraso, o ID não estiver no conjunto, é um grupo manual.
+        Logger.info('handleTabGroupCreated', `Grupo ${group.id} classificado como manual.`);
+        if (!settings.manualGroupIds.includes(group.id)) {
+            const newManualIds = [...settings.manualGroupIds, group.id];
+            await updateSettings({ manualGroupIds: newManualIds });
+            
+            // Adiciona o pino ao título para identificação visual.
+            try {
+                const currentGroup = await browser.tabGroups.get(group.id);
+                const cleanTitle = (currentGroup.title || 'Grupo').replace(/📌\s*/, '');
+                if (!currentGroup.title.startsWith('📌')) {
+                    await browser.tabGroups.update(group.id, { title: `📌 ${cleanTitle}` });
+                }
+            } catch (e) {
+                Logger.warn('handleTabGroupCreated', `Não foi possível adicionar pino ao grupo manual ${group.id}, provavelmente foi removido.`, e);
+            }
+        }
+    }, 50); // Atraso de 50ms como workaround para a race condition.
 }
 
 async function handleTabGroupUpdated(group) {
@@ -291,12 +308,10 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
     const oldRules = oldSettings.customRules || [];
     const newRules = newSettings.customRules || [];
     
-    // Evita a lógica complexa se não houver regras para verificar.
     if (oldRules.length === 0 || newRules.length === 0) return;
 
     const changedRules = [];
     for (const oldRule of oldRules) {
-        // Procura por uma regra correspondente nas novas configurações (assumindo que os padrões são a "identidade" da regra)
         const newRule = newRules.find(r => JSON.stringify(r.patterns) === JSON.stringify(oldRule.patterns));
         if (newRule && (oldRule.name !== newRule.name || oldRule.color !== newRule.color)) {
             changedRules.push({ oldName: oldRule.name, newName: newRule.name, newColor: newRule.color });
@@ -351,6 +366,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     updateUngroupTimer();
                     await updateContextMenus();
 
+                    // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
+                    browser.runtime.sendMessage({ action: 'settingsUpdated' }).catch(() => {});
                     sendResponse(newSettings);
                     break;
                 case 'groupAllTabs':
