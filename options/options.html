@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
   <title>Opções - Auto Tab Grouper</title>
@@ -89,7 +89,12 @@
             <div>
                 <label for="titleSanitizationNoise" class="font-semibold mb-2 block">Palavras a ignorar em títulos:</label>
                 <textarea id="titleSanitizationNoise" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600" rows="10"></textarea>
-                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Palavras a serem removidas dos títulos (não sensível a maiúsculas/minúsculas).</p>
+                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Palavras que, se encontradas, penalizam um segmento de título.</p>
+            </div>
+            <div class="md:col-span-2">
+                <label for="titleDelimiters" class="font-semibold mb-2 block">Delimitadores de Título:</label>
+                <input type="text" id="titleDelimiters" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600">
+                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Caracteres usados para separar o nome da marca do resto do título.</p>
             </div>
         </div>
     </section>
@@ -133,7 +138,6 @@
             <input type="file" id="importFile" accept=".json" class="hidden">
             <button id="exportBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
         </div>
-        <!-- O botão Salvar foi removido. A gravação é automática. -->
         <div id="saveStatus" class="h-6 text-center font-semibold transition-colors"></div>
     </footer>
   </div>

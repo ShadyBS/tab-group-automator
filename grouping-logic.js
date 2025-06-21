@@ -43,10 +43,10 @@ function chooseBestBrandSegment(segments, hostname, noiseWords = []) {
     return scoredSegments[0].text;
 }
 
-function extractBrandNameFromTitle(title, hostname, separators = [], noiseWords = []) {
+function extractBrandNameFromTitle(title, hostname, separators = '', noiseWords = []) {
     if (!title || !hostname) return null;
     const cleanHostname = hostname.replace(/^www\./, '');
-    if (separators.length === 0) return null;
+    if (!separators || separators.length === 0) return null;
     
     const escapedDelimiters = String(separators).split('').map(sep => sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
     const regex = new RegExp(`[${escapedDelimiters}]`);
@@ -142,7 +142,10 @@ export async function getFinalGroupName(tab) {
         return groupName;
     }
     
-    return sanitizeDomainName(hostname);
+    const fallbackName = sanitizeDomainName(hostname);
+    smartNameCache.set(hostname, fallbackName);
+    saveSmartNameCache();
+    return fallbackName;
 }
 
 export function getNextColor() {
@@ -154,13 +157,16 @@ export function getNextColor() {
 export async function processTabQueue(tabIds) {
     if (!settings.autoGroupingEnabled || tabIds.length === 0) return;
 
+    // MELHORIA DE LOG: Log inicial mais informativo.
+    Logger.debug('processTabQueue', `Iniciando processamento. Abas na fila: ${tabIds.join(', ')}`);
+
+    const tabsByWindow = {};
     const tabsToProcess = (await Promise.all(tabIds.map(id => browser.tabs.get(id).catch(() => null)))).filter(Boolean);
     if (tabsToProcess.length === 0) return;
-
-    const tabsByWindow = tabsToProcess.reduce((acc, tab) => {
-        (acc[tab.windowId] = acc[tab.windowId] || []).push(tab);
-        return acc;
-    }, {});
+    
+    for (const tab of tabsToProcess) {
+        (tabsByWindow[tab.windowId] = tabsByWindow[tab.windowId] || []).push(tab);
+    }
 
     for (const windowIdStr in tabsByWindow) {
         const windowId = parseInt(windowIdStr, 10);
@@ -170,6 +176,11 @@ export async function processTabQueue(tabIds) {
 
         const groupNamePromises = allTabsInWindow.map(async tab => ({ tabId: tab.id, groupName: await getFinalGroupName(tab) }));
         const tabIdToGroupName = new Map((await Promise.all(groupNamePromises)).map(item => [item.tabId, item.groupName]));
+        
+        const groupNameCounts = new Map();
+        for (const name of tabIdToGroupName.values()) {
+            if (name) groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
+        }
 
         const tabsToGroup = new Map();
         for (const tab of allTabsInWindow) {
@@ -177,7 +188,7 @@ export async function processTabQueue(tabIds) {
             
             const finalGroupName = tabIdToGroupName.get(tab.id);
             if (!finalGroupName) {
-                if(tab.groupId) await browser.tabs.ungroup(tab.id).catch(()=>{});
+                if(tab.groupId) await browser.tabs.ungroup([tab.id]).catch(()=>{});
                 continue;
             }
 
@@ -194,8 +205,15 @@ export async function processTabQueue(tabIds) {
         for(const [groupName, tabIdsForGroup] of tabsToGroup.entries()){
             const matchedRule = settings.customRules.find(r => r.name === groupName);
             const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
+            
+            // CORREÇÃO: Usa a contagem total de abas para este nome de grupo, não apenas as que estão sendo movidas.
+            const totalMatchingTabs = groupNameCounts.get(groupName) || 0;
+            
+            // MELHORIA DE LOG: Mostra a decisão sobre o mínimo de abas.
+            Logger.debug('processTabQueue', `Avaliando grupo '${groupName}'. Mínimo: ${minTabsRequired}, Encontradas: ${totalMatchingTabs}, Para mover: ${tabIdsForGroup.length}`);
 
-            if(tabIdsForGroup.length < minTabsRequired){
+            if (totalMatchingTabs < minTabsRequired) {
+                Logger.debug('processTabQueue', `Grupo '${groupName}' não atingiu o mínimo de abas. Desagrupando ${tabIdsForGroup.join(', ')}.`);
                 await browser.tabs.ungroup(tabIdsForGroup).catch(()=>{});
                 continue;
             }
@@ -203,12 +221,15 @@ export async function processTabQueue(tabIds) {
             try {
                 const existingGroupId = groupTitleToIdMap.get(groupName);
                 if (existingGroupId && !settings.manualGroupIds.includes(existingGroupId)) {
+                    Logger.debug('processTabQueue', `Adicionando abas ${tabIdsForGroup.join(', ')} ao grupo existente '${groupName}' (${existingGroupId})`);
                     await browser.tabs.group({ groupId: existingGroupId, tabIds: tabIdsForGroup });
-                } else {
+                } else if (!existingGroupId) {
+                    Logger.debug('processTabQueue', `Criando novo grupo '${groupName}' com as abas ${tabIdsForGroup.join(', ')}`);
                     const newGroupId = await browser.tabs.group({ createProperties: { windowId }, tabIds: tabIdsForGroup });
                     recentlyCreatedAutomaticGroups.add(newGroupId);
                     const color = (matchedRule && matchedRule.color) ? matchedRule.color : getNextColor();
                     await browser.tabGroups.update(newGroupId, { title: groupName, color });
+                    groupTitleToIdMap.set(groupName, newGroupId);
                 }
             } catch (e) {
                 Logger.error(`processTabQueue`, `Erro ao processar o grupo "${groupName}":`, e);
