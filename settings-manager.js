@@ -10,7 +10,7 @@ export const DEFAULT_SETTINGS = {
   autoCollapseTimeout: 0,
   suppressSingleTabGroups: true,
   uncollapseOnActivate: true,
-  customRules: [],
+  customRules: [], // A estrutura das regras será alterada
   ungroupSingleTabs: false,
   ungroupSingleTabsTimeout: 10,
   exceptions: [],
@@ -31,7 +31,6 @@ export const DEFAULT_SETTINGS = {
   titleSanitizationNoise: [
     'login', 'sign in', 'dashboard', 'homepage', 'painel'
   ],
-  // NOVO: Adiciona a configuração para os delimitadores de título.
   titleDelimiters: '|–—:·»«-',
 };
 
@@ -39,12 +38,54 @@ export const DEFAULT_SETTINGS = {
 export let settings = { ...DEFAULT_SETTINGS };
 export let smartNameCache = new Map();
 
-// Timeout para o debounce da gravação do cache.
 let saveCacheTimeout = null;
 
 function getStorage(useSync) {
     return useSync ? browser.storage.sync : browser.storage.local;
 }
+
+/**
+ * Converte uma regra do formato antigo para o novo formato com conditionGroup.
+ * @param {object} oldRule - A regra no formato antigo.
+ * @returns {object} A regra no novo formato.
+ */
+function migrateRuleToNewFormat(oldRule) {
+    // Se a regra já tem conditionGroup, ela já está no novo formato.
+    if (oldRule.conditionGroup) {
+        return oldRule;
+    }
+
+    Logger.info("MigrateRule", `Migrando regra antiga: "${oldRule.name}"`);
+
+    const newRule = {
+        name: oldRule.name,
+        color: oldRule.color || 'grey',
+        minTabs: oldRule.minTabs || 1,
+        conditionGroup: {
+            operator: 'OR', // Múltiplos padrões no formato antigo funcionam como 'OU'
+            conditions: []
+        }
+    };
+
+    if (oldRule.patterns && oldRule.patterns.length > 0) {
+        const propertyMap = {
+            'url-wildcard': { property: 'url', operator: 'wildcard' },
+            'url-regex': { property: 'url', operator: 'regex' },
+            'title-match': { property: 'title', operator: 'contains' },
+        };
+        
+        const mapping = propertyMap[oldRule.type] || { property: 'url', operator: 'contains' };
+
+        newRule.conditionGroup.conditions = oldRule.patterns.map(pattern => ({
+            property: mapping.property,
+            operator: mapping.operator,
+            value: pattern
+        }));
+    }
+
+    return newRule;
+}
+
 
 export async function loadSettings() {
     try {
@@ -63,6 +104,18 @@ export async function loadSettings() {
         }
         
         settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
+
+        // **SCRIPT DE MIGRAÇÃO DE REGRAS**
+        // Verifica se existem regras e se a primeira regra não tem 'conditionGroup',
+        // o que indica que está no formato antigo.
+        if (settings.customRules && settings.customRules.length > 0 && !settings.customRules[0].conditionGroup) {
+            Logger.warn("SettingsManager", "Detectado formato de regras antigo. Iniciando migração...");
+            settings.customRules = settings.customRules.map(migrateRuleToNewFormat);
+            // Salva as configurações migradas imediatamente.
+            await updateSettings(settings); 
+            Logger.info("SettingsManager", "Migração de regras concluída.");
+        }
+
 
         const cacheData = await browser.storage.local.get('smartNameCache');
         if (cacheData && cacheData.smartNameCache) {
@@ -109,7 +162,6 @@ export function saveSmartNameCache() {
     if (saveCacheTimeout) {
         clearTimeout(saveCacheTimeout);
     }
-
     saveCacheTimeout = setTimeout(async () => {
         try {
             await browser.storage.local.set({ smartNameCache: Object.fromEntries(smartNameCache) });
@@ -122,11 +174,9 @@ export function saveSmartNameCache() {
 
 export function clearSmartNameCache() {
     smartNameCache.clear();
-    
     if (saveCacheTimeout) {
         clearTimeout(saveCacheTimeout);
         saveCacheTimeout = null;
     }
-    
     browser.storage.local.remove('smartNameCache');
 }

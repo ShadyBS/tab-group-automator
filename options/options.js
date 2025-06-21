@@ -1,6 +1,6 @@
 /**
  * @file options.js
- * @description Lógica para a página de opções da extensão, com gravação automática e UI dinâmica.
+ * @description Lógica para a página de opções da extensão, com suporte para regras complexas.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,19 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleForm: document.getElementById('ruleForm'),
         addRuleBtn: document.getElementById('addRuleBtn'),
         cancelRuleBtn: document.getElementById('cancelRuleBtn'),
+        saveRuleBtn: document.getElementById('saveRuleBtn'),
         ruleIndex: document.getElementById('ruleIndex'),
         ruleName: document.getElementById('ruleName'),
-        ruleType: document.getElementById('ruleType'),
-        rulePatterns: document.getElementById('rulePatterns'),
-        ruleMinTabs: document.getElementById('ruleMinTabs'),
         ruleColor: document.getElementById('ruleColor'),
+        ruleOperator: document.getElementById('ruleOperator'),
+        conditionsContainer: document.getElementById('conditionsContainer'),
+        addConditionBtn: document.getElementById('addConditionBtn'),
         confirmModal: document.getElementById('confirmModal'),
         confirmModalText: document.getElementById('confirmModalText'),
         confirmOkBtn: document.getElementById('confirmOkBtn'),
         confirmCancelBtn: document.getElementById('confirmCancelBtn'),
         notificationContainer: document.getElementById('notification-container'),
         saveStatus: document.getElementById('saveStatus'),
-        ruleTesterInput: document.getElementById('ruleTesterInput'),
+        ruleTesterUrl: document.getElementById('ruleTesterUrl'),
+        ruleTesterTitle: document.getElementById('ruleTesterTitle'),
         ruleTesterResult: document.getElementById('ruleTesterResult'),
     };
 
@@ -50,16 +52,83 @@ document.addEventListener('DOMContentLoaded', () => {
     let confirmCallback = null;
     let saveTimeout = null;
 
-    // --- GESTÃO DE DADOS E CONFIGURAÇÕES ---
+    // --- LÓGICA DO CONSTRUTOR DE REGRAS ---
+
+    const propertyOptions = `
+        <option value="url">URL Completa</option>
+        <option value="hostname">Domínio (ex: google.com)</option>
+        <option value="url_path">Caminho da URL (ex: /noticias)</option>
+        <option value="title">Título da Aba</option>
+    `;
+
+    const operatorOptions = {
+        string: `
+            <option value="contains">contém</option>
+            <option value="not_contains">não contém</option>
+            <option value="starts_with">começa com</option>
+            <option value="ends_with">termina com</option>
+            <option value="equals">é igual a</option>
+            <option value="regex">corresponde à Regex</option>
+        `,
+    };
+
+    function createConditionElement(condition = {}) {
+    const conditionDiv = document.createElement('div');
+    conditionDiv.className = 'condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-600';
+    
+    // Layout em grid responsivo para melhor distribuição do espaço
+    conditionDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+            <div class="md:col-span-3">
+                <select class="condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                    ${propertyOptions}
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <select class="condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                    ${operatorOptions.string}
+                </select>
+            </div>
+            <div class="md:col-span-5">
+                <input type="text" class="condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Digite o valor aqui...">
+            </div>
+            <div class="md:col-span-1 flex justify-center">
+                <button type="button" class="remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Preencher valores se fornecidos
+    if (condition.property) conditionDiv.querySelector('.condition-property').value = condition.property;
+    if (condition.operator) conditionDiv.querySelector('.condition-operator').value = condition.operator;
+    if (condition.value) conditionDiv.querySelector('.condition-value').value = condition.value;
+
+    // Event listener para remover condição
+    conditionDiv.querySelector('.remove-condition-btn').addEventListener('click', () => {
+        conditionDiv.remove();
+    });
+
+    return conditionDiv;
+    }
+
+    ui.addConditionBtn.addEventListener('click', () => {
+        ui.conditionsContainer.appendChild(createConditionElement());
+    });
+
+    // --- FUNÇÕES DE GESTÃO DE DADOS ---
 
     async function loadSettings() {
         try {
             const settingsFromBg = await browser.runtime.sendMessage({ action: 'getSettings' });
             currentSettings = settingsFromBg || {};
             populateForm(currentSettings);
-            applyTheme(currentSettings.theme);
             updateDynamicUI();
-            testCurrentRule();
+            await testCurrentRule();
         } catch (e) {
             console.error("Erro ao carregar as configurações:", e);
             showNotification('Não foi possível carregar as configurações.', 'error');
@@ -67,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function populateForm(settings) {
+        applyTheme(settings.theme || 'auto');
         ui.theme.value = settings.theme || 'auto';
         ui.groupingMode.value = settings.groupingMode;
         ui.suppressSingleTabGroups.checked = settings.suppressSingleTabGroups;
@@ -81,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.domainSanitizationTlds.value = (settings.domainSanitizationTlds || []).join('\n');
         ui.titleSanitizationNoise.value = (settings.titleSanitizationNoise || []).join('\n');
         ui.titleDelimiters.value = settings.titleDelimiters || '|–—:·»«-';
-        renderRules();
+        renderRulesList();
     }
 
     function collectSettingsFromForm() {
@@ -115,9 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 await browser.runtime.sendMessage({ action: 'updateSettings', settings: newSettings });
                 currentSettings = newSettings;
                 updateSaveStatus('saved');
-                testCurrentRule();
+                await testCurrentRule();
             } catch (e) {
-                console.error("Falha ao enviar mensagem de atualização:", e);
                 updateSaveStatus('error');
                 showNotification('Erro ao guardar as configurações.', 'error');
             }
@@ -131,37 +200,35 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.saveStatus.className = `h-6 text-center font-semibold transition-colors ${color}`;
     }
 
-    // --- RENDERIZAÇÃO E ATUALIZAÇÃO DA UI ---
+    // --- FUNÇÕES DE UI E RENDERIZAÇÃO ---
     
-    function applyTheme(theme) {
-        if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-    }
-    
-    function updateDynamicUI() {
-        ui.ungroupSingleTabsTimeout.disabled = !ui.ungroupSingleTabs.checked;
-        ui.ungroupSingleTabsTimeout.parentElement.style.opacity = ui.ungroupSingleTabs.checked ? 1 : 0.6;
-    }
-    
-    function renderRules() {
+    function renderRulesList() {
         ui.rulesList.innerHTML = '';
         const rules = currentSettings.customRules || [];
         if (rules.length === 0) {
             ui.rulesList.innerHTML = '<p class="text-slate-500 italic text-center p-4 dark:text-slate-400">Nenhuma regra personalizada ainda.</p>';
-        } else {
-            rules.forEach((rule, index) => {
-                const patterns = rule.patterns || [];
-                const displayPattern = patterns.length > 1 ? `${patterns[0]} (e mais ${patterns.length - 1})` : patterns[0] || 'Nenhum padrão';
-                const ruleElement = document.createElement('div');
-                const colorMap = { grey: '#5A5A5A', blue: '#3498db', red: '#e74c3c', yellow: '#f1c40f', green: '#2ecc71', pink: '#e91e63', purple: '#9b59b6', cyan: '#1abc9c', orange: '#e67e22' };
-                ruleElement.className = 'rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50';
-                ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${patterns.join('\n')}">${displayPattern} <span class="text-xs bg-slate-200 text-slate-500 dark:bg-slate-600 dark:text-slate-400 p-1 rounded">${rule.type}</span></p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-index="${index}" class="duplicate-rule-btn text-slate-500 hover:text-blue-600 p-2 rounded-md dark:text-slate-400 dark:hover:text-blue-400" title="Duplicar Regra">❐</button><button data-index="${index}" class="edit-rule-btn text-slate-500 hover:text-indigo-600 p-2 rounded-md dark:text-slate-400 dark:hover:text-indigo-400" title="Editar Regra">✏️</button><button data-index="${index}" class="delete-rule-btn text-slate-500 hover:text-red-600 p-2 rounded-md dark:text-slate-400 dark:hover:text-red-400" title="Excluir Regra">🗑️</button></div>`;
-                ui.rulesList.appendChild(ruleElement);
-            });
+            return;
         }
+
+        rules.forEach((rule, index) => {
+            const conditions = rule.conditionGroup?.conditions || [];
+            let summary = 'Regra vazia';
+            if(conditions.length > 0) {
+                const firstCond = conditions[0];
+                summary = `${firstCond.property} ${firstCond.operator} "${firstCond.value}"`;
+                if(conditions.length > 1) {
+                    summary += ` ${rule.conditionGroup.operator.toLowerCase()} mais ${conditions.length - 1}...`;
+                }
+            }
+            
+            const ruleElement = document.createElement('div');
+            const colorMap = { grey: '#5A5A5A', blue: '#3498db', red: '#e74c3c', yellow: '#f1c40f', green: '#2ecc71', pink: '#e91e63', purple: '#9b59b6', cyan: '#1abc9c', orange: '#e67e22' };
+            ruleElement.className = 'rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50';
+            ruleElement.dataset.index = index;
+            ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${conditions.map(c => `${c.property} ${c.operator} ${c.value}`).join(` ${rule.conditionGroup.operator} `)}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
+            ui.rulesList.appendChild(ruleElement);
+        });
+        
         initSortable();
     }
     
@@ -169,87 +236,92 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sortableInstance) sortableInstance.destroy();
         if (ui.rulesList && currentSettings.customRules && currentSettings.customRules.length > 0) {
             sortableInstance = new Sortable(ui.rulesList, {
-                group: 'rules-list',
-                handle: '.drag-handle',
-                animation: 150,
+                group: 'rules-list', handle: '.drag-handle', animation: 150,
                 onEnd: (evt) => {
                     const movedItem = currentSettings.customRules.splice(evt.oldIndex, 1)[0];
                     currentSettings.customRules.splice(evt.newIndex, 0, movedItem);
-                    renderRules();
+                    renderRulesList();
                     scheduleSave();
                 }
             });
         }
     }
     
-    function testCurrentRule() {
-        const url = ui.ruleTesterInput.value.trim();
-        if (!url) {
-            ui.ruleTesterResult.innerHTML = 'Aguardando URL...';
+    // --- TESTADOR DE REGRAS ---
+
+    async function testCurrentRule() {
+        const url = ui.ruleTesterUrl.value.trim();
+        const title = ui.ruleTesterTitle.value.trim();
+        if (!url && !title) {
+            ui.ruleTesterResult.innerHTML = 'Aguardando entrada...';
             return;
         }
-        const rules = currentSettings.customRules || [];
-        for (const rule of rules) {
-            for (const pattern of rule.patterns || []) {
-                try {
-                    if (!pattern.trim()) continue;
-                    let isMatch = false;
-                    if (rule.type === 'url-wildcard') {
-                        isMatch = new RegExp(pattern.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*')).test(url);
-                    } else if (rule.type === 'url-regex') {
-                        isMatch = new RegExp(pattern.trim()).test(url);
-                    }
-                    if (isMatch) {
-                        ui.ruleTesterResult.innerHTML = `Correspondeu: <strong class="text-indigo-600 dark:text-indigo-400">${rule.name}</strong>`;
-                        return;
-                    }
-                } catch (e) {
-                    // Ignora regex inválida
-                }
-            }
+        
+        const mockTab = { url, title, id: -1, hostname: '', pathname: '' };
+        try {
+            const parsedUrl = new URL(url);
+            mockTab.hostname = parsedUrl.hostname;
+            mockTab.pathname = parsedUrl.pathname;
+        } catch (e) {
+            // URL inválida, mas podemos continuar testando o título
         }
-        ui.ruleTesterResult.innerHTML = 'Nenhuma regra personalizada correspondeu. Usará a estratégia de nomenclatura padrão.';
+        
+        try {
+            // Simula a lógica de evaluateRule
+            const evaluateCondition = (cond) => {
+                const tabProperties = { url: mockTab.url, title: mockTab.title, hostname: mockTab.hostname, url_path: mockTab.pathname };
+                const propValue = String(tabProperties[cond.property] || '');
+                const condValue = String(cond.value || '');
+                if (condValue === '') return false;
+                switch (cond.operator) {
+                    case 'contains': return propValue.toLowerCase().includes(condValue.toLowerCase());
+                    case 'not_contains': return !propValue.toLowerCase().includes(condValue.toLowerCase());
+                    case 'starts_with': return propValue.toLowerCase().startsWith(condValue.toLowerCase());
+                    case 'ends_with': return propValue.toLowerCase().endsWith(condValue.toLowerCase());
+                    case 'equals': return propValue.toLowerCase() === condValue.toLowerCase();
+                    case 'regex': return new RegExp(condValue, 'i').test(propValue);
+                    default: return false;
+                }
+            };
+            
+            const matchingRule = currentSettings.customRules.find(rule => {
+                if(!rule.conditionGroup) return false;
+                const {operator, conditions} = rule.conditionGroup;
+                if (!conditions || conditions.length === 0) return false;
+                
+                if(operator === 'AND') return conditions.every(evaluateCondition);
+                if(operator === 'OR') return conditions.some(evaluateCondition);
+                return false;
+            });
+
+            if (matchingRule) {
+                ui.ruleTesterResult.innerHTML = `Correspondeu: <strong class="text-indigo-600 dark:text-indigo-400">${matchingRule.name}</strong>`;
+            } else {
+                ui.ruleTesterResult.innerHTML = 'Nenhuma regra personalizada correspondeu. Usará a nomenclatura inteligente/domínio.';
+            }
+        } catch(e) {
+            ui.ruleTesterResult.innerHTML = `<span class="text-red-500">Erro na avaliação da regra: ${e.message}</span>`;
+        }
     }
 
-    // --- GESTÃO DE MODAIS E NOTIFICAÇÕES ---
-
-    function showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        const colors = {
-            success: 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-200',
-            error: 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-200',
-            info: 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-200'
-        };
-        notification.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${colors[type]}`;
-        notification.textContent = message;
-        ui.notificationContainer.appendChild(notification);
-        setTimeout(() => notification.classList.remove('opacity-0', 'translate-y-2'), 10);
-        setTimeout(() => {
-            notification.classList.add('opacity-0');
-            notification.addEventListener('transitionend', () => notification.remove());
-        }, 4000);
-    }
+    // --- MODAIS E AÇÕES ---
     
-    function showConfirmModal(text, onConfirm) {
-        ui.confirmModalText.textContent = text;
-        confirmCallback = onConfirm;
-        ui.confirmModal.classList.remove('hidden');
-    }
-
-    function hideConfirmModal() {
-        ui.confirmModal.classList.add('hidden');
-        confirmCallback = null;
-    }
-
     function openModalForEdit(index) {
-        ui.modalTitle.textContent = 'Editar Regra';
         const rule = currentSettings.customRules[index];
+        ui.modalTitle.textContent = 'Editar Regra';
         ui.ruleIndex.value = index;
         ui.ruleName.value = rule.name;
-        ui.ruleType.value = rule.type;
-        ui.rulePatterns.value = (rule.patterns || []).join('\n');
-        ui.ruleMinTabs.value = rule.minTabs || 1;
         ui.ruleColor.value = rule.color || 'grey';
+        ui.ruleOperator.value = rule.conditionGroup?.operator || 'AND';
+
+        ui.conditionsContainer.innerHTML = '';
+        const conditions = rule.conditionGroup?.conditions || [];
+        if (conditions.length === 0) {
+            ui.conditionsContainer.appendChild(createConditionElement());
+        } else {
+            conditions.forEach(c => ui.conditionsContainer.appendChild(createConditionElement(c)));
+        }
+        
         ui.ruleModal.classList.remove('hidden');
     }
 
@@ -257,114 +329,102 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.modalTitle.textContent = 'Adicionar Nova Regra';
         ui.ruleForm.reset();
         ui.ruleIndex.value = '';
-        ui.ruleMinTabs.value = 1;
         ui.ruleColor.value = 'grey';
+        ui.ruleOperator.value = 'AND';
+        ui.conditionsContainer.innerHTML = '';
+        ui.conditionsContainer.appendChild(createConditionElement());
         ui.ruleModal.classList.remove('hidden');
-    }
-
-    function closeModal() {
-        ui.ruleModal.classList.add('hidden');
-        if (window.history.replaceState) {
-            const cleanUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
-            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
-        }
     }
 
     function handleRuleFormSubmit(e) {
         e.preventDefault();
-        const rule = {
-            name: ui.ruleName.value.trim(),
-            type: ui.ruleType.value,
-            patterns: ui.rulePatterns.value.split('\n').map(p => p.trim()).filter(Boolean),
-            color: ui.ruleColor.value,
-            minTabs: parseInt(ui.ruleMinTabs.value, 10) || 1
-        };
         const index = ui.ruleIndex.value;
-        if (index !== '') {
-            currentSettings.customRules[index] = rule;
-        } else {
-            currentSettings.customRules.push(rule);
-        }
-        closeModal();
-        renderRules();
-        scheduleSave();
-    }
+        const conditions = Array.from(ui.conditionsContainer.children).map(div => ({
+            property: div.querySelector('.condition-property').value,
+            operator: div.querySelector('.condition-operator').value,
+            value: div.querySelector('.condition-value').value.trim()
+        })).filter(c => c.value); // Filtra condições sem valor
 
+        if (conditions.length === 0) {
+            showNotification("Uma regra deve ter pelo menos uma condição válida.", 'error');
+            return;
+        }
+
+        const newRule = {
+            name: ui.ruleName.value.trim(),
+            color: ui.ruleColor.value,
+            conditionGroup: {
+                operator: ui.ruleOperator.value,
+                conditions
+            }
+        };
+
+        if (index !== '') {
+            currentSettings.customRules[parseInt(index, 10)] = newRule;
+        } else {
+            currentSettings.customRules.push(newRule);
+        }
+
+        renderRulesList();
+        scheduleSave();
+        ui.ruleModal.classList.add('hidden');
+    }
+    
     function deleteRule(index) {
         const ruleName = currentSettings.customRules[index].name;
         showConfirmModal(`Tem a certeza que deseja excluir a regra "${ruleName}"?`, () => {
             currentSettings.customRules.splice(index, 1);
-            renderRules();
+            renderRulesList();
             scheduleSave();
             showNotification(`Regra "${ruleName}" excluída.`, 'info');
         });
     }
 
     function duplicateRule(index) {
-        const newRule = JSON.parse(JSON.stringify(currentSettings.customRules[index]));
+        const originalRule = currentSettings.customRules[index];
+        const newRule = JSON.parse(JSON.stringify(originalRule));
         newRule.name += " (cópia)";
         currentSettings.customRules.splice(index + 1, 0, newRule);
-        renderRules();
+        renderRulesList();
         scheduleSave();
-        showNotification(`Regra "${newRule.name.replace(' (cópia)', '')}" duplicada.`, 'info');
+        showNotification(`Regra "${originalRule.name}" duplicada.`, 'info');
     }
     
-    function handleUrlParameters() {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('action') !== 'new_rule') return;
-        
-        openModalForAdd();
-        ui.ruleName.value = decodeURIComponent(params.get('name') || '');
-        const url = decodeURIComponent(params.get('url') || '');
-        const patterns = decodeURIComponent(params.get('patterns') || '');
-        
-        if (patterns) {
-             ui.rulePatterns.value = patterns;
-        } else if (url) {
-            try {
-                ui.rulePatterns.value = `*${new URL(url).hostname}*`;
-            } catch(e) {}
-        }
-    }
+    function showNotification(message, type = 'info') { const n = document.createElement('div'); const c = { success: 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-200', error: 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-200', info: 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-200' }; n.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${c[type]}`; n.textContent = message; ui.notificationContainer.appendChild(n); setTimeout(() => n.classList.remove('opacity-0', 'translate-y-2'), 10); setTimeout(() => { n.classList.add('opacity-0'); n.addEventListener('transitionend', () => n.remove()); }, 4000); }
+    function applyTheme(theme) { if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } }
+    function updateDynamicUI() { ui.ungroupSingleTabsTimeout.disabled = !ui.ungroupSingleTabs.checked; ui.ungroupSingleTabsTimeout.parentElement.style.opacity = ui.ungroupSingleTabs.checked ? 1 : 0.6; }
     
     // --- INICIALIZAÇÃO E EVENT LISTENERS ---
 
     async function initialize() {
         await loadSettings();
-        handleUrlParameters();
-
-        // Listeners para os campos que guardam automaticamente
-        Object.keys(ui).forEach(key => {
-            const element = ui[key];
-            if (element && (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA')) {
-                const eventType = element.type === 'checkbox' || element.tagName === 'SELECT' ? 'change' : 'input';
-                element.addEventListener(eventType, scheduleSave);
-            }
-        });
         
-        // Listeners para UI dinâmica e Testador de Regras
+        const autoSaveFields = ['theme', 'groupingMode', 'suppressSingleTabGroups', 'uncollapseOnActivate', 'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList', 'showTabCount', 'syncEnabled', 'logLevel', 'titleDelimiters', 'titleSanitizationNoise'];
+        autoSaveFields.forEach(id => {
+            const el = ui[id];
+            const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
+            el.addEventListener(ev, scheduleSave);
+        });
+
         ui.theme.addEventListener('change', () => applyTheme(ui.theme.value));
         ui.ungroupSingleTabs.addEventListener('change', updateDynamicUI);
-        ui.ruleTesterInput.addEventListener('input', testCurrentRule);
-
-        // Listeners para botões e modais
+        ui.ruleTesterUrl.addEventListener('input', testCurrentRule);
+        ui.ruleTesterTitle.addEventListener('input', testCurrentRule);
+        
         ui.addRuleBtn.addEventListener('click', openModalForAdd);
-        ui.cancelRuleBtn.addEventListener('click', closeModal);
+        ui.cancelRuleBtn.addEventListener('click', () => ui.ruleModal.classList.add('hidden'));
         ui.ruleForm.addEventListener('submit', handleRuleFormSubmit);
-        ui.ruleModal.addEventListener('click', (e) => { if (e.target === ui.ruleModal) closeModal(); });
-        ui.confirmCancelBtn.addEventListener('click', hideConfirmModal);
-        ui.confirmOkBtn.addEventListener('click', () => { if (typeof confirmCallback === 'function') confirmCallback(); hideConfirmModal(); });
-
+        
         ui.rulesList.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (!button) return;
-            const index = parseInt(button.dataset.index, 10);
-            if (button.classList.contains('edit-rule-btn')) openModalForEdit(index);
-            else if (button.classList.contains('delete-rule-btn')) deleteRule(index);
-            else if (button.classList.contains('duplicate-rule-btn')) duplicateRule(index);
+            const action = button.dataset.action;
+            const index = parseInt(button.closest('.rule-item').dataset.index, 10);
+            if (action === 'edit') openModalForEdit(index);
+            else if (action === 'delete') deleteRule(index);
+            else if (action === 'duplicate') duplicateRule(index);
         });
-
-        // Listeners para Importar/Exportar
+        
         ui.importBtn.addEventListener('click', () => ui.importFile.click());
         ui.exportBtn.addEventListener('click', async () => {
             const settingsToExport = await browser.runtime.sendMessage({ action: 'getSettings' });
@@ -392,7 +452,9 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.readAsText(file);
             e.target.value = '';
         });
+        ui.confirmCancelBtn.addEventListener('click', () => ui.confirmModal.classList.add('hidden'));
+        ui.confirmOkBtn.addEventListener('click', () => { if (typeof confirmCallback === 'function') confirmCallback(); ui.confirmModal.classList.add('hidden'); });
     }
-
+    
     initialize();
 });

@@ -116,16 +116,22 @@
         </button>
       </div>
       <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">A primeira regra na lista que corresponder será usada. Arraste e solte para reordenar.</p>
-      <div id="rulesList" class="space-y-2"></div>
+      <div id="rulesList" class="space-y-3"></div>
     </section>
     
     <section class="bg-white p-6 rounded-2xl shadow-lg mt-8 dark:bg-slate-800">
         <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Testador de Regras</h2>
-        <div class="flex flex-col">
-            <label for="ruleTesterInput" class="font-semibold mb-2">Insira um URL para testar:</label>
-            <input type="url" id="ruleTesterInput" placeholder="https://www.exemplo.com/artigo" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-            <div id="ruleTesterResult" class="mt-3 p-3 bg-slate-100 rounded-md text-slate-700 dark:bg-slate-700 dark:text-slate-300 min-h-[48px] transition-colors">Aguardando URL...</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="ruleTesterUrl" class="font-semibold mb-2 block">URL de Teste:</label>
+                <input type="url" id="ruleTesterUrl" placeholder="https://www.github.com/usuario/repo" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
+            </div>
+            <div>
+                <label for="ruleTesterTitle" class="font-semibold mb-2 block">Título de Teste:</label>
+                <input type="text" id="ruleTesterTitle" placeholder="[PROJETO-X] Correção de bug" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
+            </div>
         </div>
+        <div id="ruleTesterResult" class="mt-3 p-3 bg-slate-100 rounded-md text-slate-700 dark:bg-slate-700 dark:text-slate-300 min-h-[48px] transition-colors">Aguardando entrada...</div>
     </section>
 
     <footer class="text-center mt-10">
@@ -142,48 +148,44 @@
     </footer>
   </div>
 
-  <div id="ruleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-center">
-    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg m-4 dark:bg-slate-800">
-      <h3 id="modalTitle" class="text-2xl font-bold mb-6">Adicionar Nova Regra</h3>
+  <!-- MODAL DE REGRAS -->
+  <div id="ruleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-2xl m-4 dark:bg-slate-800">
+      <h3 id="modalTitle" class="text-2xl font-bold mb-6">Nova Regra</h3>
       <form id="ruleForm">
         <input type="hidden" id="ruleIndex">
-        <div class="space-y-5">
+        <div class="space-y-4">
             <div>
                 <label for="ruleName" class="font-semibold block mb-1">Nome do Grupo</label>
-                <input type="text" id="ruleName" placeholder="Ex: Projetos de Trabalho" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" required>
-            </div>
-            <div>
-                <label for="ruleType" class="font-semibold block mb-1">Tipo de Regra</label>
-                <select id="ruleType" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-                    <option value="url-wildcard">URL (Curinga)</option>
-                    <option value="url-regex">URL (Regex)</option>
-                    <option value="title-match">Título da Página (Contém)</option>
-                </select>
-            </div>
-            <div>
-                <label for="rulePatterns" class="font-semibold block mb-1">Padrões (um por linha)</label>
-                <textarea id="rulePatterns" placeholder="Ex: *jira.mycompany.com*&#10;*trello.com/meuprojeto*" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" rows="4" required></textarea>
-            </div>
-            <div>
-              <label for="ruleMinTabs" class="font-semibold block mb-1">Nº Mínimo de Abas</label>
-              <input type="number" id="ruleMinTabs" min="1" placeholder="1" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-              <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">O grupo só será criado se este número de abas for atingido.</p>
+                <input type="text" id="ruleName" placeholder="Ex: Pull Requests" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" required>
             </div>
             <div>
                 <label for="ruleColor" class="font-semibold block mb-1">Cor do Grupo</label>
                 <select id="ruleColor" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-                    <option value="grey">Cinzento</option>
-                    <option value="blue">Azul</option>
-                    <option value="red">Vermelho</option>
-                    <option value="yellow">Amarelo</option>
-                    <option value="green">Verde</option>
-                    <option value="pink">Rosa</option>
-                    <option value="purple">Roxo</option>
-                    <option value="cyan">Ciano</option>
-                    <option value="orange">Laranja</option>
+                     <option value="grey">Cinzento</option><option value="blue">Azul</option><option value="red">Vermelho</option><option value="yellow">Amarelo</option><option value="green">Verde</option><option value="pink">Rosa</option><option value="purple">Roxo</option><option value="cyan">Ciano</option><option value="orange">Laranja</option>
                 </select>
             </div>
         </div>
+        
+        <hr class="my-6 dark:border-slate-600">
+
+        <div>
+            <div class="flex items-center space-x-4 mb-4">
+                 <h4 class="text-lg font-semibold">Agrupar abas SE</h4>
+                 <select id="ruleOperator" class="p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
+                    <option value="AND">TODAS</option>
+                    <option value="OR">QUALQUER UMA</option>
+                 </select>
+                 <h4 class="text-lg font-semibold">das seguintes condições forem verdadeiras:</h4>
+            </div>
+            <div id="conditionsContainer" class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <!-- As condições serão injetadas aqui pelo JavaScript -->
+            </div>
+            <button type="button" id="addConditionBtn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                + Adicionar Condição
+            </button>
+        </div>
+
         <div class="flex justify-end space-x-4 mt-8">
           <button type="button" id="cancelRuleBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button>
           <button type="submit" id="saveRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg dark:bg-indigo-500 dark:hover:bg-indigo-600">Salvar Regra</button>
@@ -191,15 +193,13 @@
       </form>
     </div>
   </div>
-  
+
+  <!-- MODAL DE CONFIRMAÇÃO -->
   <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
     <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md dark:bg-slate-800">
         <h3 class="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">Confirmar Ação</h3>
         <p id="confirmModalText" class="text-slate-600 mb-8 dark:text-slate-300">Tem a certeza que deseja prosseguir?</p>
-        <div class="flex justify-end space-x-4">
-            <button id="confirmCancelBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button>
-            <button id="confirmOkBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Confirmar</button>
-        </div>
+        <div class="flex justify-end space-x-4"><button id="confirmCancelBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button><button id="confirmOkBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Confirmar</button></div>
     </div>
   </div>
 
