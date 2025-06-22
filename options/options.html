@@ -14,7 +14,6 @@
       <p class="text-lg text-slate-500 dark:text-slate-400 mt-2">Ajuste a organização automática das suas abas.</p>
     </header>
 
-    <!-- Seção de Agrupamento -->
     <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Agrupamento</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -37,7 +36,6 @@
       </div>
     </section>
 
-    <!-- Seção de Comportamento -->
     <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Comportamento dos Grupos</h2>
        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
@@ -103,7 +101,8 @@
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Exceções</h2>
       <div class="flex flex-col">
           <label for="exceptionsList" class="font-semibold mb-2">Sites a serem ignorados (um por linha):</label>
-          <textarea id="exceptionsList" placeholder="Ex: mail.google.com&#10;youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" rows="5"></textarea>
+          <textarea id="exceptionsList" placeholder="Ex: mail.google.com
+youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" rows="5"></textarea>
           <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Qualquer URL que contenha o texto inserido será ignorada.</p>
       </div>
     </section>
@@ -148,7 +147,6 @@
     </footer>
   </div>
 
-  <!-- MODAL DE REGRAS -->
   <div id="ruleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 overflow-y-auto">
     <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-2xl m-4 dark:bg-slate-800">
       <h3 id="modalTitle" class="text-2xl font-bold mb-6">Nova Regra</h3>
@@ -165,6 +163,11 @@
                      <option value="grey">Cinzento</option><option value="blue">Azul</option><option value="red">Vermelho</option><option value="yellow">Amarelo</option><option value="green">Verde</option><option value="pink">Rosa</option><option value="purple">Roxo</option><option value="cyan">Ciano</option><option value="orange">Laranja</option>
                 </select>
             </div>
+            <div>
+                <label for="ruleMinTabs" class="font-semibold block mb-1">Mínimo de Abas no Grupo</label>
+                <input type="number" id="ruleMinTabs" min="1" value="1" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
+                <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">A regra só será aplicada se este número de abas for atingido.</p>
+            </div>
         </div>
         
         <hr class="my-6 dark:border-slate-600">
@@ -179,8 +182,7 @@
                  <h4 class="text-lg font-semibold">das seguintes condições forem verdadeiras:</h4>
             </div>
             <div id="conditionsContainer" class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <!-- As condições serão injetadas aqui pelo JavaScript -->
-            </div>
+                </div>
             <button type="button" id="addConditionBtn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
                 + Adicionar Condição
             </button>
@@ -194,7 +196,6 @@
     </div>
   </div>
 
-  <!-- MODAL DE CONFIRMAÇÃO -->
   <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
     <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md dark:bg-slate-800">
         <h3 class="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">Confirmar Ação</h3>

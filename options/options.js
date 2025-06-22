@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ruleIndex: document.getElementById('ruleIndex'),
         ruleName: document.getElementById('ruleName'),
         ruleColor: document.getElementById('ruleColor'),
+        ruleMinTabs: document.getElementById('ruleMinTabs'),
         ruleOperator: document.getElementById('ruleOperator'),
         conditionsContainer: document.getElementById('conditionsContainer'),
         addConditionBtn: document.getElementById('addConditionBtn'),
@@ -321,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.ruleIndex.value = index;
         ui.ruleName.value = rule.name;
         ui.ruleColor.value = rule.color || 'grey';
+        ui.ruleMinTabs.value = rule.minTabs || 1;
         
         // Assegura que a regra a ser editada tem o formato correto
         const conditionGroup = rule.conditionGroup || { operator: 'AND', conditions: [] };
@@ -341,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.ruleForm.reset();
         ui.ruleIndex.value = '';
         ui.ruleColor.value = 'grey';
+        ui.ruleMinTabs.value = 1;
         ui.ruleOperator.value = 'AND';
         ui.conditionsContainer.innerHTML = '';
         ui.conditionsContainer.appendChild(createConditionElement());
@@ -364,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newRule = {
             name: ui.ruleName.value.trim(),
             color: ui.ruleColor.value,
-            minTabs: 1, // Adicionado para consistência
+            minTabs: parseInt(ui.ruleMinTabs.value, 10) || 1,
             conditionGroup: {
                 operator: ui.ruleOperator.value,
                 conditions
