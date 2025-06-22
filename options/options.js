@@ -202,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNÇÕES DE UI E RENDERIZAÇÃO ---
     
+    // CORRIGIDO: Tornar a função mais robusta para evitar erros com regras malformadas.
     function renderRulesList() {
         ui.rulesList.innerHTML = '';
         const rules = currentSettings.customRules || [];
@@ -211,13 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         rules.forEach((rule, index) => {
-            const conditions = rule.conditionGroup?.conditions || [];
-            let summary = 'Regra vazia';
+            // Verificação de segurança para a estrutura da regra
+            const hasConditionGroup = rule.conditionGroup && Array.isArray(rule.conditionGroup.conditions);
+            const conditions = hasConditionGroup ? rule.conditionGroup.conditions : [];
+            const operator = hasConditionGroup ? rule.conditionGroup.operator : 'E';
+            
+            let summary = 'Regra vazia ou inválida';
             if(conditions.length > 0) {
                 const firstCond = conditions[0];
                 summary = `${firstCond.property} ${firstCond.operator} "${firstCond.value}"`;
                 if(conditions.length > 1) {
-                    summary += ` ${rule.conditionGroup.operator.toLowerCase()} mais ${conditions.length - 1}...`;
+                    summary += ` ${operator.toLowerCase()} mais ${conditions.length - 1}...`;
                 }
             }
             
@@ -225,7 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const colorMap = { grey: '#5A5A5A', blue: '#3498db', red: '#e74c3c', yellow: '#f1c40f', green: '#2ecc71', pink: '#e91e63', purple: '#9b59b6', cyan: '#1abc9c', orange: '#e67e22' };
             ruleElement.className = 'rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50';
             ruleElement.dataset.index = index;
-            ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${conditions.map(c => `${c.property} ${c.operator} ${c.value}`).join(` ${rule.conditionGroup.operator} `)}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
+            const tooltipTitle = hasConditionGroup 
+                ? conditions.map(c => `${c.property} ${c.operator} ${c.value}`).join(` ${operator} `)
+                : 'Regra em formato antigo. Edite para corrigir.';
+
+            ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${tooltipTitle}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
             ui.rulesList.appendChild(ruleElement);
         });
         
@@ -284,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
             
-            const matchingRule = currentSettings.customRules.find(rule => {
+            const matchingRule = (currentSettings.customRules || []).find(rule => {
                 if(!rule.conditionGroup) return false;
                 const {operator, conditions} = rule.conditionGroup;
                 if (!conditions || conditions.length === 0) return false;
@@ -312,14 +321,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.ruleIndex.value = index;
         ui.ruleName.value = rule.name;
         ui.ruleColor.value = rule.color || 'grey';
-        ui.ruleOperator.value = rule.conditionGroup?.operator || 'AND';
+        
+        // Assegura que a regra a ser editada tem o formato correto
+        const conditionGroup = rule.conditionGroup || { operator: 'AND', conditions: [] };
+        ui.ruleOperator.value = conditionGroup.operator;
 
         ui.conditionsContainer.innerHTML = '';
-        const conditions = rule.conditionGroup?.conditions || [];
-        if (conditions.length === 0) {
+        if (conditionGroup.conditions.length === 0) {
             ui.conditionsContainer.appendChild(createConditionElement());
         } else {
-            conditions.forEach(c => ui.conditionsContainer.appendChild(createConditionElement(c)));
+            conditionGroup.conditions.forEach(c => ui.conditionsContainer.appendChild(createConditionElement(c)));
         }
         
         ui.ruleModal.classList.remove('hidden');
@@ -353,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newRule = {
             name: ui.ruleName.value.trim(),
             color: ui.ruleColor.value,
+            minTabs: 1, // Adicionado para consistência
             conditionGroup: {
                 operator: ui.ruleOperator.value,
                 conditions
@@ -390,6 +402,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showNotification(`Regra "${originalRule.name}" duplicada.`, 'info');
     }
     
+    function showConfirmModal(text, callback) {
+        ui.confirmModalText.textContent = text;
+        confirmCallback = callback;
+        ui.confirmModal.classList.remove('hidden');
+    }
+    
     function showNotification(message, type = 'info') { const n = document.createElement('div'); const c = { success: 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-200', error: 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-200', info: 'bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/50 dark:border-blue-600 dark:text-blue-200' }; n.className = `p-4 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-y-2 ${c[type]}`; n.textContent = message; ui.notificationContainer.appendChild(n); setTimeout(() => n.classList.remove('opacity-0', 'translate-y-2'), 10); setTimeout(() => { n.classList.add('opacity-0'); n.addEventListener('transitionend', () => n.remove()); }, 4000); }
     function applyTheme(theme) { if (theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } }
     function updateDynamicUI() { ui.ungroupSingleTabsTimeout.disabled = !ui.ungroupSingleTabs.checked; ui.ungroupSingleTabsTimeout.parentElement.style.opacity = ui.ungroupSingleTabs.checked ? 1 : 0.6; }
@@ -399,9 +417,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initialize() {
         await loadSettings();
         
-        const autoSaveFields = ['theme', 'groupingMode', 'suppressSingleTabGroups', 'uncollapseOnActivate', 'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList', 'showTabCount', 'syncEnabled', 'logLevel', 'titleDelimiters', 'titleSanitizationNoise'];
+        const autoSaveFields = ['theme', 'groupingMode', 'suppressSingleTabGroups', 'uncollapseOnActivate', 'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList', 'showTabCount', 'syncEnabled', 'logLevel', 'titleDelimiters', 'domainSanitizationTlds', 'titleSanitizationNoise'];
         autoSaveFields.forEach(id => {
             const el = ui[id];
+            if (!el) return;
             const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input';
             el.addEventListener(ev, scheduleSave);
         });
@@ -454,6 +473,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         ui.confirmCancelBtn.addEventListener('click', () => ui.confirmModal.classList.add('hidden'));
         ui.confirmOkBtn.addEventListener('click', () => { if (typeof confirmCallback === 'function') confirmCallback(); ui.confirmModal.classList.add('hidden'); });
+
+        // NOVO: Processa os parâmetros da URL para abrir o modal
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('action') === 'new_rule') {
+            openModalForAdd(); // Abre o modal
+            
+            // Preenche os campos a partir dos parâmetros
+            if (params.has('name')) {
+                ui.ruleName.value = params.get('name');
+            }
+            
+            if (params.has('patterns')) {
+                const patterns = params.get('patterns').split('\n');
+                ui.conditionsContainer.innerHTML = ''; // Limpa a condição padrão
+                patterns.forEach(pattern => {
+                    const value = pattern.replace(/\*/g, ''); // Remove wildcards
+                    ui.conditionsContainer.appendChild(createConditionElement({
+                        property: 'hostname',
+                        operator: 'contains',
+                        value: value
+                    }));
+                });
+                ui.ruleOperator.value = 'OR';
+            }
+            
+            if (params.has('url')) {
+                try {
+                    const url = new URL(params.get('url'));
+                    if (!ui.ruleName.value) {
+                         ui.ruleName.value = url.hostname.replace(/^www\./, '');
+                    }
+                    ui.conditionsContainer.innerHTML = ''; // Limpa a condição padrão
+                    ui.conditionsContainer.appendChild(createConditionElement({
+                        property: 'hostname',
+                        operator: 'equals',
+                        value: url.hostname
+                    }));
+                } catch(e) { /* Ignora URLs inválidas */ }
+            }
+        }
     }
     
     initialize();

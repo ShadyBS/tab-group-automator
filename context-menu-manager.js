@@ -43,18 +43,43 @@ async function handleContextMenuClick(info, tab) {
     
     const tabGroupId = tab.groupId;
 
+    // CORRIGIDO: Lógica para adicionar uma nova condição à regra existente, usando o formato correto.
     if (info.menuItemId.startsWith("add-to-rule-")) {
         try {
             const ruleIndex = parseInt(info.menuItemId.replace("add-to-rule-", ""), 10);
             const rule = settings.customRules[ruleIndex];
-            if (rule && tab.url) {
-                const newPattern = `*${new URL(tab.url).hostname}*`;
-                if (!rule.patterns.includes(newPattern)) {
-                    rule.patterns.push(newPattern);
+            
+            // Assegura que a regra está no formato correto antes de a modificar
+            if (rule && tab.url && rule.conditionGroup && Array.isArray(rule.conditionGroup.conditions)) {
+                const hostname = new URL(tab.url).hostname;
+                const newCondition = {
+                    property: 'hostname',
+                    operator: 'contains',
+                    value: hostname
+                };
+
+                // Verifica se uma condição semelhante já existe para evitar duplicados
+                const conditionExists = rule.conditionGroup.conditions.some(
+                    c => c.property === newCondition.property && c.value === newCondition.value
+                );
+
+                if (!conditionExists) {
+                    rule.conditionGroup.conditions.push(newCondition);
+                    // Define o operador para 'OR' se houver múltiplas condições, o que é mais intuitivo para esta ação
+                    if (rule.conditionGroup.conditions.length > 1) {
+                        rule.conditionGroup.operator = 'OR';
+                    }
                     await updateSettings({ customRules: settings.customRules });
+                    Logger.info('handleContextMenuClick', `Condição para "${hostname}" adicionada à regra "${rule.name}".`);
+                } else {
+                    Logger.info('handleContextMenuClick', `Condição para "${hostname}" já existe na regra "${rule.name}".`);
                 }
+            } else {
+                Logger.warn('handleContextMenuClick', `A regra "${rule.name}" está num formato inválido. Não foi possível adicionar a condição.`);
             }
-        } catch (e) { Logger.error("handleContextMenuClick", "Erro ao adicionar padrão à regra:", e); }
+        } catch (e) { 
+            Logger.error("handleContextMenuClick", "Erro ao adicionar condição à regra:", e); 
+        }
         return;
     }
 

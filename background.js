@@ -36,8 +36,11 @@ function scheduleQueueProcessing() {
     }, QUEUE_DELAY);
 }
 
+// CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
 function handleTabUpdated(tabId, changeInfo, tab) {
-    Logger.debug('handleTabUpdated', `Aba ${tabId} atualizada. Status: ${changeInfo.status}`, { changeInfo, tab });
+    Logger.debug('handleTabUpdated', `Aba ${tabId} atualizada.`, { changeInfo, tab });
+    
+    // Lógica para atualizar o contador de abas quando uma aba muda de grupo.
     if (changeInfo.groupId !== undefined) {
         const oldGroupId = tabGroupMap.get(tabId);
         if (oldGroupId) {
@@ -47,7 +50,13 @@ function handleTabUpdated(tabId, changeInfo, tab) {
         tabGroupMap.set(tabId, changeInfo.groupId);
     }
 
-    if (settings.autoGroupingEnabled && changeInfo.status === 'complete' && tab.url) {
+    // Determina se a aba precisa ser processada.
+    // Isto acontece se o status mudou para 'complete' OU se o título mudou enquanto a aba já estava 'complete'.
+    const needsProcessing = settings.autoGroupingEnabled && tab.url && tab.url.startsWith('http') &&
+                            (changeInfo.status === 'complete' || (changeInfo.title && tab.status === 'complete'));
+
+    if (needsProcessing) {
+        Logger.debug('handleTabUpdated', `Aba ${tabId} marcada para processamento devido a mudança de status ou título.`);
         injectionFailureMap.delete(tabId);
         tabProcessingQueue.add(tabId);
         scheduleQueueProcessing();
@@ -64,13 +73,14 @@ function handleTabRemoved(tabId, removeInfo) {
     injectionFailureMap.delete(tabId);
 }
 
+// CORRIGIDO: Adiciona "title" às propriedades que o listener de onUpdated observa.
 function toggleListeners(enable) {
     const hasUpdatedListener = browser.tabs.onUpdated.hasListener(handleTabUpdated);
     const hasRemovedListener = browser.tabs.onRemoved.hasListener(handleTabRemoved);
 
     if (enable) {
         if (!hasUpdatedListener) {
-            browser.tabs.onUpdated.addListener(handleTabUpdated, { properties: ["status", "groupId"] });
+            browser.tabs.onUpdated.addListener(handleTabUpdated, { properties: ["status", "groupId", "title"] });
         }
         if (!hasRemovedListener) {
             browser.tabs.onRemoved.addListener(handleTabRemoved);
@@ -84,6 +94,7 @@ function toggleListeners(enable) {
         }
     }
 }
+
 
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
