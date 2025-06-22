@@ -211,7 +211,7 @@ export async function processTabQueue(tabIds) {
             if (finalGroupName === currentCleanTitle) continue;
 
             const matchedRule = settings.customRules.find(r => r.name === finalGroupName);
-            const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.suppressSingleTabGroups ? 2 : 1);
+            const minTabsRequired = matchedRule ? (matchedRule.minTabs || 1) : (settings.minTabsForAutoGroup || 2);
             const totalMatchingTabs = groupNameCounts.get(finalGroupName) || 0;
 
             if (totalMatchingTabs < minTabsRequired) {

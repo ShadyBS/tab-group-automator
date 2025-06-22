@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ui = {
         theme: document.getElementById('theme'),
         groupingMode: document.getElementById('groupingMode'),
-        suppressSingleTabGroups: document.getElementById('suppressSingleTabGroups'),
+        minTabsForAutoGroup: document.getElementById('minTabsForAutoGroup'),
         uncollapseOnActivate: document.getElementById('uncollapseOnActivate'),
         autoCollapseTimeout: document.getElementById('autoCollapseTimeout'),
         ungroupSingleTabs: document.getElementById('ungroupSingleTabs'),
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyTheme(settings.theme || 'auto');
         ui.theme.value = settings.theme || 'auto';
         ui.groupingMode.value = settings.groupingMode;
-        ui.suppressSingleTabGroups.checked = settings.suppressSingleTabGroups;
+        ui.minTabsForAutoGroup.value = settings.minTabsForAutoGroup || 2;
         ui.uncollapseOnActivate.checked = settings.uncollapseOnActivate;
         ui.autoCollapseTimeout.value = settings.autoCollapseTimeout;
         ui.ungroupSingleTabs.checked = settings.ungroupSingleTabs;
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ...currentSettings,
             theme: ui.theme.value,
             groupingMode: ui.groupingMode.value,
-            suppressSingleTabGroups: ui.suppressSingleTabGroups.checked,
+            minTabsForAutoGroup: parseInt(ui.minTabsForAutoGroup.value, 10) || 2,
             uncollapseOnActivate: ui.uncollapseOnActivate.checked,
             autoCollapseTimeout: parseInt(ui.autoCollapseTimeout.value, 10) || 0,
             ungroupSingleTabs: ui.ungroupSingleTabs.checked,
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? conditions.map(c => `${c.property} ${c.operator} ${c.value}`).join(` ${operator} `)
                 : 'Regra em formato antigo. Edite para corrigir.';
 
-            ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">&#x2630;</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${tooltipTitle}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
+            ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">☰</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${colorMap[rule.color] || '#ccc'}"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${rule.name}</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${tooltipTitle}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
             ui.rulesList.appendChild(ruleElement);
         });
         
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initialize() {
         await loadSettings();
         
-        const autoSaveFields = ['theme', 'groupingMode', 'suppressSingleTabGroups', 'uncollapseOnActivate', 'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList', 'showTabCount', 'syncEnabled', 'logLevel', 'titleDelimiters', 'domainSanitizationTlds', 'titleSanitizationNoise'];
+        const autoSaveFields = ['theme', 'groupingMode', 'minTabsForAutoGroup', 'uncollapseOnActivate', 'autoCollapseTimeout', 'ungroupSingleTabs', 'ungroupSingleTabsTimeout', 'exceptionsList', 'showTabCount', 'syncEnabled', 'logLevel', 'titleDelimiters', 'domainSanitizationTlds', 'titleSanitizationNoise'];
         autoSaveFields.forEach(id => {
             const el = ui[id];
             if (!el) return;

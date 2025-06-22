@@ -7,8 +7,8 @@ import Logger from './logger.js';
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
   groupingMode: 'smart',
+  minTabsForAutoGroup: 2, // Substituído suppressSingleTabGroups
   autoCollapseTimeout: 0,
-  suppressSingleTabGroups: true,
   uncollapseOnActivate: true,
   customRules: [], // A estrutura das regras será alterada
   ungroupSingleTabs: false,
@@ -105,17 +105,29 @@ export async function loadSettings() {
         
         settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
 
+        let settingsWereMigrated = false;
+
+        // **SCRIPT DE MIGRAÇÃO DE suppressSingleTabGroups**
+        if (settings.hasOwnProperty('suppressSingleTabGroups')) {
+            Logger.warn("SettingsManager", "Detectado formato de 'suppressSingleTabGroups' antigo. Migrando...");
+            settings.minTabsForAutoGroup = settings.suppressSingleTabGroups ? 2 : 1;
+            delete settings.suppressSingleTabGroups;
+            settingsWereMigrated = true;
+        }
+
         // **SCRIPT DE MIGRAÇÃO DE REGRAS**
-        // Verifica se existem regras e se a primeira regra não tem 'conditionGroup',
-        // o que indica que está no formato antigo.
         if (settings.customRules && settings.customRules.length > 0 && !settings.customRules[0].conditionGroup) {
             Logger.warn("SettingsManager", "Detectado formato de regras antigo. Iniciando migração...");
             settings.customRules = settings.customRules.map(migrateRuleToNewFormat);
-            // Salva as configurações migradas imediatamente.
-            await updateSettings(settings); 
+            settingsWereMigrated = true;
             Logger.info("SettingsManager", "Migração de regras concluída.");
         }
-
+        
+        // Se qualquer migração ocorreu, salva as configurações imediatamente.
+        if (settingsWereMigrated) {
+            await updateSettings(settings);
+            Logger.info("SettingsManager", "Configurações migradas foram guardadas.");
+        }
 
         const cacheData = await browser.storage.local.get('smartNameCache');
         if (cacheData && cacheData.smartNameCache) {
