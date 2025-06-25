@@ -8,6 +8,7 @@ module.exports = {
   content: [
     './popup/*.{html,js,css}',
     './options/*.{html,js,css}',
+    './help/*.{html,js,css}'
   ],
   theme: {
     extend: {},

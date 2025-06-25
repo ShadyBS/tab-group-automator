@@ -118,7 +118,24 @@ async function fetchSmartName(tab) {
         injectionFailureMap.delete(tabId);
         if (injectionResults && injectionResults[0] && injectionResults[0].result) {
             const details = injectionResults[0].result;
-            return details.ogSiteName || details.applicationName || details.schemaName || details.ogTitle || details.h1Content;
+            
+            // 1. Tenta usar os nomes de alta prioridade primeiro.
+            const priorityName = details.ogSiteName || details.applicationName || details.schemaName || details.ogTitle;
+            if (priorityName) {
+                return priorityName;
+            }
+
+            // 2. Valida o h1Content para garantir que ele é relevante para o domínio.
+            if (details.h1Content) {
+                const hostname = getHostname(tab.url);
+                if (hostname) {
+                    // Extrai a parte principal do domínio (ex: 'google' de 'www.google.com')
+                    const domainCore = hostname.split('.')[0].toLowerCase();
+                    if (details.h1Content.toLowerCase().includes(domainCore)) {
+                        return details.h1Content;
+                    }
+                }
+            }
         }
     } catch (e) {
         injectionFailureMap.set(tabId, (injectionFailureMap.get(tabId) || 0) + 1);

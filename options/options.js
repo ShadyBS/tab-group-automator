@@ -3,6 +3,26 @@
  * @description Lógica para a página de opções da extensão, com suporte para regras complexas.
  */
 
+// Conteúdo para os tooltips de ajuda contextual.
+const helpTexts = {
+  groupingMode: "Define como os grupos são nomeados. <ul><li><strong>Nomenclatura Inteligente:</strong> Tenta descobrir o nome principal do site (ex: 'Google Docs').</li><li><strong>Agrupar por Domínio:</strong> Usa o nome do site (ex: 'google.com').</li><li><strong>Agrupar por Subdomínio:</strong> É mais específico (ex: 'docs.google.com').</li></ul>",
+  minTabsForAutoGroup: "Define o número mínimo de abas semelhantes que precisam estar abertas antes que um novo grupo seja criado automaticamente. Use '1' para agrupar imediatamente, ou '2' (padrão) para evitar grupos com uma única aba.",
+  showTabCount: "Se ativado, o título de cada grupo mostrará o número de abas que ele contém. Ex: 'Notícias (5)'. Desative para um visual mais limpo.",
+  uncollapseOnActivate: "Se ativado, um grupo recolhido será automaticamente expandido quando você clicar em uma das suas abas na barra de abas do Firefox.",
+  autoCollapseTimeout: "Recolhe automaticamente um grupo que não foi usado por um certo tempo. Isto ajuda a manter sua barra de abas organizada. Deixe '0' para desativar esta funcionalidade.",
+  ungroupSingleTabs: "Se ativado, quando um grupo fica com apenas uma aba, essa aba será automaticamente removida do grupo após um tempo. Isto evita ter grupos com uma única aba.",
+  ungroupSingleTabsTimeout: "Define o tempo de espera antes de desagrupar uma aba solitária, se a opção acima estiver ativa.",
+  theme: "Escolha a aparência da extensão. 'Automático' seguirá o tema claro/escuro do seu sistema operacional.",
+  domainSanitizationTlds: "TLDs são as terminações de um site (ex: '.com', '.gov.br'). Listá-los aqui ajuda a criar nomes de grupo melhores (ex: `google.com.br` vira `Google`). Importante: Os mais longos (`.com.br`) devem vir antes dos mais curtos (`.br`).",
+  titleSanitizationNoise: "Palavras 'ruidosas' como 'Login' ou 'Painel' podem atrapalhar a Nomenclatura Inteligente. Liste aqui palavras que, se encontradas, devem ser ignoradas para ajudar a encontrar o nome verdadeiro do site.",
+  titleDelimiters: "Caracteres como `|`, `-` ou `—` são frequentemente usados para separar o nome da marca do resto do título (ex: 'Seu Painel | NomeDaEmpresa'). Informar estes caracteres aqui ajuda a Nomenclatura Inteligente a isolar e extrair o nome da marca com mais precisão.",
+  exceptionsList: "Liste aqui os sites que você NUNCA quer que sejam agrupados. Insira o domínio (ex: `mail.google.com`), um por linha. Qualquer URL que contenha o texto inserido será ignorada.",
+  customRules: "Crie regras poderosas para cenários complexos. As regras são verificadas de cima para baixo; a primeira que corresponder será usada. Arraste-as para reordenar a prioridade. <br><a href='../help/help.html' target='_blank' class='text-indigo-400 hover:underline'>Aprenda a dominar as regras.</a>",
+  ruleTester: "Use este campo para testar como uma URL e um título seriam agrupados com base nas suas regras e configurações atuais. O resultado mostrará qual regra personalizada correspondeu, ou se será usado o agrupamento padrão.",
+  syncEnabled: "Se ativado, suas configurações e regras serão salvas na sua Conta Firefox e sincronizadas entre seus dispositivos. Se desativado, as configurações ficam salvas apenas neste computador."
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- Mapeamento de Elementos da UI ---
     const ui = {
@@ -52,6 +72,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let sortableInstance = null;
     let confirmCallback = null;
     let saveTimeout = null;
+    
+    // --- LÓGICA DE AJUDA CONTEXTUAL (TOOLTIPS) ---
+    function initializeHelpTooltips() {
+      document.querySelectorAll('.help-tooltip').forEach(button => {
+        const helpKey = button.dataset.helpKey;
+        const text = helpTexts[helpKey];
+
+        if (text) {
+          const tooltipContent = document.createElement('div');
+          tooltipContent.className = 'tooltip-content';
+          tooltipContent.innerHTML = text; // Usamos innerHTML para permitir formatação com <ul>, <a> etc.
+          button.appendChild(tooltipContent);
+        }
+      });
+    }
 
     // --- LÓGICA DO CONSTRUTOR DE REGRAS ---
 
@@ -195,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateSaveStatus(status) {
-        const statusMap = { saving: ['A guardar...', 'text-yellow-500'], saved: ['Alterações guardadas.', 'text-green-500'], error: ['Erro ao guardar.', 'text-red-500'] };
+        const statusMap = { saving: ['Salvando...', 'text-yellow-500'], saved: ['Alterações salvas.', 'text-green-500'], error: ['Erro ao salvar.', 'text-red-500'] };
         const [text, color] = statusMap[status] || ['', ''];
         ui.saveStatus.textContent = text;
         ui.saveStatus.className = `h-6 text-center font-semibold transition-colors ${color}`;
@@ -519,4 +554,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     initialize();
+    initializeHelpTooltips();
 });

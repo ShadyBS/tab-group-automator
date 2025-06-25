@@ -14,3 +14,83 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     border-color: #e2e8f0;
 }
+
+.dark #rulesList .rule-item:hover {
+    border-color: #374151;
+}
+
+/* Estilos para o Tooltip de Ajuda */
+.help-tooltip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: #cbd5e1; /* slate-300 */
+  color: #475569; /* slate-600 */
+  font-weight: bold;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  margin-left: 8px;
+  position: relative;
+  transition: background-color 0.2s;
+}
+.help-tooltip:hover {
+    background-color: #94a3b8; /* slate-400 */
+}
+
+.dark .help-tooltip {
+  background-color: #475569; /* slate-600 */
+  color: #cbd5e1; /* slate-300 */
+}
+.dark .help-tooltip:hover {
+    background-color: #64748b; /* slate-500 */
+}
+
+
+/* O balão do tooltip (inicialmente escondido) */
+.tooltip-content {
+  position: absolute;
+  bottom: 125%; /* Aparece acima do '?' */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1e293b; /* slate-800 */
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  width: 280px; /* Largura fixa para consistência */
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 1.5;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  z-index: 100;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s, visibility 0.2s;
+  text-align: left;
+}
+.tooltip-content ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+/* Triângulo/seta para o balão */
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1e293b transparent transparent transparent;
+}
+
+.help-tooltip:hover .tooltip-content,
+.help-tooltip:focus .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}

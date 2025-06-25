@@ -39,6 +39,12 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["help/help.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "autotabgrouper@example.com"

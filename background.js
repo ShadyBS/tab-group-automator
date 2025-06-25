@@ -23,6 +23,16 @@ let collapseInterval = null;
 let ungroupInterval = null;
 let singleTabGroupTimestamps = new Map();
 
+// --- Lógica de Onboarding ---
+browser.runtime.onInstalled.addListener(async (details) => {
+    if (details.reason === 'install') {
+        Logger.info('onInstalled', 'Extensão instalada pela primeira vez. A abrir página de boas-vindas.');
+        const welcomeUrl = browser.runtime.getURL('help/help.html');
+        browser.tabs.create({ url: welcomeUrl });
+    }
+});
+
+
 // --- Lógica de Processamento e Gestão de Eventos ---
 
 function scheduleQueueProcessing() {

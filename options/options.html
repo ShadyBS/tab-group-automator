@@ -9,16 +9,22 @@
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300">
 
   <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-    <header class="mb-10 text-center">
-      <h1 class="text-5xl font-extrabold text-slate-900 dark:text-slate-100">Auto Tab Grouper</h1>
-      <p class="text-lg text-slate-500 dark:text-slate-400 mt-2">Ajuste a organização automática das suas abas.</p>
+    <header class="flex justify-between items-center mb-10 text-center">
+      <div></div> <!-- Espaçador -->
+      <div>
+          <h1 class="text-5xl font-extrabold text-slate-900 dark:text-slate-100">Auto Tab Grouper</h1>
+          <p class="text-lg text-slate-500 dark:text-slate-400 mt-2">Ajuste a organização automática das suas abas.</p>
+      </div>
+      <a href="../help/help.html" target="_blank" class="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/60 font-semibold py-2 px-4 rounded-lg transition-colors">
+        ? Ajuda
+      </a>
     </header>
 
     <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Agrupamento</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="groupingMode" class="font-semibold">Estratégia de Nomenclatura:</label>
+          <label for="groupingMode" class="font-semibold">Estratégia de Nomenclatura:<button type="button" class="help-tooltip" data-help-key="groupingMode">?</button></label>
           <select id="groupingMode" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
             <option value="smart">Nomenclatura Inteligente</option>
             <option value="domain">Agrupar por Domínio</option>
@@ -26,11 +32,11 @@
           </select>
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="minTabsForAutoGroup" class="font-semibold">Mínimo de abas para agrupar:</label>
+          <label for="minTabsForAutoGroup" class="font-semibold">Mínimo de abas para agrupar:<button type="button" class="help-tooltip" data-help-key="minTabsForAutoGroup">?</button></label>
           <input type="number" id="minTabsForAutoGroup" min="1" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="showTabCount" class="font-semibold">Mostrar contador de abas no título:</label>
+          <label for="showTabCount" class="font-semibold">Mostrar contador de abas no título:<button type="button" class="help-tooltip" data-help-key="showTabCount">?</button></label>
           <input type="checkbox" id="showTabCount" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
         </div>
       </div>
@@ -40,19 +46,19 @@
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Comportamento dos Grupos</h2>
        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="uncollapseOnActivate" class="font-semibold">Expandir grupo ao selecionar aba:</label>
+          <label for="uncollapseOnActivate" class="font-semibold">Expandir grupo ao selecionar aba:<button type="button" class="help-tooltip" data-help-key="uncollapseOnActivate">?</button></label>
           <input type="checkbox" id="uncollapseOnActivate" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="autoCollapseTimeout" class="font-semibold">Recolher grupo após (segundos):</label>
+          <label for="autoCollapseTimeout" class="font-semibold">Recolher grupo após (segundos):<button type="button" class="help-tooltip" data-help-key="autoCollapseTimeout">?</button></label>
           <input type="number" id="autoCollapseTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600" placeholder="0 (desativado)">
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity">
-          <label for="ungroupSingleTabs" class="font-semibold">Desagrupar aba solitária:</label>
+          <label for="ungroupSingleTabs" class="font-semibold">Desagrupar aba solitária:<button type="button" class="help-tooltip" data-help-key="ungroupSingleTabs">?</button></label>
           <input type="checkbox" id="ungroupSingleTabs" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity">
-          <label for="ungroupSingleTabsTimeout" class="font-semibold">Desagrupar aba após (segundos):</label>
+          <label for="ungroupSingleTabsTimeout" class="font-semibold">Desagrupar aba após (segundos):<button type="button" class="help-tooltip" data-help-key="ungroupSingleTabsTimeout">?</button></label>
           <input type="number" id="ungroupSingleTabsTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600 disabled:opacity-50" placeholder="10">
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
@@ -66,7 +72,7 @@
           </select>
         </div>
         <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="theme" class="font-semibold">Tema:</label>
+          <label for="theme" class="font-semibold">Tema:<button type="button" class="help-tooltip" data-help-key="theme">?</button></label>
           <select id="theme" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
             <option value="auto">Automático</option>
             <option value="light">Claro</option>
@@ -80,17 +86,17 @@
         <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Higienização Avançada</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-                <label for="domainSanitizationTlds" class="font-semibold mb-2 block">TLDs a ignorar:</label>
+                <label for="domainSanitizationTlds" class="font-semibold mb-2 block">TLDs a ignorar:<button type="button" class="help-tooltip" data-help-key="domainSanitizationTlds">?</button></label>
                 <textarea id="domainSanitizationTlds" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600" rows="10"></textarea>
                 <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Os mais longos (ex: .gov.br) devem vir antes dos mais curtos (ex: .br).</p>
             </div>
             <div>
-                <label for="titleSanitizationNoise" class="font-semibold mb-2 block">Palavras a ignorar em títulos:</label>
+                <label for="titleSanitizationNoise" class="font-semibold mb-2 block">Palavras a ignorar em títulos:<button type="button" class="help-tooltip" data-help-key="titleSanitizationNoise">?</button></label>
                 <textarea id="titleSanitizationNoise" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600" rows="10"></textarea>
                 <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Palavras que, se encontradas, penalizam um segmento de título.</p>
             </div>
             <div class="md:col-span-2">
-                <label for="titleDelimiters" class="font-semibold mb-2 block">Delimitadores de Título:</label>
+                <label for="titleDelimiters" class="font-semibold mb-2 block">Delimitadores de Título:<button type="button" class="help-tooltip" data-help-key="titleDelimiters">?</button></label>
                 <input type="text" id="titleDelimiters" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600">
                 <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Caracteres usados para separar o nome da marca do resto do título.</p>
             </div>
@@ -100,7 +106,7 @@
     <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
       <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Exceções</h2>
       <div class="flex flex-col">
-          <label for="exceptionsList" class="font-semibold mb-2">Sites a serem ignorados (um por linha):</label>
+          <label for="exceptionsList" class="font-semibold mb-2">Sites a serem ignorados (um por linha):<button type="button" class="help-tooltip" data-help-key="exceptionsList">?</button></label>
           <textarea id="exceptionsList" placeholder="Ex: mail.google.com
 youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" rows="5"></textarea>
           <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Qualquer URL que contenha o texto inserido será ignorada.</p>
@@ -109,7 +115,7 @@ youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark
 
      <section class="bg-white p-6 rounded-2xl shadow-lg dark:bg-slate-800">
       <div class="flex justify-between items-center mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">
-        <h2 class="text-2xl font-bold">Regras Personalizadas</h2>
+        <h2 class="text-2xl font-bold flex items-center">Regras Personalizadas <button type="button" class="help-tooltip" data-help-key="customRules">?</button></h2>
         <button id="addRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 dark:bg-indigo-500 dark:hover:bg-indigo-600">
           Adicionar Nova Regra
         </button>
@@ -119,7 +125,7 @@ youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark
     </section>
     
     <section class="bg-white p-6 rounded-2xl shadow-lg mt-8 dark:bg-slate-800">
-        <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Testador de Regras</h2>
+        <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700 flex items-center">Testador de Regras <button type="button" class="help-tooltip" data-help-key="ruleTester">?</button></h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="ruleTesterUrl" class="font-semibold mb-2 block">URL de Teste:</label>
@@ -133,17 +139,23 @@ youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark
         <div id="ruleTesterResult" class="mt-3 p-3 bg-slate-100 rounded-md text-slate-700 dark:bg-slate-700 dark:text-slate-300 min-h-[48px] transition-colors">Aguardando entrada...</div>
     </section>
 
-    <footer class="text-center mt-10">
+    <footer class="text-center mt-10 border-t dark:border-slate-700 pt-8">
         <div class="flex items-center justify-center mb-4">
             <input type="checkbox" id="syncEnabled" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
-            <label for="syncEnabled" class="ml-2 font-semibold">Sincronizar configurações</label>
+            <label for="syncEnabled" class="ml-2 font-semibold">Sincronizar configurações<button type="button" class="help-tooltip" data-help-key="syncEnabled">?</button></label>
         </div>
         <div class="flex items-center justify-center space-x-4 my-6">
             <button id="importBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Importar</button>
             <input type="file" id="importFile" accept=".json" class="hidden">
             <button id="exportBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
         </div>
-        <div id="saveStatus" class="h-6 text-center font-semibold transition-colors"></div>
+        <div class="mt-8 text-sm text-slate-500 dark:text-slate-400">
+            <p class="font-semibold mb-2">Gostou da extensão? Encontrou um problema?</p>
+            <a href="https://github.com/ShadyBS/tab-group-automator/issues" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
+                Relate um bug ou sugira uma ideia no GitHub
+            </a>
+        </div>
+        <div id="saveStatus" class="h-6 text-center font-semibold transition-colors mt-4"></div>
     </footer>
   </div>
 
