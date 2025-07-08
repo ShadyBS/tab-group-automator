@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Tab Grouper",
-  "version": "3.1.0",
+  "version": "3.2.2",
   "description": "Organize automaticamente as suas abas em grupos inteligentes.",
   "homepage_url": "https://github.com/ShadyBS/tab-group-automator",
   "permissions": [

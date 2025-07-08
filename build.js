@@ -6,6 +6,11 @@ const archiver = require("archiver");
 const DIST_DIR = path.join(__dirname, "dist");
 const SOURCE_DIR = __dirname;
 
+// Lê a versão do manifesto principal para usar no nome do arquivo.
+const manifestPath = path.join(SOURCE_DIR, "manifest.json");
+const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const version = manifest.version;
+
 // Lista de arquivos e pastas a serem incluídos no zip.
 // Usar uma lista de permissão é mais seguro e limpo.
 const FILES_TO_INCLUDE = [
@@ -34,7 +39,7 @@ if (!fs.existsSync(DIST_DIR)) {
 function createZip(browser) {
   const manifestName =
     browser === "firefox" ? "manifest.json" : "manifest-chromium.json";
-  const outputFileName = `auto-tab-grouper-${browser}.zip`;
+  const outputFileName = `auto-tab-grouper-${browser}-v${version}.zip`;
   const outputPath = path.join(DIST_DIR, outputFileName);
 
   console.log(`A criar o pacote para ${browser}...`);
