@@ -5,11 +5,12 @@
  */
 
 /**
- * Um Set para rastrear os IDs dos grupos que foram criados automaticamente pela lógica da extensão.
- * É a chave para distinguir entre grupos automáticos e manuais.
- * @type {Set<number>}
+ * Um Map para rastrear a intenção de criar grupos automáticos.
+ * A chave é um identificador temporário (ex: o ID do primeiro separador) e o valor
+ * é um objeto com os IDs dos separadores que serão agrupados.
+ * @type {Map<number, {tabIds: number[]}>}
  */
-export let recentlyCreatedAutomaticGroups = new Set();
+export let pendingAutomaticGroups = new Map();
 
 /**
  * Um Map para rastrear falhas na injeção de scripts de conteúdo.

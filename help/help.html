@@ -1,351 +1,491 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ajuda - Auto Tab Grouper</title>
-  <link rel="stylesheet" href="../vendor/tailwind.css">
-  <style>
-    /* Estilos para customizar a aparência da página de ajuda e dos elementos <details> */
-    body {
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    details > summary {
-      cursor: pointer;
-      font-size: 1.25rem; /* text-xl */
-      font-weight: 600; /* font-semibold */
-      padding: 0.75rem 0;
-      transition: color 0.2s;
-      display: flex;
-      align-items: center;
-      list-style: none; /* Remove a seta padrão */
-    }
-    details > summary::-webkit-details-marker {
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ajuda - Auto Tab Grouper</title>
+    <link rel="stylesheet" href="../vendor/tailwind.css" />
+    <style>
+      /* Estilos para customizar a aparência da página de ajuda e dos elementos <details> */
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      details > summary {
+        cursor: pointer;
+        font-size: 1.25rem; /* text-xl */
+        font-weight: 600; /* font-semibold */
+        padding: 0.75rem 0;
+        transition: color 0.2s;
+        display: flex;
+        align-items: center;
+        list-style: none; /* Remove a seta padrão */
+      }
+      details > summary::-webkit-details-marker {
         display: none; /* Remove a seta padrão no Chrome/Safari */
-    }
-    details > summary::before {
-        content: '►';
+      }
+      details > summary::before {
+        content: "►";
         margin-right: 0.75rem;
         font-size: 0.8em;
         transition: transform 0.2s;
-    }
-    details[open] > summary::before {
+      }
+      details[open] > summary::before {
         transform: rotate(90deg);
-    }
-    details > summary:hover {
-      color: #4f46e5; /* indigo-600 */
-    }
-    .dark details > summary:hover {
+      }
+      details > summary:hover {
+        color: #4f46e5; /* indigo-600 */
+      }
+      .dark details > summary:hover {
         color: #818cf8; /* indigo-400 */
-    }
-    details[open] > summary {
-      color: #4f46e5; /* indigo-600 */
-    }
-    .dark details[open] > summary {
+      }
+      details[open] > summary {
+        color: #4f46e5; /* indigo-600 */
+      }
+      .dark details[open] > summary {
         color: #818cf8; /* indigo-400 */
-    }
-    .details-content {
-      padding: 1rem 1rem 1rem 2rem;
-      border-left: 2px solid #e5e7eb; /* gray-200 */
-      line-height: 1.75;
-      margin-left: 0.5rem;
-    }
-    .dark .details-content {
-      border-left-color: #374151; /* gray-700 */
-    }
-    .details-content p, .details-content ul, .details-content ol {
+      }
+      .details-content {
+        padding: 1rem 1rem 1rem 2rem;
+        border-left: 2px solid #e5e7eb; /* gray-200 */
+        line-height: 1.75;
+        margin-left: 0.5rem;
+      }
+      .dark .details-content {
+        border-left-color: #374151; /* gray-700 */
+      }
+      .details-content p,
+      .details-content ul,
+      .details-content ol {
         margin-bottom: 1rem;
-    }
-    .details-content ul {
+      }
+      .details-content ul {
         list-style-type: disc;
         padding-left: 1.5rem;
-    }
-    .details-content ol {
+      }
+      .details-content ol {
         list-style-type: decimal;
         padding-left: 1.5rem;
-    }
-    .details-content strong {
+      }
+      .details-content strong {
         color: #1e293b;
-    }
-    .dark .details-content strong {
+      }
+      .dark .details-content strong {
         color: #e2e8f0;
-    }
-    .details-content code {
+      }
+      .details-content code {
         background-color: #e5e7eb;
         padding: 0.1rem 0.4rem;
         border-radius: 0.25rem;
         font-weight: 500;
         font-size: 0.9em;
-    }
-    .dark .details-content code {
+      }
+      .dark .details-content code {
         background-color: #374151;
-    }
-  </style>
-</head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300">
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
+  >
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+      <!-- PARTE 1: BOAS-VINDAS -->
+      <header class="mb-12 text-center">
+        <h1 class="text-5xl font-extrabold text-slate-900 dark:text-slate-100">
+          Bem-vindo ao Auto Tab Grouper!
+        </h1>
+        <p class="text-xl text-slate-500 dark:text-slate-400 mt-4">
+          Sua barra de abas, organizada automaticamente.
+        </p>
+        <p class="max-w-3xl mx-auto mt-2 text-slate-600 dark:text-slate-300">
+          Esta extensão observa suas abas e as agrupa de forma inteligente por
+          site ou por regras que você define. Chega de caos, apenas organização.
+        </p>
+      </header>
 
-  <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-    
-    <!-- PARTE 1: BOAS-VINDAS -->
-    <header class="mb-12 text-center">
-      <h1 class="text-5xl font-extrabold text-slate-900 dark:text-slate-100">Bem-vindo ao Auto Tab Grouper!</h1>
-      <p class="text-xl text-slate-500 dark:text-slate-400 mt-4">Sua barra de abas, organizada automaticamente.</p>
-      <p class="max-w-3xl mx-auto mt-2 text-slate-600 dark:text-slate-300">
-        Esta extensão observa suas abas e as agrupa de forma inteligente por site ou por regras que você define. Chega de caos, apenas organização.
-      </p>
-    </header>
-
-    <!-- PARTE 2: GUIA RÁPIDO VISUAL -->
-    <section class="mb-12">
-      <h2 class="text-3xl font-bold text-center mb-8 text-slate-800 dark:text-slate-200">Primeiros Passos</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-        <!-- Passo 1 -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col">
-          <img src="https://placehold.co/400x250/6366f1/ffffff?text=1.+Ativação+Rápida" alt="Imagem do popup da extensão" class="mx-auto rounded-lg mb-4">
-          <div class="flex-grow">
-            <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">Ativação Rápida</h3>
-            <p class="text-slate-600 dark:text-slate-400">O agrupamento já está ativo! Controle tudo a partir do ícone na barra de ferramentas.</p>
+      <!-- PARTE 2: GUIA RÁPIDO VISUAL -->
+      <section class="mb-12">
+        <h2
+          class="text-3xl font-bold text-center mb-8 text-slate-800 dark:text-slate-200"
+        >
+          Primeiros Passos
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+          <!-- Passo 1 -->
+          <div
+            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
+          >
+            <img
+              src="https://placehold.co/400x250/6366f1/ffffff?text=1.+Ativação+Rápida"
+              alt="Imagem do popup da extensão"
+              class="mx-auto rounded-lg mb-4"
+            />
+            <div class="flex-grow">
+              <h3
+                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
+              >
+                Ativação Rápida
+              </h3>
+              <p class="text-slate-600 dark:text-slate-400">
+                O agrupamento já está ativo! Controle tudo a partir do ícone na
+                barra de ferramentas.
+              </p>
+            </div>
+          </div>
+          <!-- Passo 2 -->
+          <div
+            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
+          >
+            <img
+              src="https://placehold.co/400x250/34d399/ffffff?text=2.+Veja+a+Magia"
+              alt="GIF de abas sendo agrupadas"
+              class="mx-auto rounded-lg mb-4"
+            />
+            <div class="flex-grow">
+              <h3
+                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
+              >
+                Veja a Magia Acontecer
+              </h3>
+              <p class="text-slate-600 dark:text-slate-400">
+                Abra algumas abas do mesmo site (ex: `wikipedia.org`) e veja-as
+                se agrupando sozinhas.
+              </p>
+            </div>
+          </div>
+          <!-- Passo 3 -->
+          <div
+            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
+          >
+            <img
+              src="https://placehold.co/400x250/f59e0b/ffffff?text=3.+Liberte+o+Poder"
+              alt="Imagem do menu de contexto"
+              class="mx-auto rounded-lg mb-4"
+            />
+            <div class="flex-grow">
+              <h3
+                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
+              >
+                Liberte o Poder
+              </h3>
+              <p class="text-slate-600 dark:text-slate-400">
+                Clique com o botão direito em uma aba para criar regras
+                personalizadas e muito mais.
+              </p>
+            </div>
           </div>
         </div>
-        <!-- Passo 2 -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col">
-          <img src="https://placehold.co/400x250/34d399/ffffff?text=2.+Veja+a+Magia" alt="GIF de abas sendo agrupadas" class="mx-auto rounded-lg mb-4">
-           <div class="flex-grow">
-            <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">Veja a Magia Acontecer</h3>
-            <p class="text-slate-600 dark:text-slate-400">Abra algumas abas do mesmo site (ex: `wikipedia.org`) e veja-as se agrupando sozinhas.</p>
-          </div>
+        <div class="text-center mt-10">
+          <a
+            href="../options/options.html"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-md transition-transform transform hover:scale-105"
+          >
+            ⚙️ Explorar Configurações
+          </a>
         </div>
-        <!-- Passo 3 -->
-        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col">
-          <img src="https://placehold.co/400x250/f59e0b/ffffff?text=3.+Liberte+o+Poder" alt="Imagem do menu de contexto" class="mx-auto rounded-lg mb-4">
-           <div class="flex-grow">
-            <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">Liberte o Poder</h3>
-            <p class="text-slate-600 dark:text-slate-400">Clique com o botão direito em uma aba para criar regras personalizadas e muito mais.</p>
-          </div>
-        </div>
-      </div>
-      <div class="text-center mt-10">
-        <a href="../options/options.html" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-md transition-transform transform hover:scale-105">
-          ⚙️ Explorar Configurações
-        </a>
-      </div>
-    </section>
+      </section>
 
-    <!-- PARTE 3: CONCEITOS E GUIAS DETALHADOS -->
-    <section class="mt-16">
-      <h2 class="text-3xl font-bold text-center mb-8 text-slate-800 dark:text-slate-200">Manual Completo da Extensão</h2>
+      <!-- PARTE 3: CONCEITOS E GUIAS DETALHADOS -->
+      <section class="mt-16">
+        <h2
+          class="text-3xl font-bold text-center mb-8 text-slate-800 dark:text-slate-200"
+        >
+          Manual Completo da Extensão
+        </h2>
 
-      <div class="max-w-4xl mx-auto space-y-4">
-        
-        <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md" open>
-          <summary>Conceito Fundamental: Grupos Manuais vs. Automáticos</summary>
-          <div class="details-content mt-2">
-            <p>Para usar a extensão de forma eficaz, é crucial entender os dois tipos de grupos:</p>
-            <ul>
-                <li><strong>Grupos Automáticos:</strong> São os grupos que a extensão cria e gerencia para você. Eles são dinâmicos; a extensão pode adicionar ou remover abas deles com base nas suas regras.</li>
-                <li><strong>Grupos Manuais (Protegidos):</strong> Qualquer grupo que <strong>você</strong> cria manualmente no Firefox (ex: arrastando uma aba para outra) é considerado protegido. A extensão os identifica e marca com um ícone de pino (<strong>📌</strong>) no título.</li>
-            </ul>
-            <p><strong>A regra de ouro: a extensão NUNCA irá alterar um grupo manual.</strong> Sua organização pessoal é prioridade. A automação não adicionará, moverá ou removerá abas de um grupo que você marcou como seu.</p>
-            <p>É possível ter o melhor dos dois mundos:</p>
-            <ul>
-              <li>Para **remover a proteção** de um grupo manual e entregá-lo à automação, clique com o botão direito em uma de suas abas e escolha "🔓 Converter em grupo automático".</li>
-              <li>Para **proteger um grupo automático**, transformando-o em manual, clique com o botão direito e escolha "📌 Converter em grupo manual".</li>
-            </ul>
-          </div>
-        </details>
-
-        <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
-            <summary>As Estratégias de Nomenclatura Automática</summary>
+        <div class="max-w-4xl mx-auto space-y-4">
+          <details
+            class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md"
+            open
+          >
+            <summary>
+              Conceito Fundamental: Grupos Manuais vs. Automáticos
+            </summary>
             <div class="details-content mt-2">
-              <p>Esta configuração, encontrada nas opções, define como os grupos automáticos são nomeados. A escolha certa depende do seu fluxo de trabalho.</p>
+              <p>
+                Para usar a extensão de forma eficaz, é crucial entender os dois
+                tipos de grupos:
+              </p>
               <ul>
                 <li>
-                  <strong>Nomenclatura Inteligente (Padrão):</strong> O modo mais avançado. A extensão "lê" o código da página (meta tags, JSON-LD) para encontrar o nome real da marca, em vez de apenas usar a URL.
+                  <strong>Grupos Automáticos:</strong> São os grupos que a
+                  extensão cria e gerencia para você. Eles são dinâmicos; a
+                  extensão pode adicionar ou remover abas deles com base nas
+                  suas regras.
+                </li>
+                <li>
+                  <strong>Grupos Manuais (Protegidos):</strong> Qualquer grupo
+                  que <strong>você</strong> cria manualmente no Firefox (ex:
+                  arrastando uma aba para outra) é considerado protegido. A
+                  extensão os identifica e marca com um ícone de pino
+                  (<strong>📌</strong>) no título.
+                </li>
+              </ul>
+              <p>
+                <strong
+                  >A regra de ouro: a extensão NUNCA irá alterar um grupo
+                  manual.</strong
+                >
+                Sua organização pessoal é prioridade. A automação não
+                adicionará, moverá ou removerá abas de um grupo que você marcou
+                como seu.
+              </p>
+              <p>É possível ter o melhor dos dois mundos:</p>
+              <ul>
+                <li>
+                  Para **remover a proteção** de um grupo manual e entregá-lo à
+                  automação, clique com o botão direito em uma de suas abas e
+                  escolha "🔓 Converter em grupo automático".
+                </li>
+                <li>
+                  Para **proteger um grupo automático**, transformando-o em
+                  manual, clique com o botão direito e escolha "📌 Converter em
+                  grupo manual".
+                </li>
+              </ul>
+            </div>
+          </details>
+
+          <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
+            <summary>As Estratégias de Nomenclatura Automática</summary>
+            <div class="details-content mt-2">
+              <p>
+                Esta configuração, encontrada nas opções, define como os grupos
+                automáticos são nomeados. A escolha certa depende do seu fluxo
+                de trabalho.
+              </p>
+              <ul>
+                <li>
+                  <strong>Nomenclatura Inteligente (Padrão):</strong> O modo
+                  mais avançado. A extensão "lê" o código da página (meta tags,
+                  JSON-LD) para encontrar o nome real da marca, em vez de apenas
+                  usar a URL.
                   <ul>
-                    <li><strong>Caso de uso:</strong> Ideal para grandes ecossistemas de sites, como Google ou Amazon, onde vários subdomínios (<code>mail.google.com</code>, <code>docs.google.com</code>) pertencem à mesma "marca".</li>
-                    <li><strong>Exemplo:</strong> Agrupará todas as abas do Google em um único grupo chamado "Google".</li>
+                    <li>
+                      <strong>Caso de uso:</strong> Ideal para grandes
+                      ecossistemas de sites, como Google ou Amazon, onde vários
+                      subdomínios (<code>mail.google.com</code>,
+                      <code>docs.google.com</code>) pertencem à mesma "marca".
+                    </li>
+                    <li>
+                      <strong>Exemplo:</strong> Agrupará todas as abas do Google
+                      em um único grupo chamado "Google".
+                    </li>
                   </ul>
                 </li>
                 <li>
-                  <strong>Agrupar por Domínio:</strong> Um modo mais simples e previsível. Usa o domínio principal do site (ex: <code>google.com</code>) para nomear o grupo.
-                   <ul>
-                    <li><strong>Caso de uso:</strong> Quando você quer que todos os serviços de um mesmo domínio fiquem juntos, sem se importar com a marca específica.</li>
-                    <li><strong>Exemplo:</strong> Agrupará <code>news.google.com</code> e <code>mail.google.com</code> em um grupo chamado "google.com".</li>
+                  <strong>Agrupar por Domínio:</strong> Um modo mais simples e
+                  previsível. Usa o domínio principal do site (ex:
+                  <code>google.com</code>) para nomear o grupo.
+                  <ul>
+                    <li>
+                      <strong>Caso de uso:</strong> Quando você quer que todos
+                      os serviços de um mesmo domínio fiquem juntos, sem se
+                      importar com a marca específica.
+                    </li>
+                    <li>
+                      <strong>Exemplo:</strong> Agrupará
+                      <code>news.google.com</code> e
+                      <code>mail.google.com</code> em um grupo chamado
+                      "google.com".
+                    </li>
                   </ul>
                 </li>
                 <li>
-                  <strong>Agrupar por Subdomínio:</strong> O modo mais específico. Trata cada subdomínio (<code>news.google.com</code>) como um site totalmente separado.
+                  <strong>Agrupar por Subdomínio:</strong> O modo mais
+                  específico. Trata cada subdomínio
+                  (<code>news.google.com</code>) como um site totalmente
+                  separado.
                   <ul>
-                    <li><strong>Caso de uso:</strong> Perfeito para separar diferentes aplicações web de uma mesma empresa. Essencial para desenvolvedores que trabalham com múltiplos ambientes (<code>dev.site.com</code>, <code>staging.site.com</code>).</li>
-                    <li><strong>Exemplo:</strong> Criará dois grupos separados: "news.google.com" e "mail.google.com".</li>
+                    <li>
+                      <strong>Caso de uso:</strong> Perfeito para separar
+                      diferentes aplicações web de uma mesma empresa. Essencial
+                      para desenvolvedores que trabalham com múltiplos ambientes
+                      (<code>dev.site.com</code>,
+                      <code>staging.site.com</code>).
+                    </li>
+                    <li>
+                      <strong>Exemplo:</strong> Criará dois grupos separados:
+                      "news.google.com" e "mail.google.com".
+                    </li>
                   </ul>
                 </li>
               </ul>
             </div>
-        </details>
-        
-        <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
-          <summary>Dominando as Regras Personalizadas</summary>
-          <div class="details-content mt-2">
-            <p>As regras são o recurso mais poderoso da extensão. Elas anulam a "Estratégia de Nomenclatura" padrão e dão a você controle total.</p>
-            
-            <strong>Criando sua Primeira Regra (o jeito fácil):</strong>
-            <ol>
-              <li>Navegue para uma página que você queira agrupar (ex: um projeto no Jira).</li>
-              <li>Clique com o botão direito do mouse na página -> "Auto Tab Grouper" -> "➕ Criar regra para este site...".</li>
-              <li>A página de opções abrirá com o formulário de regras já pré-preenchido com a URL do site. Agora, basta refinar!</li>
-            </ol>
+          </details>
 
-            <strong>Anatomia de uma Regra:</strong>
-            <ul>
-              <li><strong>Nome do Grupo:</strong> O nome que o grupo terá. Ex: "Projetos de Design".</li>
-              <li><strong>Cor do Grupo:</strong> Uma cor para identificar visualmente seus grupos.</li>
-              <li><strong>Mínimo de Abas:</strong> A regra só será ativada se este número de abas correspondentes for atingido.</li>
-              <li><strong>Operador Lógico (E/OU):</strong>
-                <ul>
-                  <li><code>TODAS (E)</code>: A aba deve corresponder a <strong>todas</strong> as condições que você criar. Útil para regras muito específicas.</li>
-                  <li><code>QUALQUER UMA (OU)</code>: A aba só precisa corresponder a <strong>pelo menos uma</strong> das condições. Ótimo para agrupar sites relacionados.</li>
-                </ul>
-              </li>
-              <li><strong>Condições:</strong> O cérebro da regra. Cada condição tem três partes:
-                <ol>
-                    <li><strong>Propriedade:</strong> O que na aba será analisado (URL Completa, Domínio ou Título).</li>
-                    <li><strong>Operador:</strong> Como a análise será feita (contém, começa com, é igual a, etc.).</li>
-                    <li><strong>Valor:</strong> O texto a ser procurado. Ex: <code>jira.minhaempresa.com</code>.</li>
-                </ol>
-              </li>
-            </ul>
-             <p><strong>Dica Pro: Prioridade é tudo!</strong> As regras na lista são verificadas de cima para baixo. A primeira regra que corresponder a uma aba ganha. Arraste e solte as regras para definir qual é mais importante.</p>
-          </div>
-        </details>
+          <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
+            <summary>Dominando as Regras Personalizadas</summary>
+            <div class="details-content mt-2">
+              <p>
+                As regras são o recurso mais poderoso da extensão. Elas anulam a
+                "Estratégia de Nomenclatura" padrão e dão a você controle total.
+              </p>
 
-        <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
+              <strong>Criando sua Primeira Regra (o jeito fácil):</strong>
+              <ol>
+                <li>
+                  Navegue para uma página que você queira agrupar (ex: um
+                  projeto no Jira).
+                </li>
+                <li>
+                  Clique com o botão direito do mouse na página -> "Auto Tab
+                  Grouper" -> "➕ Criar regra para este site...".
+                </li>
+                <li>
+                  A página de opções abrirá com o formulário de regras já
+                  pré-preenchido com a URL do site. Agora, basta refinar!
+                </li>
+              </ol>
+
+              <strong>Anatomia de uma Regra:</strong>
+              <ul>
+                <li>
+                  <strong>Nome do Grupo:</strong> O nome que o grupo terá. Ex:
+                  "Projetos de Design".
+                </li>
+                <li>
+                  <strong>Cor do Grupo:</strong> Uma cor para identificar
+                  visualmente seus grupos.
+                </li>
+                <li>
+                  <strong>Mínimo de Abas:</strong> A regra só será ativada se
+                  este número de abas correspondentes for atingido.
+                </li>
+                <li>
+                  <strong>Operador Lógico (E/OU):</strong>
+                  <ul>
+                    <li>
+                      <code>TODAS (E)</code>: A aba deve corresponder a
+                      <strong>todas</strong> as condições que você criar. Útil
+                      para regras muito específicas.
+                    </li>
+                    <li>
+                      <code>QUALQUER UMA (OU)</code>: A aba só precisa
+                      corresponder a <strong>pelo menos uma</strong> das
+                      condições. Ótimo para agrupar sites relacionados.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Condições:</strong> O cérebro da regra. Cada condição
+                  tem três partes:
+                  <ol>
+                    <li>
+                      <strong>Propriedade:</strong> O que na aba será analisado
+                      (URL Completa, Domínio ou Título).
+                    </li>
+                    <li>
+                      <strong>Operador:</strong> Como a análise será feita
+                      (contém, começa com, é igual a, etc.).
+                    </li>
+                    <li>
+                      <strong>Valor:</strong> O texto a ser procurado. Ex:
+                      <code>jira.minhaempresa.com</code>.
+                    </li>
+                  </ol>
+                </li>
+              </ul>
+              <p>
+                <strong>Dica Pro: Prioridade é tudo!</strong> As regras na lista
+                são verificadas de cima para baixo. A primeira regra que
+                corresponder a uma aba ganha. Arraste e solte as regras para
+                definir qual é mais importante.
+              </p>
+            </div>
+          </details>
+
+          <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
             <summary>Ajustes Finos: Comportamento dos Grupos</summary>
             <div class="details-content mt-2">
-                <p>Estas opções na página de configurações permitem customizar como os grupos se comportam no dia a dia.</p>
-                <ul>
-                    <li><strong>Expandir grupo ao selecionar aba:</strong> Se ativo, clicar em uma aba de um grupo recolhido irá expandir o grupo todo, mostrando todas as abas. Desative se prefere que o grupo permaneça recolhido.</li>
-                    <li><strong>Recolher grupo após X segundos:</strong> Para manter a interface limpa, a extensão pode recolher grupos que não são usados há algum tempo. Defina um valor em segundos (ex: 300 para 5 minutos) ou deixe 0 para desativar.</li>
-                    <li><strong>Desagrupar aba solitária:</strong> Ative para evitar poluição visual. Se um grupo ficar com apenas uma aba (porque as outras foram fechadas), essa última aba será automaticamente removida do grupo após o tempo definido, tornando-se uma aba normal.</li>
-                </ul>
+              <p>
+                Estas opções na página de configurações permitem customizar como
+                os grupos se comportam no dia a dia.
+              </p>
+              <ul>
+                <li>
+                  <strong>Expandir grupo ao selecionar aba:</strong> Se ativo,
+                  clicar em uma aba de um grupo recolhido irá expandir o grupo
+                  todo, mostrando todas as abas. Desative se prefere que o grupo
+                  permaneça recolhido.
+                </li>
+                <li>
+                  <strong>Recolher grupo após X segundos:</strong> Para manter a
+                  interface limpa, a extensão pode recolher grupos que não são
+                  usados há algum tempo. Defina um valor em segundos (ex: 300
+                  para 5 minutos) ou deixe 0 para desativar.
+                </li>
+                <li>
+                  <strong>Desagrupar aba solitária:</strong> Ative para evitar
+                  poluição visual. Se um grupo ficar com apenas uma aba (porque
+                  as outras foram fechadas), essa última aba será
+                  automaticamente removida do grupo após o tempo definido,
+                  tornando-se uma aba normal.
+                </li>
+              </ul>
             </div>
-        </details>
-        
-        <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
+          </details>
+
+          <details class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-md">
             <summary>FAQ e Solução de Problemas</summary>
             <div class="details-content mt-2">
-                <p><strong>P: Um grupo que eu não queria foi criado. Como impeço isso no futuro?</strong><br>
-                R: Você tem duas opções. A mais fácil é adicionar o site à lista de "Sites a serem ignorados" nas configurações. Se você precisa de mais controle, pode criar uma Regra Personalizada para aquele site e definir um "Mínimo de abas" bem alto (ex: 99).</p>
+              <p>
+                <strong
+                  >P: Um grupo que eu não queria foi criado. Como impeço isso no
+                  futuro?</strong
+                ><br />
+                R: Você tem duas opções. A mais fácil é adicionar o site à lista
+                de "Sites a serem ignorados" nas configurações. Se você precisa
+                de mais controle, pode criar uma Regra Personalizada para aquele
+                site e definir um "Mínimo de abas" bem alto (ex: 99).
+              </p>
 
-                <p><strong>P: A extensão parece lenta ou não está funcionando. O que posso fazer?</strong><br>
-                R: Primeiro, tente desativar e reativar a extensão no popup. Se não resolver, verifique o "Nível de Log" nas opções. Mude para "DEBUG", abra o console do navegador (Ctrl+Shift+J ou Cmd+Opt+J), e veja se há mensagens de erro com o prefixo `[ATG]`. Elas podem dar uma pista do problema.</p>
-                
-                <p><strong>P: Como posso fazer backup ou compartilhar minhas regras?</strong><br>
-                R: Na página de opções, use os botões "Importar" e "Exportar". O botão "Exportar" salvará um arquivo JSON com todas as suas configurações, incluindo regras. Você pode guardar este arquivo como backup ou enviá-lo para um colega, que poderá usar o botão "Importar" para ter as mesmas configurações que você.</p>
+              <p>
+                <strong
+                  >P: A extensão parece lenta ou não está funcionando. O que
+                  posso fazer?</strong
+                ><br />
+                R: Primeiro, tente desativar e reativar a extensão no popup. Se
+                não resolver, verifique o "Nível de Log" nas opções. Mude para
+                "DEBUG", abra o console do navegador (Ctrl+Shift+J ou
+                Cmd+Opt+J), e veja se há mensagens de erro com o prefixo
+                `[ATG]`. Elas podem dar uma pista do problema.
+              </p>
+
+              <p>
+                <strong
+                  >P: Como posso fazer backup ou compartilhar minhas
+                  regras?</strong
+                ><br />
+                R: Na página de opções, use os botões "Importar" e "Exportar". O
+                botão "Exportar" salvará um arquivo JSON com todas as suas
+                configurações, incluindo regras. Você pode guardar este arquivo
+                como backup ou enviá-lo para um colega, que poderá usar o botão
+                "Importar" para ter as mesmas configurações que você.
+              </p>
             </div>
-        </details>
+          </details>
+        </div>
+      </section>
 
-      </div>
-    </section>
-    
-    <footer class="text-center mt-16 text-sm text-slate-500 dark:text-slate-400 border-t dark:border-slate-700 pt-8">
-      <p class="font-semibold mb-2">Gostou da extensão? Encontrou um problema?</p>
-      <a href="https://github.com/ShadyBS/tab-group-automator/issues" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
-        Relate um bug ou sugira uma ideia no GitHub
-      </a>
-      <p class="mt-4">Auto Tab Grouper - Organizando sua navegação.</p>
-    </footer>
+      <footer
+        class="text-center mt-16 text-sm text-slate-500 dark:text-slate-400 border-t dark:border-slate-700 pt-8"
+      >
+        <p class="font-semibold mb-2">
+          Gostou da extensão? Encontrou um problema?
+        </p>
+        <a
+          href="https://github.com/ShadyBS/tab-group-automator/issues"
+          target="_blank"
+          class="text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
+          Relate um bug ou sugira uma ideia no GitHub
+        </a>
+        <p class="mt-4">Auto Tab Grouper - Organizando sua navegação.</p>
+      </footer>
+    </div>
 
-  </div>
-
-  <script type="module">
-    // IIFE para criar um escopo e não poluir o global.
-    (function() {
-        // Fallback para ambientes não-extensão (como testes locais ou pré-visualizações)
-        // onde as APIs 'browser' não estão disponíveis.
-        if (typeof browser === 'undefined' || !browser.runtime || !browser.runtime.sendMessage) {
-            console.warn("Auto Tab Grouper: Não foi possível aceder às APIs do browser. A aplicar tema do sistema como fallback.");
-            
-            const applySystemTheme = () => {
-                const htmlEl = document.documentElement;
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    htmlEl.classList.remove('light');
-                    htmlEl.classList.add('dark');
-                } else {
-                    htmlEl.classList.remove('dark');
-                    htmlEl.classList.add('light');
-                }
-            };
-            
-            applySystemTheme();
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
-            return; // Para a execução, pois não podemos comunicar com a extensão.
-        }
-
-        // --- Lógica para quando o script é executado dentro do contexto da extensão ---
-
-        function applyTheme(theme) {
-          const htmlEl = document.documentElement;
-          if (theme === 'dark') {
-            htmlEl.classList.remove('light');
-            htmlEl.classList.add('dark');
-          } else if (theme === 'light') {
-            htmlEl.classList.remove('dark');
-            htmlEl.classList.add('light');
-          } else { // 'auto' ou caso padrão
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-              htmlEl.classList.remove('light');
-              htmlEl.classList.add('dark');
-            } else {
-              htmlEl.classList.remove('dark');
-              htmlEl.classList.add('light');
-            }
-          }
-        }
-
-        function handleSystemThemeChange(event) {
-            // Re-busca as configurações para garantir que ainda devemos seguir o sistema.
-            browser.runtime.sendMessage({ action: 'getSettings' }).then(settings => {
-                if (settings && settings.theme === 'auto') {
-                    applyTheme('auto');
-                }
-            });
-        }
-
-        async function initializeTheme() {
-            try {
-                const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
-                if (settings && settings.theme) {
-                    applyTheme(settings.theme);
-                    // Remove listener antigo para evitar duplicados.
-                    window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', handleSystemThemeChange);
-                    // Adiciona o listener apenas se o tema for 'auto'
-                    if (settings.theme === 'auto') {
-                        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeChange);
-                    }
-                } else {
-                     applyTheme('auto'); // Fallback
-                     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeChange);
-                }
-            } catch (e) {
-                console.error("Auto Tab Grouper: Não foi possível obter as configurações de tema. Usando preferência do sistema.", e);
-                applyTheme('auto'); // Fallback em caso de erro
-                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeChange);
-            }
-        }
-
-        // Ouve por mensagens de que as configurações foram atualizadas em outro lugar (ex: na página de opções)
-        browser.runtime.onMessage.addListener((message) => {
-            if (message.action === 'settingsUpdated') {
-                initializeTheme();
-            }
-        });
-
-        // Configuração inicial do tema
-        initializeTheme();
-    })();
-  </script>
-
-</body>
+    <script src="../vendor/browser-polyfill.js"></script>
+    <script src="help.js" type="module"></script>
+  </body>
 </html>

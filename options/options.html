@@ -1,224 +1,603 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <title>Opções - Auto Tab Grouper</title>
-  <link rel="stylesheet" href="../vendor/tailwind.css">
-  <link rel="stylesheet" href="options.css">
-</head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Opções - Auto Tab Grouper</title>
+    <link rel="stylesheet" href="../vendor/tailwind.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
+  >
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+      <header class="flex justify-between items-center mb-10 text-center">
+        <div></div>
+        <!-- Espaçador -->
+        <div>
+          <h1
+            class="text-5xl font-extrabold text-slate-900 dark:text-slate-100"
+          >
+            Auto Tab Grouper
+          </h1>
+          <p class="text-lg text-slate-500 dark:text-slate-400 mt-2">
+            Ajuste a organização automática das suas abas.
+          </p>
+        </div>
+        <a
+          href="../help/help.html"
+          target="_blank"
+          class="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/60 font-semibold py-2 px-4 rounded-lg transition-colors"
+        >
+          ? Ajuda
+        </a>
+      </header>
 
-  <div class="container mx-auto p-4 md:p-8 max-w-5xl">
-    <header class="flex justify-between items-center mb-10 text-center">
-      <div></div> <!-- Espaçador -->
-      <div>
-          <h1 class="text-5xl font-extrabold text-slate-900 dark:text-slate-100">Auto Tab Grouper</h1>
-          <p class="text-lg text-slate-500 dark:text-slate-400 mt-2">Ajuste a organização automática das suas abas.</p>
-      </div>
-      <a href="../help/help.html" target="_blank" class="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/60 font-semibold py-2 px-4 rounded-lg transition-colors">
-        ? Ajuda
-      </a>
-    </header>
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Agrupamento
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="groupingMode" class="font-semibold"
+              >Estratégia de Nomenclatura:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="groupingMode"
+              >
+                ?
+              </button></label
+            >
+            <select
+              id="groupingMode"
+              class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+            >
+              <option value="smart">Nomenclatura Inteligente</option>
+              <option value="domain">Agrupar por Domínio</option>
+              <option value="subdomain">Agrupar por Subdomínio</option>
+            </select>
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="minTabsForAutoGroup" class="font-semibold"
+              >Mínimo de abas para agrupar:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="minTabsForAutoGroup"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="number"
+              id="minTabsForAutoGroup"
+              min="1"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="showTabCount" class="font-semibold"
+              >Mostrar contador de abas no título:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="showTabCount"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="checkbox"
+              id="showTabCount"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+            />
+          </div>
+        </div>
+      </section>
 
-    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
-      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Agrupamento</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="groupingMode" class="font-semibold">Estratégia de Nomenclatura:<button type="button" class="help-tooltip" data-help-key="groupingMode">?</button></label>
-          <select id="groupingMode" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
-            <option value="smart">Nomenclatura Inteligente</option>
-            <option value="domain">Agrupar por Domínio</option>
-            <option value="subdomain">Agrupar por Subdomínio</option>
-          </select>
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Comportamento dos Grupos
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="uncollapseOnActivate" class="font-semibold"
+              >Expandir grupo ao selecionar aba:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="uncollapseOnActivate"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="checkbox"
+              id="uncollapseOnActivate"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="autoCollapseTimeout" class="font-semibold"
+              >Recolher grupo após (segundos):<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="autoCollapseTimeout"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="number"
+              id="autoCollapseTimeout"
+              min="0"
+              max="999999"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+              placeholder="0 (desativado)"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity"
+          >
+            <label for="ungroupSingleTabs" class="font-semibold"
+              >Desagrupar aba solitária:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="ungroupSingleTabs"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="checkbox"
+              id="ungroupSingleTabs"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity"
+          >
+            <label for="ungroupSingleTabsTimeout" class="font-semibold"
+              >Desagrupar aba após (segundos):<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="ungroupSingleTabsTimeout"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="number"
+              id="ungroupSingleTabsTimeout"
+              min="0"
+              max="999999"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600 disabled:opacity-50"
+              placeholder="10"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="logLevel" class="font-semibold">Nível de Log:</label>
+            <select
+              id="logLevel"
+              class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+            >
+              <option value="INFO">Informação</option>
+              <option value="DEBUG">Depuração (Debug)</option>
+              <option value="WARN">Avisos (Warn)</option>
+              <option value="ERROR">Erros</option>
+              <option value="NONE">Nenhum</option>
+            </select>
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="theme" class="font-semibold"
+              >Tema:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="theme"
+              >
+                ?
+              </button></label
+            >
+            <select
+              id="theme"
+              class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+            >
+              <option value="auto">Automático</option>
+              <option value="light">Claro</option>
+              <option value="dark">Escuro</option>
+            </select>
+          </div>
         </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="minTabsForAutoGroup" class="font-semibold">Mínimo de abas para agrupar:<button type="button" class="help-tooltip" data-help-key="minTabsForAutoGroup">?</button></label>
-          <input type="number" id="minTabsForAutoGroup" min="1" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="showTabCount" class="font-semibold">Mostrar contador de abas no título:<button type="button" class="help-tooltip" data-help-key="showTabCount">?</button></label>
-          <input type="checkbox" id="showTabCount" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
-      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Comportamento dos Grupos</h2>
-       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="uncollapseOnActivate" class="font-semibold">Expandir grupo ao selecionar aba:<button type="button" class="help-tooltip" data-help-key="uncollapseOnActivate">?</button></label>
-          <input type="checkbox" id="uncollapseOnActivate" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="autoCollapseTimeout" class="font-semibold">Recolher grupo após (segundos):<button type="button" class="help-tooltip" data-help-key="autoCollapseTimeout">?</button></label>
-          <input type="number" id="autoCollapseTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600" placeholder="0 (desativado)">
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity">
-          <label for="ungroupSingleTabs" class="font-semibold">Desagrupar aba solitária:<button type="button" class="help-tooltip" data-help-key="ungroupSingleTabs">?</button></label>
-          <input type="checkbox" id="ungroupSingleTabs" class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-opacity">
-          <label for="ungroupSingleTabsTimeout" class="font-semibold">Desagrupar aba após (segundos):<button type="button" class="help-tooltip" data-help-key="ungroupSingleTabsTimeout">?</button></label>
-          <input type="number" id="ungroupSingleTabsTimeout" min="0" max="999999" class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600 disabled:opacity-50" placeholder="10">
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="logLevel" class="font-semibold">Nível de Log:</label>
-          <select id="logLevel" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
-            <option value="INFO">Informação</option>
-            <option value="DEBUG">Depuração (Debug)</option>
-            <option value="WARN">Avisos (Warn)</option>
-            <option value="ERROR">Erros</option>
-            <option value="NONE">Nenhum</option>
-          </select>
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50">
-          <label for="theme" class="font-semibold">Tema:<button type="button" class="help-tooltip" data-help-key="theme">?</button></label>
-          <select id="theme" class="p-2 border border-slate-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600">
-            <option value="auto">Automático</option>
-            <option value="light">Claro</option>
-            <option value="dark">Escuro</option>
-          </select>
-        </div>
-      </div>
-    </section>
-    
-    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
-        <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Higienização Avançada</h2>
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Higienização Avançada
+        </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-                <label for="domainSanitizationTlds" class="font-semibold mb-2 block">TLDs a ignorar:<button type="button" class="help-tooltip" data-help-key="domainSanitizationTlds">?</button></label>
-                <textarea id="domainSanitizationTlds" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600" rows="10"></textarea>
-                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Os mais longos (ex: .gov.br) devem vir antes dos mais curtos (ex: .br).</p>
-            </div>
-            <div>
-                <label for="titleSanitizationNoise" class="font-semibold mb-2 block">Palavras a ignorar em títulos:<button type="button" class="help-tooltip" data-help-key="titleSanitizationNoise">?</button></label>
-                <textarea id="titleSanitizationNoise" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600" rows="10"></textarea>
-                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Palavras que, se encontradas, penalizam um segmento de título.</p>
-            </div>
-            <div class="md:col-span-2">
-                <label for="titleDelimiters" class="font-semibold mb-2 block">Delimitadores de Título:<button type="button" class="help-tooltip" data-help-key="titleDelimiters">?</button></label>
-                <input type="text" id="titleDelimiters" class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600">
-                <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Caracteres usados para separar o nome da marca do resto do título.</p>
-            </div>
+          <div>
+            <label for="domainSanitizationTlds" class="font-semibold mb-2 block"
+              >TLDs a ignorar:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="domainSanitizationTlds"
+              >
+                ?
+              </button></label
+            >
+            <textarea
+              id="domainSanitizationTlds"
+              class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600"
+              rows="10"
+            ></textarea>
+            <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">
+              Os mais longos (ex: .gov.br) devem vir antes dos mais curtos (ex:
+              .br).
+            </p>
+          </div>
+          <div>
+            <label for="titleSanitizationNoise" class="font-semibold mb-2 block"
+              >Palavras a ignorar em títulos:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="titleSanitizationNoise"
+              >
+                ?
+              </button></label
+            >
+            <textarea
+              id="titleSanitizationNoise"
+              class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600"
+              rows="10"
+            ></textarea>
+            <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">
+              Palavras que, se encontradas, penalizam um segmento de título.
+            </p>
+          </div>
+          <div class="md:col-span-2">
+            <label for="titleDelimiters" class="font-semibold mb-2 block"
+              >Delimitadores de Título:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="titleDelimiters"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="text"
+              id="titleDelimiters"
+              class="w-full p-2 border border-slate-300 rounded-md shadow-sm font-mono text-sm dark:bg-slate-700 dark:border-slate-600"
+            />
+            <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">
+              Caracteres usados para separar o nome da marca do resto do título.
+            </p>
+          </div>
         </div>
-    </section>
+      </section>
 
-    <section class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800">
-      <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">Exceções</h2>
-      <div class="flex flex-col">
-          <label for="exceptionsList" class="font-semibold mb-2">Sites a serem ignorados (um por linha):<button type="button" class="help-tooltip" data-help-key="exceptionsList">?</button></label>
-          <textarea id="exceptionsList" placeholder="Ex: mail.google.com
-youtube.com" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" rows="5"></textarea>
-          <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">Qualquer URL que contenha o texto inserido será ignorada.</p>
-      </div>
-    </section>
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Exceções
+        </h2>
+        <div class="flex flex-col">
+          <label for="exceptionsList" class="font-semibold mb-2"
+            >Sites a serem ignorados (um por linha):<button
+              type="button"
+              class="help-tooltip"
+              data-help-key="exceptionsList"
+            >
+              ?
+            </button></label
+          >
+          <textarea
+            id="exceptionsList"
+            placeholder="Ex: mail.google.com
+youtube.com"
+            class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+            rows="5"
+          ></textarea>
+          <p class="text-sm text-slate-500 mt-2 dark:text-slate-400">
+            Qualquer URL que contenha o texto inserido será ignorada.
+          </p>
+        </div>
+      </section>
 
-     <section class="bg-white p-6 rounded-2xl shadow-lg dark:bg-slate-800">
-      <div class="flex justify-between items-center mb-5 border-b border-slate-200 pb-3 dark:border-slate-700">
-        <h2 class="text-2xl font-bold flex items-center">Regras Personalizadas <button type="button" class="help-tooltip" data-help-key="customRules">?</button></h2>
-        <button id="addRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 dark:bg-indigo-500 dark:hover:bg-indigo-600">
-          Adicionar Nova Regra
-        </button>
-      </div>
-      <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">A primeira regra na lista que corresponder será usada. Arraste e solte para reordenar.</p>
-      <div id="rulesList" class="space-y-3"></div>
-    </section>
-    
-    <section class="bg-white p-6 rounded-2xl shadow-lg mt-8 dark:bg-slate-800">
-        <h2 class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700 flex items-center">Testador de Regras <button type="button" class="help-tooltip" data-help-key="ruleTester">?</button></h2>
+      <section class="bg-white p-6 rounded-2xl shadow-lg dark:bg-slate-800">
+        <div
+          class="flex justify-between items-center mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          <h2 class="text-2xl font-bold flex items-center">
+            Regras Personalizadas
+            <button
+              type="button"
+              class="help-tooltip"
+              data-help-key="customRules"
+            >
+              ?
+            </button>
+          </h2>
+          <button
+            id="addRuleBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+          >
+            Adicionar Nova Regra
+          </button>
+        </div>
+        <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">
+          A primeira regra na lista que corresponder será usada. Arraste e solte
+          para reordenar.
+        </p>
+        <div id="rulesList" class="space-y-3"></div>
+      </section>
+
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mt-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700 flex items-center"
+        >
+          Testador de Regras
+          <button type="button" class="help-tooltip" data-help-key="ruleTester">
+            ?
+          </button>
+        </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label for="ruleTesterUrl" class="font-semibold mb-2 block">URL de Teste:</label>
-                <input type="url" id="ruleTesterUrl" placeholder="https://www.github.com/usuario/repo" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-            </div>
-            <div>
-                <label for="ruleTesterTitle" class="font-semibold mb-2 block">Título de Teste:</label>
-                <input type="text" id="ruleTesterTitle" placeholder="[PROJETO-X] Correção de bug" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-            </div>
+          <div>
+            <label for="ruleTesterUrl" class="font-semibold mb-2 block"
+              >URL de Teste:</label
+            >
+            <input
+              type="url"
+              id="ruleTesterUrl"
+              placeholder="https://www.github.com/usuario/repo"
+              class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+            />
+          </div>
+          <div>
+            <label for="ruleTesterTitle" class="font-semibold mb-2 block"
+              >Título de Teste:</label
+            >
+            <input
+              type="text"
+              id="ruleTesterTitle"
+              placeholder="[PROJETO-X] Correção de bug"
+              class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+            />
+          </div>
         </div>
-        <div id="ruleTesterResult" class="mt-3 p-3 bg-slate-100 rounded-md text-slate-700 dark:bg-slate-700 dark:text-slate-300 min-h-[48px] transition-colors">Aguardando entrada...</div>
-    </section>
+        <div
+          id="ruleTesterResult"
+          class="mt-3 p-3 bg-slate-100 rounded-md text-slate-700 dark:bg-slate-700 dark:text-slate-300 min-h-[48px] transition-colors"
+        >
+          Aguardando entrada...
+        </div>
+      </section>
 
-    <footer class="text-center mt-10 border-t dark:border-slate-700 pt-8">
+      <footer class="text-center mt-10 border-t dark:border-slate-700 pt-8">
         <div class="flex items-center justify-center mb-4">
-            <input type="checkbox" id="syncEnabled" class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700">
-            <label for="syncEnabled" class="ml-2 font-semibold">Sincronizar configurações<button type="button" class="help-tooltip" data-help-key="syncEnabled">?</button></label>
+          <input
+            type="checkbox"
+            id="syncEnabled"
+            class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+          />
+          <label for="syncEnabled" class="ml-2 font-semibold"
+            >Sincronizar configurações<button
+              type="button"
+              class="help-tooltip"
+              data-help-key="syncEnabled"
+            >
+              ?
+            </button></label
+          >
         </div>
         <div class="flex items-center justify-center space-x-4 my-6">
-            <button id="importBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Importar</button>
-            <input type="file" id="importFile" accept=".json" class="hidden">
-            <button id="exportBtn" class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg">Exportar</button>
+          <button
+            id="importBtn"
+            class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Importar
+          </button>
+          <input type="file" id="importFile" accept=".json" class="hidden" />
+          <button
+            id="exportBtn"
+            class="bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Exportar
+          </button>
         </div>
         <div class="mt-8 text-sm text-slate-500 dark:text-slate-400">
-            <p class="font-semibold mb-2">Gostou da extensão? Encontrou um problema?</p>
-            <a href="https://github.com/ShadyBS/tab-group-automator/issues" target="_blank" class="text-indigo-600 dark:text-indigo-400 hover:underline">
-                Relate um bug ou sugira uma ideia no GitHub
-            </a>
+          <p class="font-semibold mb-2">
+            Gostou da extensão? Encontrou um problema?
+          </p>
+          <a
+            href="https://github.com/ShadyBS/tab-group-automator/issues"
+            target="_blank"
+            class="text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            Relate um bug ou sugira uma ideia no GitHub
+          </a>
         </div>
-        <div id="saveStatus" class="h-6 text-center font-semibold transition-colors mt-4"></div>
-    </footer>
-  </div>
+        <div
+          id="saveStatus"
+          class="h-6 text-center font-semibold transition-colors mt-4"
+        ></div>
+      </footer>
+    </div>
 
-  <div id="ruleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 overflow-y-auto">
-    <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-2xl m-4 dark:bg-slate-800">
-      <h3 id="modalTitle" class="text-2xl font-bold mb-6">Nova Regra</h3>
-      <form id="ruleForm">
-        <input type="hidden" id="ruleIndex">
-        <div class="space-y-4">
+    <div
+      id="ruleModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 overflow-y-auto"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-2xl m-4 dark:bg-slate-800"
+      >
+        <h3 id="modalTitle" class="text-2xl font-bold mb-6">Nova Regra</h3>
+        <form id="ruleForm">
+          <input type="hidden" id="ruleIndex" />
+          <div class="space-y-4">
             <div>
-                <label for="ruleName" class="font-semibold block mb-1">Nome do Grupo</label>
-                <input type="text" id="ruleName" placeholder="Ex: Pull Requests" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600" required>
+              <label for="ruleName" class="font-semibold block mb-1"
+                >Nome do Grupo</label
+              >
+              <input
+                type="text"
+                id="ruleName"
+                placeholder="Ex: Pull Requests"
+                class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+                required
+              />
             </div>
             <div>
-                <label for="ruleColor" class="font-semibold block mb-1">Cor do Grupo</label>
-                <select id="ruleColor" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-                     <option value="grey">Cinzento</option><option value="blue">Azul</option><option value="red">Vermelho</option><option value="yellow">Amarelo</option><option value="green">Verde</option><option value="pink">Rosa</option><option value="purple">Roxo</option><option value="cyan">Ciano</option><option value="orange">Laranja</option>
-                </select>
+              <label for="ruleColor" class="font-semibold block mb-1"
+                >Cor do Grupo</label
+              >
+              <select
+                id="ruleColor"
+                class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              >
+                <option value="grey">Cinzento</option>
+                <option value="blue">Azul</option>
+                <option value="red">Vermelho</option>
+                <option value="yellow">Amarelo</option>
+                <option value="green">Verde</option>
+                <option value="pink">Rosa</option>
+                <option value="purple">Roxo</option>
+                <option value="cyan">Ciano</option>
+                <option value="orange">Laranja</option>
+              </select>
             </div>
             <div>
-                <label for="ruleMinTabs" class="font-semibold block mb-1">Mínimo de Abas no Grupo</label>
-                <input type="number" id="ruleMinTabs" min="1" value="1" class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-                <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">A regra só será aplicada se este número de abas for atingido.</p>
+              <label for="ruleMinTabs" class="font-semibold block mb-1"
+                >Mínimo de Abas no Grupo</label
+              >
+              <input
+                type="number"
+                id="ruleMinTabs"
+                min="1"
+                value="1"
+                class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              />
+              <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">
+                A regra só será aplicada se este número de abas for atingido.
+              </p>
             </div>
-        </div>
-        
-        <hr class="my-6 dark:border-slate-600">
+          </div>
 
-        <div>
+          <hr class="my-6 dark:border-slate-600" />
+
+          <div>
             <div class="flex items-center space-x-4 mb-4">
-                 <h4 class="text-lg font-semibold">Agrupar abas SE</h4>
-                 <select id="ruleOperator" class="p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600">
-                    <option value="AND">TODAS</option>
-                    <option value="OR">QUALQUER UMA</option>
-                 </select>
-                 <h4 class="text-lg font-semibold">das seguintes condições forem verdadeiras:</h4>
+              <h4 class="text-lg font-semibold">Agrupar abas SE</h4>
+              <select
+                id="ruleOperator"
+                class="p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              >
+                <option value="AND">TODAS</option>
+                <option value="OR">QUALQUER UMA</option>
+              </select>
+              <h4 class="text-lg font-semibold">
+                das seguintes condições forem verdadeiras:
+              </h4>
             </div>
-            <div id="conditionsContainer" class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                </div>
-            <button type="button" id="addConditionBtn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
-                + Adicionar Condição
+            <div
+              id="conditionsContainer"
+              class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
+            ></div>
+            <button
+              type="button"
+              id="addConditionBtn"
+              class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm"
+            >
+              + Adicionar Condição
             </button>
-        </div>
+          </div>
 
-        <div class="flex justify-end space-x-4 mt-8">
-          <button type="button" id="cancelRuleBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button>
-          <button type="submit" id="saveRuleBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg dark:bg-indigo-500 dark:hover:bg-indigo-600">Salvar Regra</button>
-        </div>
-      </form>
+          <div class="flex justify-end space-x-4 mt-8">
+            <button
+              type="button"
+              id="cancelRuleBtn"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="saveRuleBtn"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg dark:bg-indigo-500 dark:hover:bg-indigo-600"
+            >
+              Salvar Regra
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-  <div id="confirmModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4">
-    <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md dark:bg-slate-800">
-        <h3 class="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">Confirmar Ação</h3>
-        <p id="confirmModalText" class="text-slate-600 mb-8 dark:text-slate-300">Tem a certeza que deseja prosseguir?</p>
-        <div class="flex justify-end space-x-4"><button id="confirmCancelBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500">Cancelar</button><button id="confirmOkBtn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors">Confirmar</button></div>
+    <div
+      id="confirmModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md dark:bg-slate-800"
+      >
+        <h3 class="text-xl font-bold mb-4 text-slate-800 dark:text-slate-100">
+          Confirmar Ação
+        </h3>
+        <p
+          id="confirmModalText"
+          class="text-slate-600 mb-8 dark:text-slate-300"
+        >
+          Tem a certeza que deseja prosseguir?
+        </p>
+        <div class="flex justify-end space-x-4">
+          <button
+            id="confirmCancelBtn"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg transition-colors dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+          >
+            Cancelar</button
+          ><button
+            id="confirmOkBtn"
+            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div id="notification-container" class="fixed bottom-5 right-5 w-80 space-y-3 z-50"></div>
+    <div
+      id="notification-container"
+      class="fixed bottom-5 right-5 w-80 space-y-3 z-50"
+    ></div>
 
-  <script src="../vendor/Sortable.min.js"></script>
-  <script src="options.js" type="module"></script>
-</body>
+    <script src="../vendor/Sortable.min.js"></script>
+    <script src="../vendor/browser-polyfill.js"></script>
+    <script src="options.js" type="module"></script>
+  </body>
 </html>

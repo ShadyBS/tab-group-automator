@@ -9,7 +9,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify",
-    "watch": "tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify --watch"
+    "watch": "tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify --watch",
+    "package": "node build.js"
   },
   "repository": {
     "type": "git",

@@ -17,10 +17,16 @@ let currentLogLevel = LOG_LEVELS.INFO;
 
 // Mapeia cada nível para um método e estilo do console para uma saída colorida.
 const levelDetails = {
-  [LOG_LEVELS.DEBUG]: { method: 'log', style: 'color: #6e6e6e;' },
-  [LOG_LEVELS.INFO]: { method: 'info', style: 'color: #007bff;' },
-  [LOG_LEVELS.WARN]: { method: 'warn', style: 'color: #ffc107; font-weight: bold;' },
-  [LOG_LEVELS.ERROR]: { method: 'error', style: 'color: #dc3545; font-weight: bold;' },
+  [LOG_LEVELS.DEBUG]: { method: "log", style: "color: #6e6e6e;" },
+  [LOG_LEVELS.INFO]: { method: "info", style: "color: #007bff;" },
+  [LOG_LEVELS.WARN]: {
+    method: "warn",
+    style: "color: #ffc107; font-weight: bold;",
+  },
+  [LOG_LEVELS.ERROR]: {
+    method: "error",
+    style: "color: #dc3545; font-weight: bold;",
+  },
 };
 
 /**
@@ -32,13 +38,21 @@ const levelDetails = {
  */
 function log(level, context, message, ...details) {
   // Ignora a mensagem se o nível de log atual for mais restritivo.
-  if (level < currentLogLevel) return;
+  // Também ignora se o nível da mensagem for NONE.
+  if (level < currentLogLevel || level === LOG_LEVELS.NONE) return;
 
-  const { method, style } = levelDetails[level];
+  // Adiciona um fallback para o caso de um nível de log inválido ser passado,
+  // prevenindo uma falha se, por exemplo, log(LOG_LEVELS.NONE) for chamado.
+  const { method, style } = levelDetails[level] || { method: "log", style: "" };
   const timestamp = new Date().toISOString().slice(11, 23);
 
   // Garante que objetos sejam passados diretamente para o console para inspeção interativa.
-  const processedDetails = details.map(d => (typeof d === 'object' ? d : String(d)));
+  const processedDetails = details.map((detail) => {
+    if (typeof detail === "object" && detail !== null) {
+      return detail;
+    }
+    return String(detail);
+  });
 
   console[method](
     `%c[ATG] ${timestamp} [${context}] - ${message}`,
@@ -53,15 +67,19 @@ export default {
    * @param {string} levelName - 'DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE'.
    */
   setLevel: (levelName) => {
-    const newLevel = LOG_LEVELS[(levelName || 'INFO').toUpperCase()];
+    const newLevel = LOG_LEVELS[(levelName || "INFO").toUpperCase()];
     if (newLevel !== undefined) {
       currentLogLevel = newLevel;
     }
   },
 
   // Métodos de atalho para cada nível de log.
-  debug: (context, message, ...details) => log(LOG_LEVELS.DEBUG, context, message, ...details),
-  info: (context, message, ...details) => log(LOG_LEVELS.INFO, context, message, ...details),
-  warn: (context, message, ...details) => log(LOG_LEVELS.WARN, context, message, ...details),
-  error: (context, message, ...details) => log(LOG_LEVELS.ERROR, context, message, ...details),
+  debug: (context, message, ...details) =>
+    log(LOG_LEVELS.DEBUG, context, message, ...details),
+  info: (context, message, ...details) =>
+    log(LOG_LEVELS.INFO, context, message, ...details),
+  warn: (context, message, ...details) =>
+    log(LOG_LEVELS.WARN, context, message, ...details),
+  error: (context, message, ...details) =>
+    log(LOG_LEVELS.ERROR, context, message, ...details),
 };
