@@ -164,6 +164,8 @@ async function fetchSmartName(tab) {
 
       // 1. Tenta usar os nomes de alta prioridade primeiro.
       const priorityName =
+        details.manifestName ||
+        details.appleWebAppTitle ||
         details.ogSiteName ||
         details.applicationName ||
         details.schemaName ||
