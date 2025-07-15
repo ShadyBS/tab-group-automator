@@ -89,21 +89,33 @@ function migrateRuleToNewFormat(oldRule) {
 
 export async function loadSettings() {
     try {
+        // Primeiro verifica se há configurações no sync
         const syncData = await browser.storage.sync.get('settings');
         let loadedSettings = null;
+        let settingsSource = 'default';
 
         if (syncData && syncData.settings) {
             Logger.info("SettingsManager", "A carregar configurações do armazenamento sync.");
             loadedSettings = syncData.settings;
+            settingsSource = 'sync';
         } else {
             Logger.info("SettingsManager", "Sem configurações no sync, a tentar armazenamento local.");
             const localData = await browser.storage.local.get('settings');
             if (localData && localData.settings) {
                 loadedSettings = localData.settings;
+                settingsSource = 'local';
             }
         }
         
+        // Aplica as configurações carregadas sobre as padrão
         settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
+
+        // CORREÇÃO: Se as configurações foram carregadas do sync, garante que syncEnabled seja true
+        // Isto evita que configurações do sync sejam perdidas ao reinstalar a extensão
+        if (settingsSource === 'sync' && loadedSettings) {
+            settings.syncEnabled = true;
+            Logger.info("SettingsManager", "Configurações carregadas do sync - syncEnabled definido como true.");
+        }
 
         let settingsWereMigrated = false;
 

@@ -38,6 +38,16 @@ browser.runtime.onInstalled.addListener(async (details) => {
     );
     const welcomeUrl = browser.runtime.getURL("help/help.html");
     browser.tabs.create({ url: welcomeUrl });
+  } else if (details.reason === "update") {
+    // Recarrega as configurações após uma atualização para garantir que
+    // configurações do sync sejam preservadas
+    Logger.info("onInstalled", "Extensão atualizada. A recarregar configurações...");
+    try {
+      await loadSettings();
+      Logger.info("onInstalled", "Configurações recarregadas após atualização.");
+    } catch (e) {
+      Logger.error("onInstalled", "Erro ao recarregar configurações após atualização:", e);
+    }
   }
 });
 

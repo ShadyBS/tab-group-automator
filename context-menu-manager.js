@@ -21,10 +21,11 @@ export async function updateContextMenus() {
   }
 
   await browser.contextMenus.removeAll();
-  // O contexto 'tab' é específico do Firefox e causa erros em navegadores baseados em Chromium.
-  // 'page' é um contexto seguro e compatível que cobre a funcionalidade principal
-  // de clicar com o botão direito no conteúdo de uma página.
-  const validContexts = ["page"];
+  // Detecta o navegador e define contextos compatíveis
+  // Firefox: suporta "tab" para menus de contexto nas abas
+  // Chrome: não suporta "tab", usa apenas "page" para conteúdo das páginas
+  const isFirefox = typeof browser !== 'undefined' && browser.runtime && browser.runtime.getBrowserInfo;
+  const validContexts = isFirefox ? ["page", "tab"] : ["page"];
 
   const mainParentId = "main-parent";
   browser.contextMenus.create({
