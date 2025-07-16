@@ -13,6 +13,8 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - `settings-manager.js` - Settings persistence and sync management
 - `context-menu-manager.js` - Right-click context menu functionality
 - `app-state.js` - Application state management
+- `error-handler.js` - Centralized error handling and recovery strategies
+- `memory-manager.js` - Automatic memory cleanup and resource management
 - `popup/` - Extension toolbar popup UI
 - `options/` - Extension settings/options page UI
 - `manifest.json` - Extension manifest (Firefox), `manifest-chromium.json` for Chrome

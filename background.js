@@ -7,7 +7,7 @@
 import "./vendor/browser-polyfill.js";
 
 import Logger from "./logger.js";
-import { settings, loadSettings, updateSettings, DEFAULT_SETTINGS } from "./settings-manager.js";
+import { settings, loadSettings, updateSettings, DEFAULT_SETTINGS, smartNameCache } from "./settings-manager.js";
 import { processTabQueue } from "./grouping-logic.js";
 import {
   initializeContextMenus,
@@ -20,6 +20,14 @@ import {
   handleCriticalOperation,
   withErrorHandling
 } from "./error-handler.js";
+import {
+  startMemoryCleanup,
+  stopMemoryCleanup,
+  performMemoryCleanup,
+  isMemoryLimitExceeded,
+  emergencyCleanup,
+  getMemoryStats
+} from "./memory-manager.js";
 
 // --- Constantes e Variáveis de Estado ---
 
@@ -34,6 +42,17 @@ let groupActivity = new Map();
 let collapseInterval = null;
 let ungroupInterval = null;
 let singleTabGroupTimestamps = new Map();
+
+// Objeto para facilitar passagem de mapas para gerenciador de memória
+const memoryMaps = {
+  get tabGroupMap() { return tabGroupMap; },
+  get debouncedTitleUpdaters() { return debouncedTitleUpdaters; },
+  get groupActivity() { return groupActivity; },
+  get singleTabGroupTimestamps() { return singleTabGroupTimestamps; },
+  get smartNameCache() { return smartNameCache; },
+  get injectionFailureMap() { return injectionFailureMap; },
+  get pendingAutomaticGroups() { return pendingAutomaticGroups; }
+};
 
 // --- Lógica de Onboarding ---
 browser.runtime.onInstalled.addListener(async (details) => {
@@ -74,6 +93,15 @@ function scheduleQueueProcessing() {
     "scheduleQueueProcessing",
     "Agendamento de processamento da fila."
   );
+  
+  // Verifica se precisa de limpeza de emergência antes de processar
+  if (isMemoryLimitExceeded(memoryMaps)) {
+    Logger.warn("scheduleQueueProcessing", "Limite de memória excedido - executando limpeza de emergência.");
+    emergencyCleanup(memoryMaps).then(() => {
+      Logger.info("scheduleQueueProcessing", "Limpeza de emergência concluída.");
+    });
+  }
+  
   if (queueTimeout) clearTimeout(queueTimeout);
   queueTimeout = setTimeout(async () => {
     const tabsToProcess = Array.from(tabProcessingQueue);
@@ -130,8 +158,15 @@ function handleTabRemoved(tabId, removeInfo) {
   if (oldGroupId) {
     scheduleTitleUpdate(oldGroupId);
   }
+  
+  // Limpeza proativa de recursos relacionados à aba removida
   tabGroupMap.delete(tabId);
   injectionFailureMap.delete(tabId);
+  
+  // Remove entrada de grupos pendentes se a aba era a chave
+  if (pendingAutomaticGroups.has(tabId)) {
+    pendingAutomaticGroups.delete(tabId);
+  }
 }
 
 // CORRIGIDO: Adiciona "title" às propriedades que o listener de onUpdated observa.
@@ -467,11 +502,30 @@ async function handleTabGroupUpdated(group) {
 
 async function handleTabGroupRemoved(group) {
   Logger.info("handleTabGroupRemoved", `Grupo ${group.id} removido.`, group);
+  
+  // Atualiza configurações se era um grupo manual
   if (settings.manualGroupIds.includes(group.id)) {
     const newManualIds = settings.manualGroupIds.filter(
       (id) => id !== group.id
     );
     await updateSettings({ manualGroupIds: newManualIds });
+  }
+  
+  // Limpeza proativa de recursos relacionados ao grupo removido
+  groupActivity.delete(group.id);
+  singleTabGroupTimestamps.delete(group.id);
+  
+  // Cancela qualquer updater de título pendente para este grupo
+  if (debouncedTitleUpdaters.has(group.id)) {
+    clearTimeout(debouncedTitleUpdaters.get(group.id));
+    debouncedTitleUpdaters.delete(group.id);
+  }
+  
+  // Remove abas órfãs do mapa tab-grupo
+  for (const [tabId, groupId] of tabGroupMap.entries()) {
+    if (groupId === group.id) {
+      tabGroupMap.delete(tabId);
+    }
   }
 }
 
@@ -578,6 +632,13 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
           await processTabQueue(allTabs.map((t) => t.id));
           sendResponse({ status: "ok" });
+          break;
+        case "getMemoryStats":
+          sendResponse(getMemoryStats());
+          break;
+        case "cleanupMemory":
+          const cleanupStats = await performMemoryCleanup(memoryMaps);
+          sendResponse(cleanupStats);
           break;
         case "log":
           if (
@@ -695,6 +756,15 @@ async function main() {
     toggleListeners(settings.autoGroupingEnabled || settings.showTabCount);
     updateAutoCollapseTimer();
     updateUngroupTimer();
+
+    // Inicia o gerenciamento automático de memória
+    startMemoryCleanup(memoryMaps);
+    
+    // Executa uma limpeza inicial após inicialização
+    setTimeout(async () => {
+      const initialCleanup = await performMemoryCleanup(memoryMaps);
+      Logger.info("Main", "Limpeza inicial de memória concluída:", initialCleanup);
+    }, 10000); // 10 segundos após inicialização
 
     Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", { settings });
     return { success: true };

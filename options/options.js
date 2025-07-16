@@ -82,6 +82,18 @@ document.addEventListener("DOMContentLoaded", () => {
     ruleTesterUrl: document.getElementById("ruleTesterUrl"),
     ruleTesterTitle: document.getElementById("ruleTesterTitle"),
     ruleTesterResult: document.getElementById("ruleTesterResult"),
+    // Elementos de diagnóstico de memória
+    refreshMemoryStats: document.getElementById("refreshMemoryStats"),
+    cleanupMemory: document.getElementById("cleanupMemory"),
+    memoryTabGroupMap: document.getElementById("memoryTabGroupMap"),
+    memoryTitleUpdaters: document.getElementById("memoryTitleUpdaters"),
+    memoryGroupActivity: document.getElementById("memoryGroupActivity"),
+    memorySmartCache: document.getElementById("memorySmartCache"),
+    memoryInjectionFailures: document.getElementById("memoryInjectionFailures"),
+    memoryPendingGroups: document.getElementById("memoryPendingGroups"),
+    lastCleanupTime: document.getElementById("lastCleanupTime"),
+    totalCleaned: document.getElementById("totalCleaned"),
+    cleanupCycles: document.getElementById("cleanupCycles"),
   };
 
   let currentSettings = {};
@@ -820,6 +832,60 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // --- Funções de Diagnóstico de Memória ---
+  
+  async function updateMemoryStats() {
+    try {
+      const stats = await browser.runtime.sendMessage({ action: "getMemoryStats" });
+      if (stats && stats.sizes) {
+        ui.memoryTabGroupMap.textContent = stats.sizes.tabGroupMap || "0";
+        ui.memoryTitleUpdaters.textContent = stats.sizes.debouncedTitleUpdaters || "0";
+        ui.memoryGroupActivity.textContent = stats.sizes.groupActivity || "0";
+        ui.memorySmartCache.textContent = stats.sizes.smartNameCache || "0";
+        ui.memoryInjectionFailures.textContent = stats.sizes.injectionFailureMap || "0";
+        ui.memoryPendingGroups.textContent = stats.sizes.pendingAutomaticGroups || "0";
+        
+        ui.lastCleanupTime.textContent = new Date(stats.lastCleanup).toLocaleString();
+        ui.totalCleaned.textContent = stats.totalCleaned || "0";
+        ui.cleanupCycles.textContent = stats.cleanupCycles || "0";
+      }
+    } catch (error) {
+      console.error("Erro ao obter estatísticas de memória:", error);
+      showNotification("Erro ao obter estatísticas de memória", "error");
+    }
+  }
+  
+  async function performMemoryCleanup() {
+    try {
+      ui.cleanupMemory.disabled = true;
+      ui.cleanupMemory.textContent = "Limpando...";
+      
+      const result = await browser.runtime.sendMessage({ action: "cleanupMemory" });
+      if (result) {
+        showNotification(`Limpeza concluída: ${result.cleaned || 0} entradas removidas`, "success");
+        await updateMemoryStats(); // Atualiza estatísticas após limpeza
+      }
+    } catch (error) {
+      console.error("Erro durante limpeza de memória:", error);
+      showNotification("Erro durante limpeza de memória", "error");
+    } finally {
+      ui.cleanupMemory.disabled = false;
+      ui.cleanupMemory.textContent = "Limpar";
+    }
+  }
+  
+  // Event listeners para diagnóstico de memória
+  if (ui.refreshMemoryStats) {
+    ui.refreshMemoryStats.addEventListener("click", updateMemoryStats);
+  }
+  
+  if (ui.cleanupMemory) {
+    ui.cleanupMemory.addEventListener("click", performMemoryCleanup);
+  }
+
   initialize();
   initializeHelpTooltips();
+  
+  // Carrega estatísticas de memória iniciais
+  setTimeout(updateMemoryStats, 1000);
 });

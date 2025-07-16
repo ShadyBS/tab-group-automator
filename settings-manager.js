@@ -310,3 +310,46 @@ export function clearSmartNameCache() {
   }
   browser.storage.local.remove("smartNameCache");
 }
+
+/**
+ * Remove entradas antigas do cache baseado em tempo de acesso
+ * @param {number} maxAge - Idade máxima em milissegundos (padrão: 24 horas)
+ * @returns {number} Número de entradas removidas
+ */
+export function cleanupOldCacheEntries(maxAge = 24 * 60 * 60 * 1000) {
+  if (!smartNameCache || smartNameCache.size === 0) return 0;
+  
+  let removedCount = 0;
+  const now = Date.now();
+  
+  // Como o Map não armazena timestamps, usamos uma estratégia de LRU aproximada
+  // removendo entradas antigas quando o cache excede um tamanho razoável
+  const maxCacheSize = 1000; // Tamanho máximo recomendado
+  
+  if (smartNameCache.size > maxCacheSize) {
+    const excess = smartNameCache.size - maxCacheSize;
+    const entries = Array.from(smartNameCache.keys());
+    
+    // Remove as primeiras entradas (assumindo que são as mais antigas)
+    for (let i = 0; i < excess; i++) {
+      smartNameCache.delete(entries[i]);
+      removedCount++;
+    }
+    
+    Logger.debug("SettingsManager", `Cache limpo: ${removedCount} entradas antigas removidas. Tamanho atual: ${smartNameCache.size}`);
+  }
+  
+  return removedCount;
+}
+
+/**
+ * Obtém estatísticas do cache de nomes inteligentes
+ * @returns {object} Estatísticas do cache
+ */
+export function getCacheStats() {
+  return {
+    size: smartNameCache.size,
+    memoryUsage: JSON.stringify(Object.fromEntries(smartNameCache)).length,
+    timestamp: Date.now()
+  };
+}
