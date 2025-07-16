@@ -2,11 +2,12 @@
  * @file settings-manager.js
  * @description Gere as configurações da extensão e o armazenamento, com suporte para sincronização.
  */
-import Logger from './logger.js';
+import Logger from "./logger.js";
+import { withErrorHandling, handleCriticalOperation } from "./error-handler.js";
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
-  groupingMode: 'smart',
+  groupingMode: "smart",
   minTabsForAutoGroup: 2, // Substituído suppressSingleTabGroups
   autoCollapseTimeout: 0,
   uncollapseOnActivate: true,
@@ -17,21 +18,51 @@ export const DEFAULT_SETTINGS = {
   showTabCount: true,
   syncEnabled: false,
   manualGroupIds: [],
-  logLevel: 'INFO',
-  theme: 'auto',
+  logLevel: "INFO",
+  theme: "auto",
   domainSanitizationTlds: [
-    '.rs.gov.br', '.sp.gov.br', '.rj.gov.br',
-    '.com.br', '.net.br', '.org.br', '.gov.br', '.edu.br',
-    '.gov.uk', '.ac.uk', '.co.uk',
-    '.gov.au', '.com.au',
-    '.com', '.org', '.net', '.dev', '.io', '.gov', '.edu', 
-    '.co', '.app', '.xyz', '.info', '.biz',
-    '.br', '.rs', '.uk', '.de', '.jp', '.fr', '.au', '.us'
+    ".rs.gov.br",
+    ".sp.gov.br",
+    ".rj.gov.br",
+    ".com.br",
+    ".net.br",
+    ".org.br",
+    ".gov.br",
+    ".edu.br",
+    ".gov.uk",
+    ".ac.uk",
+    ".co.uk",
+    ".gov.au",
+    ".com.au",
+    ".com",
+    ".org",
+    ".net",
+    ".dev",
+    ".io",
+    ".gov",
+    ".edu",
+    ".co",
+    ".app",
+    ".xyz",
+    ".info",
+    ".biz",
+    ".br",
+    ".rs",
+    ".uk",
+    ".de",
+    ".jp",
+    ".fr",
+    ".au",
+    ".us",
   ],
   titleSanitizationNoise: [
-    'login', 'sign in', 'dashboard', 'homepage', 'painel'
+    "login",
+    "sign in",
+    "dashboard",
+    "homepage",
+    "painel",
   ],
-  titleDelimiters: '|–—:·»«-',
+  titleDelimiters: "|–—:·»«-",
 };
 
 // Objetos em memória
@@ -41,7 +72,7 @@ export let smartNameCache = new Map();
 let saveCacheTimeout = null;
 
 function getStorage(useSync) {
-    return useSync ? browser.storage.sync : browser.storage.local;
+  return useSync ? browser.storage.sync : browser.storage.local;
 }
 
 /**
@@ -50,157 +81,232 @@ function getStorage(useSync) {
  * @returns {object} A regra no novo formato.
  */
 function migrateRuleToNewFormat(oldRule) {
-    // Se a regra já tem conditionGroup, ela já está no novo formato.
-    if (oldRule.conditionGroup) {
-        return oldRule;
-    }
+  // Se a regra já tem conditionGroup, ela já está no novo formato.
+  if (oldRule.conditionGroup) {
+    return oldRule;
+  }
 
-    Logger.info("MigrateRule", `Migrando regra antiga: "${oldRule.name}"`);
+  Logger.info("MigrateRule", `Migrando regra antiga: "${oldRule.name}"`);
 
-    const newRule = {
-        name: oldRule.name,
-        color: oldRule.color || 'grey',
-        minTabs: oldRule.minTabs || 1,
-        conditionGroup: {
-            operator: 'OR', // Múltiplos padrões no formato antigo funcionam como 'OU'
-            conditions: []
-        }
+  const newRule = {
+    name: oldRule.name,
+    color: oldRule.color || "grey",
+    minTabs: oldRule.minTabs || 1,
+    conditionGroup: {
+      operator: "OR", // Múltiplos padrões no formato antigo funcionam como 'OU'
+      conditions: [],
+    },
+  };
+
+  if (oldRule.patterns && oldRule.patterns.length > 0) {
+    const propertyMap = {
+      "url-wildcard": { property: "url", operator: "wildcard" },
+      "url-regex": { property: "url", operator: "regex" },
+      "title-match": { property: "title", operator: "contains" },
     };
 
-    if (oldRule.patterns && oldRule.patterns.length > 0) {
-        const propertyMap = {
-            'url-wildcard': { property: 'url', operator: 'wildcard' },
-            'url-regex': { property: 'url', operator: 'regex' },
-            'title-match': { property: 'title', operator: 'contains' },
-        };
-        
-        const mapping = propertyMap[oldRule.type] || { property: 'url', operator: 'contains' };
+    const mapping = propertyMap[oldRule.type] || {
+      property: "url",
+      operator: "contains",
+    };
 
-        newRule.conditionGroup.conditions = oldRule.patterns.map(pattern => ({
-            property: mapping.property,
-            operator: mapping.operator,
-            value: pattern
-        }));
-    }
+    newRule.conditionGroup.conditions = oldRule.patterns.map((pattern) => ({
+      property: mapping.property,
+      operator: mapping.operator,
+      value: pattern,
+    }));
+  }
 
-    return newRule;
+  return newRule;
 }
 
-
 export async function loadSettings() {
-    try {
-        // Primeiro verifica se há configurações no sync
-        const syncData = await browser.storage.sync.get('settings');
-        let loadedSettings = null;
-        let settingsSource = 'default';
+  return await handleCriticalOperation(async () => {
+    // Primeiro verifica se há configurações no sync
+    const syncData = await withErrorHandling(async () => {
+      return await browser.storage.sync.get("settings");
+    }, {
+      context: 'load-sync-settings',
+      maxRetries: 2,
+      criticalOperation: false,
+      fallback: () => ({ settings: null })
+    });
+    
+    let loadedSettings = null;
+    let settingsSource = "default";
 
-        if (syncData && syncData.settings) {
-            Logger.info("SettingsManager", "A carregar configurações do armazenamento sync.");
-            loadedSettings = syncData.settings;
-            settingsSource = 'sync';
-        } else {
-            Logger.info("SettingsManager", "Sem configurações no sync, a tentar armazenamento local.");
-            const localData = await browser.storage.local.get('settings');
-            if (localData && localData.settings) {
-                loadedSettings = localData.settings;
-                settingsSource = 'local';
-            }
-        }
-        
-        // Aplica as configurações carregadas sobre as padrão
-        settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
-
-        // CORREÇÃO: Se as configurações foram carregadas do sync, garante que syncEnabled seja true
-        // Isto evita que configurações do sync sejam perdidas ao reinstalar a extensão
-        if (settingsSource === 'sync' && loadedSettings) {
-            settings.syncEnabled = true;
-            Logger.info("SettingsManager", "Configurações carregadas do sync - syncEnabled definido como true.");
-        }
-
-        let settingsWereMigrated = false;
-
-        // **SCRIPT DE MIGRAÇÃO DE suppressSingleTabGroups**
-        if (settings.hasOwnProperty('suppressSingleTabGroups')) {
-            Logger.warn("SettingsManager", "Detectado formato de 'suppressSingleTabGroups' antigo. Migrando...");
-            settings.minTabsForAutoGroup = settings.suppressSingleTabGroups ? 2 : 1;
-            delete settings.suppressSingleTabGroups;
-            settingsWereMigrated = true;
-        }
-
-        // **SCRIPT DE MIGRAÇÃO DE REGRAS**
-        if (settings.customRules && settings.customRules.length > 0 && !settings.customRules[0].conditionGroup) {
-            Logger.warn("SettingsManager", "Detectado formato de regras antigo. Iniciando migração...");
-            settings.customRules = settings.customRules.map(migrateRuleToNewFormat);
-            settingsWereMigrated = true;
-            Logger.info("SettingsManager", "Migração de regras concluída.");
-        }
-        
-        // Se qualquer migração ocorreu, salva as configurações imediatamente.
-        if (settingsWereMigrated) {
-            await updateSettings(settings);
-            Logger.info("SettingsManager", "Configurações migradas foram guardadas.");
-        }
-
-        const cacheData = await browser.storage.local.get('smartNameCache');
-        if (cacheData && cacheData.smartNameCache) {
-            smartNameCache = new Map(Object.entries(cacheData.smartNameCache));
-        }
-
-    } catch(e) {
-        Logger.error("SettingsManager", "Erro fatal ao carregar configurações:", e);
-        settings = { ...DEFAULT_SETTINGS };
-        smartNameCache = new Map();
-        throw e;
+    if (syncData && syncData.settings) {
+      Logger.info(
+        "SettingsManager",
+        "A carregar configurações do armazenamento sync."
+      );
+      loadedSettings = syncData.settings;
+      settingsSource = "sync";
+    } else {
+      Logger.info(
+        "SettingsManager",
+        "Sem configurações no sync, a tentar armazenamento local."
+      );
+      const localData = await withErrorHandling(async () => {
+        return await browser.storage.local.get("settings");
+      }, {
+        context: 'load-local-settings',
+        maxRetries: 3,
+        criticalOperation: false,
+        fallback: () => ({ settings: null })
+      });
+      
+      if (localData && localData.settings) {
+        loadedSettings = localData.settings;
+        settingsSource = "local";
+      }
     }
+
+    // Aplica as configurações carregadas sobre as padrão
+    settings = { ...DEFAULT_SETTINGS, ...(loadedSettings || {}) };
+
+    let settingsWereMigrated = false;
+
+    // **SCRIPT DE MIGRAÇÃO DE suppressSingleTabGroups**
+    if (settings.hasOwnProperty("suppressSingleTabGroups")) {
+      Logger.warn(
+        "SettingsManager",
+        "Detectado formato de 'suppressSingleTabGroups' antigo. Migrando..."
+      );
+      settings.minTabsForAutoGroup = settings.suppressSingleTabGroups ? 2 : 1;
+      delete settings.suppressSingleTabGroups;
+      settingsWereMigrated = true;
+    }
+
+    // **SCRIPT DE MIGRAÇÃO DE REGRAS**
+    if (
+      settings.customRules &&
+      settings.customRules.length > 0 &&
+      !settings.customRules[0].conditionGroup
+    ) {
+      Logger.warn(
+        "SettingsManager",
+        "Detectado formato de regras antigo. Iniciando migração..."
+      );
+      settings.customRules = settings.customRules.map(migrateRuleToNewFormat);
+      settingsWereMigrated = true;
+      Logger.info("SettingsManager", "Migração de regras concluída.");
+    }
+
+    // Se qualquer migração ocorreu, salva as configurações imediatamente.
+    if (settingsWereMigrated) {
+      await updateSettings(settings);
+      Logger.info("SettingsManager", "Configurações migradas foram guardadas.");
+    }
+
+    // Carrega cache de nomes inteligentes
+    const cacheData = await withErrorHandling(async () => {
+      return await browser.storage.local.get("smartNameCache");
+    }, {
+      context: 'load-smart-cache',
+      maxRetries: 2,
+      criticalOperation: false,
+      fallback: () => ({ smartNameCache: null })
+    });
+    
+    if (cacheData && cacheData.smartNameCache) {
+      smartNameCache = new Map(Object.entries(cacheData.smartNameCache));
+    }
+    
+    Logger.info("SettingsManager", `Configurações carregadas de ${settingsSource}.`);
+    return { success: true, source: settingsSource };
+    
+  }, "loadSettings", async () => {
+    // Fallback crítico: usar configurações padrão
+    Logger.error("SettingsManager", "Usando configurações padrão devido a falhas críticas.");
+    settings = { ...DEFAULT_SETTINGS };
+    smartNameCache = new Map();
+    return { success: false, fallback: true };
+  });
 }
 
 export async function updateSettings(newSettings) {
-    const oldSettings = { ...settings };
-    const oldSyncStatus = oldSettings.syncEnabled;
+  const oldSettings = { ...settings };
+  const oldSyncStatus = oldSettings.syncEnabled;
 
-    settings = { ...settings, ...newSettings };
-    const newSyncStatus = settings.syncEnabled;
+  settings = { ...settings, ...newSettings };
+  const newSyncStatus = settings.syncEnabled;
 
-    const targetStorage = getStorage(newSyncStatus);
+  const targetStorage = getStorage(newSyncStatus);
 
-    try {
-        await targetStorage.set({ settings });
-        Logger.info("SettingsManager", `Configurações guardadas no armazenamento ${newSyncStatus ? 'sync' : 'local'}.`);
+  return await withErrorHandling(async () => {
+    await targetStorage.set({ settings });
+    Logger.info(
+      "SettingsManager",
+      `Configurações guardadas no armazenamento ${
+        newSyncStatus ? "sync" : "local"
+      }.`
+    );
 
-        if (oldSyncStatus !== newSyncStatus) {
-            const sourceStorage = getStorage(oldSyncStatus);
-            await sourceStorage.remove('settings');
-            Logger.info("SettingsManager", `Configurações removidas do armazenamento ${oldSyncStatus ? 'sync' : 'local'}.`);
-        }
-
-    } catch (e) {
-        Logger.error("SettingsManager", `Erro ao guardar configurações no armazenamento ${newSyncStatus ? 'sync' : 'local'}:`, e);
-        settings = oldSettings;
-        throw e;
+    // Remove configurações do armazenamento anterior se mudou o tipo
+    if (oldSyncStatus !== newSyncStatus) {
+      await withErrorHandling(async () => {
+        const sourceStorage = getStorage(oldSyncStatus);
+        await sourceStorage.remove("settings");
+        Logger.info(
+          "SettingsManager",
+          `Configurações removidas do armazenamento ${
+            oldSyncStatus ? "sync" : "local"
+          }.`
+        );
+      }, {
+        context: 'remove-old-settings',
+        maxRetries: 2,
+        criticalOperation: false
+      });
     }
-
+    
     return { oldSettings, newSettings: settings };
+    
+  }, {
+    context: `updateSettings-${newSyncStatus ? 'sync' : 'local'}`,
+    maxRetries: 3,
+    retryDelay: 1000,
+    criticalOperation: true,
+    fallback: async () => {
+      // Rollback: restaura configurações antigas
+      Logger.warn("SettingsManager", "Revertendo para configurações anteriores devido a falhas.");
+      settings = oldSettings;
+      return { oldSettings, newSettings: oldSettings, rollback: true };
+    }
+  });
 }
 
 export function saveSmartNameCache() {
-    if (saveCacheTimeout) {
-        clearTimeout(saveCacheTimeout);
-    }
-    saveCacheTimeout = setTimeout(async () => {
-        try {
-            await browser.storage.local.set({ smartNameCache: Object.fromEntries(smartNameCache) });
-        } catch (e) {
-            Logger.error("SettingsManager", "Erro ao guardar o cache de nomes inteligentes:", e);
-        }
-        saveCacheTimeout = null;
-    }, 2000);
+  if (saveCacheTimeout) {
+    clearTimeout(saveCacheTimeout);
+  }
+  saveCacheTimeout = setTimeout(async () => {
+    await withErrorHandling(async () => {
+      await browser.storage.local.set({
+        smartNameCache: Object.fromEntries(smartNameCache),
+      });
+      Logger.debug("SettingsManager", `Cache de nomes inteligentes salvo com ${smartNameCache.size} entradas.`);
+      return { success: true, cacheSize: smartNameCache.size };
+    }, {
+      context: 'save-smart-cache',
+      maxRetries: 3,
+      retryDelay: 500,
+      criticalOperation: false,
+      fallback: () => {
+        Logger.warn("SettingsManager", "Falha ao salvar cache de nomes inteligentes - continuando sem salvar.");
+        return { success: false, fallback: true };
+      }
+    });
+    saveCacheTimeout = null;
+  }, 2000);
 }
 
 export function clearSmartNameCache() {
-    smartNameCache.clear();
-    if (saveCacheTimeout) {
-        clearTimeout(saveCacheTimeout);
-        saveCacheTimeout = null;
-    }
-    browser.storage.local.remove('smartNameCache');
+  smartNameCache.clear();
+  if (saveCacheTimeout) {
+    clearTimeout(saveCacheTimeout);
+    saveCacheTimeout = null;
+  }
+  browser.storage.local.remove("smartNameCache");
 }

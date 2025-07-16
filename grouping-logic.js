@@ -10,6 +10,11 @@ import {
   saveSmartNameCache,
 } from "./settings-manager.js";
 import { pendingAutomaticGroups, injectionFailureMap } from "./app-state.js";
+import {
+  handleTabOperation,
+  handleGroupOperation,
+  withErrorHandling
+} from "./error-handler.js";
 
 const colors = [
   "blue",
@@ -153,12 +158,13 @@ async function fetchSmartName(tab) {
     );
     return null;
   }
-  try {
+  
+  const result = await withErrorHandling(async () => {
     const injectionResults = await browser.scripting.executeScript({
       target: { tabId },
       files: ["content-script.js"],
     });
-    injectionFailureMap.delete(tabId);
+    
     if (injectionResults && injectionResults[0] && injectionResults[0].result) {
       const details = injectionResults[0].result;
 
@@ -186,14 +192,24 @@ async function fetchSmartName(tab) {
         }
       }
     }
-  } catch (e) {
-    injectionFailureMap.set(tabId, (injectionFailureMap.get(tabId) || 0) + 1);
-    Logger.warn(
-      "fetchSmartName",
-      `Falha ao injetar script na aba ${tabId}: ${e.message}`
-    );
+    return null;
+  }, {
+    context: `fetchSmartName-${tabId}`,
+    maxRetries: 1,
+    criticalOperation: false,
+    fallback: () => {
+      // Fallback: incrementa contador de falhas e retorna null
+      injectionFailureMap.set(tabId, (injectionFailureMap.get(tabId) || 0) + 1);
+      return null;
+    }
+  });
+  
+  if (result !== null) {
+    // Sucesso - limpa contador de falhas
+    injectionFailureMap.delete(tabId);
   }
-  return null;
+  
+  return result;
 }
 
 export async function getFinalGroupName(tab) {
@@ -325,7 +341,7 @@ export async function processTabQueue(tabIds) {
     }
 
     for (const [groupName, tabIdsForGroup] of tabsToGroup.entries()) {
-      try {
+      await withErrorHandling(async () => {
         const existingGroupId = groupTitleToIdMap.get(groupName);
         if (
           existingGroupId &&
@@ -335,6 +351,7 @@ export async function processTabQueue(tabIds) {
             groupId: existingGroupId,
             tabIds: tabIdsForGroup,
           });
+          return { success: true, action: 'added_to_existing', groupId: existingGroupId };
         } else if (!existingGroupId) {
           // 1. Registar a intenção de criar um grupo automático.
           pendingAutomaticGroups.set(tabIdsForGroup[0], {
@@ -357,14 +374,24 @@ export async function processTabQueue(tabIds) {
             color,
           });
           groupTitleToIdMap.set(groupName, newGroupId);
+          return { success: true, action: 'created_new', groupId: newGroupId };
         }
-      } catch (e) {
-        Logger.error(
-          `processTabQueue`,
-          `Erro ao processar o grupo "${groupName}":`,
-          e
-        );
-      }
+        return { success: false, reason: 'no_action_needed' };
+      }, {
+        context: `processTabQueue-group-${groupName}`,
+        maxRetries: 2,
+        retryDelay: 500,
+        criticalOperation: false,
+        fallback: async () => {
+          // Fallback: remove abas problemáticas da fila pendente
+          Logger.warn(
+            "processTabQueue",
+            `Removendo abas problemáticas do grupo "${groupName}" da fila pendente.`
+          );
+          pendingAutomaticGroups.delete(tabIdsForGroup[0]);
+          return { success: false, fallback: true };
+        }
+      });
     }
   }
 }

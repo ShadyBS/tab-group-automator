@@ -101,9 +101,14 @@ async function buildAll() {
   try {
     console.log("A iniciar o processo de empacotamento...");
 
-    console.log("\nPasso 1: A compilar o CSS com Tailwind...");
+    console.log(
+      "\nPasso 1: A compilar o CSS com Tailwind... (presume-se que o ficheiro src/input.css exista)"
+    );
     // Executa o comando do Tailwind para gerar o CSS otimizado.
-    execSync("npx tailwindcss -o ./vendor/tailwind.css --minify");
+    // O comando foi atualizado para incluir o ficheiro de entrada, tornando-o mais explícito e robusto.
+    execSync(
+      "npx tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify"
+    );
     console.log("✅ CSS compilado com sucesso.");
 
     console.log("\nPasso 2: A criar os pacotes da extensão...");

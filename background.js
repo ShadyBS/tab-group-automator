@@ -7,13 +7,19 @@
 import "./vendor/browser-polyfill.js";
 
 import Logger from "./logger.js";
-import { settings, loadSettings, updateSettings } from "./settings-manager.js";
+import { settings, loadSettings, updateSettings, DEFAULT_SETTINGS } from "./settings-manager.js";
 import { processTabQueue } from "./grouping-logic.js";
 import {
   initializeContextMenus,
   updateContextMenus,
 } from "./context-menu-manager.js";
 import { pendingAutomaticGroups, injectionFailureMap } from "./app-state.js";
+import {
+  handleTabOperation,
+  handleGroupOperation,
+  handleCriticalOperation,
+  withErrorHandling
+} from "./error-handler.js";
 
 // --- Constantes e Variáveis de Estado ---
 
@@ -41,12 +47,22 @@ browser.runtime.onInstalled.addListener(async (details) => {
   } else if (details.reason === "update") {
     // Recarrega as configurações após uma atualização para garantir que
     // configurações do sync sejam preservadas
-    Logger.info("onInstalled", "Extensão atualizada. A recarregar configurações...");
+    Logger.info(
+      "onInstalled",
+      "Extensão atualizada. A recarregar configurações..."
+    );
     try {
       await loadSettings();
-      Logger.info("onInstalled", "Configurações recarregadas após atualização.");
+      Logger.info(
+        "onInstalled",
+        "Configurações recarregadas após atualização."
+      );
     } catch (e) {
-      Logger.error("onInstalled", "Erro ao recarregar configurações após atualização:", e);
+      Logger.error(
+        "onInstalled",
+        "Erro ao recarregar configurações após atualização:",
+        e
+      );
     }
   }
 });
@@ -280,6 +296,8 @@ async function checkSingleTabGroups() {
       "Erro ao verificar grupos com abas únicas:",
       e
     );
+    // Limpa timestamps órfãos para evitar acumulação de memória
+    singleTabGroupTimestamps.clear();
   }
 }
 
@@ -301,7 +319,8 @@ function updateUngroupTimer() {
 
 async function handleTabActivated({ tabId }) {
   if (!settings.uncollapseOnActivate) return;
-  try {
+  
+  const result = await handleTabOperation(async () => {
     const tab = await browser.tabs.get(tabId);
     if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
       const group = await browser.tabGroups.get(tab.groupId);
@@ -313,9 +332,13 @@ async function handleTabActivated({ tabId }) {
         );
         await browser.tabGroups.update(group.id, { collapsed: false });
       }
+      return { success: true, groupId: group.id };
     }
-  } catch (error) {
-    /* Silencioso, a aba ou grupo pode ter sido fechado */
+    return { success: false, reason: 'no_group' };
+  }, `handleTabActivated-${tabId}`);
+  
+  if (result === null) {
+    Logger.debug("handleTabActivated", `Aba ${tabId} ou grupo não encontrado - operação ignorada.`);
   }
 }
 
@@ -328,7 +351,8 @@ async function updateGroupTitleWithCount(groupId) {
     groupId === browser.tabs.TAB_ID_NONE
   )
     return;
-  try {
+    
+  const result = await handleGroupOperation(async () => {
     const group = await browser.tabGroups.get(groupId);
     const tabsInGroup = await browser.tabs.query({ groupId });
     const count = tabsInGroup.length;
@@ -348,20 +372,13 @@ async function updateGroupTitleWithCount(groupId) {
         `A atualizar o título do grupo ${groupId} para '${newTitle}'.`
       );
       await browser.tabGroups.update(groupId, { title: newTitle });
+      return { success: true, newTitle };
     }
-  } catch (e) {
-    if (
-      e.message.includes("No group with id") ||
-      e.message.includes("Invalid tab group ID")
-    ) {
-      // Não faz nada, o grupo foi removido antes da atualização do título.
-    } else {
-      Logger.warn(
-        `updateGroupTitle`,
-        `Falha ao atualizar o título para o grupo ${groupId}:`,
-        e
-      );
-    }
+    return { success: false, reason: 'no_change_needed' };
+  }, `updateGroupTitle-${groupId}`);
+  
+  if (result === null) {
+    Logger.debug("updateGroupTitle", `Grupo ${groupId} não encontrado - operação ignorada.`);
   }
 }
 
@@ -412,19 +429,22 @@ async function handleTabGroupCreated(group) {
     await updateSettings({ manualGroupIds: newManualIds });
 
     // Adiciona o pino ao título para identificação visual.
-    try {
+    const pinResult = await handleGroupOperation(async () => {
       const currentGroup = await browser.tabGroups.get(group.id);
       const cleanTitle = (currentGroup.title || "Grupo").replace(/📌\s*/, "");
       if (!currentGroup.title.startsWith("📌")) {
         await browser.tabGroups.update(group.id, {
           title: `📌 ${cleanTitle}`,
         });
+        return { success: true, title: `📌 ${cleanTitle}` };
       }
-    } catch (e) {
+      return { success: false, reason: 'already_pinned' };
+    }, `handleTabGroupCreated-pin-${group.id}`);
+    
+    if (pinResult === null) {
       Logger.warn(
         "handleTabGroupCreated",
-        `Não foi possível adicionar pino ao grupo manual ${group.id}, provavelmente foi removido.`,
-        e
+        `Grupo manual ${group.id} removido antes de adicionar pino.`
       );
     }
   }
@@ -595,27 +615,30 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function populateTabGroupMap() {
   tabGroupMap.clear();
-  try {
+  await handleCriticalOperation(async () => {
     const allTabs = await browser.tabs.query({});
     for (const tab of allTabs) {
       if (tab.groupId) {
         tabGroupMap.set(tab.id, tab.groupId);
       }
     }
-  } catch (e) {
-    Logger.error(
-      "populateTabGroupMap",
-      "Erro ao popular o mapa de Aba-Grupo:",
-      e
-    );
-  }
+    Logger.debug("populateTabGroupMap", `Mapa populado com ${tabGroupMap.size} entradas.`);
+    return { success: true, count: tabGroupMap.size };
+  }, "populateTabGroupMap", async () => {
+    // Fallback: inicia com mapa vazio, funcionalidades ainda funcionarão
+    Logger.warn("populateTabGroupMap", "Usando fallback - mapa de abas vazio.");
+    return { success: false, fallback: true };
+  });
 }
 
 async function main() {
-  try {
+  await handleCriticalOperation(async () => {
     Logger.info("Main", "Extensão a inicializar...");
+    
+    // Carregamento de configurações é crítico
     await loadSettings();
     Logger.setLevel(settings.logLevel);
+    Logger.info("Main", "Configurações iniciais carregadas:", settings);
 
     // --- ADIÇÃO DE LISTENERS COM VERIFICAÇÃO DE SEGURANÇA ---
     // Cada 'addListener' é agora verificado para garantir que a API existe antes de ser usada.
@@ -631,11 +654,18 @@ async function main() {
       await populateTabGroupMap();
 
       if (settings.showTabCount && browser.tabGroups.query) {
-        const allGroups = await browser.tabGroups.query({});
-        const titleUpdatePromises = allGroups.map((group) =>
-          updateGroupTitleWithCount(group.id)
-        );
-        await Promise.allSettled(titleUpdatePromises);
+        await withErrorHandling(async () => {
+          const allGroups = await browser.tabGroups.query({});
+          const titleUpdatePromises = allGroups.map((group) =>
+            updateGroupTitleWithCount(group.id)
+          );
+          await Promise.allSettled(titleUpdatePromises);
+          return { success: true, groupCount: allGroups.length };
+        }, {
+          context: 'initial-title-updates',
+          maxRetries: 2,
+          criticalOperation: false
+        });
       }
 
       // Verifica cada evento individualmente antes de adicionar o listener.
@@ -652,23 +682,30 @@ async function main() {
       );
     }
 
-    initializeContextMenus();
-    await updateContextMenus();
+    // Inicialização de componentes opcionais com tratamento de erro individual
+    await withErrorHandling(async () => {
+      initializeContextMenus();
+      await updateContextMenus();
+    }, {
+      context: 'context-menus-init',
+      maxRetries: 1,
+      criticalOperation: false
+    });
 
     toggleListeners(settings.autoGroupingEnabled || settings.showTabCount);
     updateAutoCollapseTimer();
     updateUngroupTimer();
 
-    Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", {
-      settings,
-    });
-  } catch (e) {
-    Logger.error(
-      "Main",
-      "Falha crítica durante a inicialização da extensão:",
-      e
-    );
-  }
+    Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", { settings });
+    return { success: true };
+    
+  }, "main-initialization", async () => {
+    // Fallback para inicialização mínima
+    Logger.error("Main", "Iniciando em modo de recuperação com configurações mínimas.");
+    settings = { ...DEFAULT_SETTINGS };
+    Logger.setLevel("ERROR");
+    return { success: false, fallback: true };
+  });
 }
 
 main();
