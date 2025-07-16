@@ -94,6 +94,13 @@ document.addEventListener("DOMContentLoaded", () => {
     lastCleanupTime: document.getElementById("lastCleanupTime"),
     totalCleaned: document.getElementById("totalCleaned"),
     cleanupCycles: document.getElementById("cleanupCycles"),
+    // Elementos de configuração de performance
+    queueDelay: document.getElementById("queueDelay"),
+    batchSize: document.getElementById("batchSize"),
+    maxInjectionRetries: document.getElementById("maxInjectionRetries"),
+    performanceLogging: document.getElementById("performanceLogging"),
+    resetPerformanceConfig: document.getElementById("resetPerformanceConfig"),
+    savePerformanceConfig: document.getElementById("savePerformanceConfig"),
   };
 
   let currentSettings = {};
@@ -883,9 +890,80 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.cleanupMemory.addEventListener("click", performMemoryCleanup);
   }
 
+  // --- Funções de Configuração de Performance ---
+  
+  async function loadPerformanceConfig() {
+    try {
+      const config = await browser.runtime.sendMessage({ action: "getPerformanceConfig" });
+      if (config) {
+        if (ui.queueDelay) ui.queueDelay.value = config.QUEUE_DELAY || 500;
+        if (ui.batchSize) ui.batchSize.value = config.BATCH_SIZE || 50;
+        if (ui.maxInjectionRetries) ui.maxInjectionRetries.value = config.MAX_INJECTION_RETRIES || 3;
+        if (ui.performanceLogging) ui.performanceLogging.checked = config.BATCH_PERFORMANCE_LOG || false;
+      }
+    } catch (error) {
+      console.error("Erro ao carregar configuração de performance:", error);
+    }
+  }
+  
+  async function savePerformanceConfig() {
+    try {
+      const config = {
+        QUEUE_DELAY: parseInt(ui.queueDelay?.value) || 500,
+        BATCH_SIZE: parseInt(ui.batchSize?.value) || 50,
+        MAX_INJECTION_RETRIES: parseInt(ui.maxInjectionRetries?.value) || 3,
+        BATCH_PERFORMANCE_LOG: ui.performanceLogging?.checked || false
+      };
+      
+      await browser.runtime.sendMessage({ 
+        action: "updatePerformanceConfig", 
+        config 
+      });
+      
+      showNotification("Configurações de performance salvas", "success");
+    } catch (error) {
+      console.error("Erro ao salvar configuração de performance:", error);
+      showNotification("Erro ao salvar configurações de performance", "error");
+    }
+  }
+  
+  async function resetPerformanceConfig() {
+    if (confirm("Restaurar todas as configurações de performance para os valores padrão?")) {
+      try {
+        const defaultConfig = {
+          QUEUE_DELAY: 500,
+          BATCH_SIZE: 50,
+          MAX_INJECTION_RETRIES: 3,
+          BATCH_PERFORMANCE_LOG: false
+        };
+        
+        await browser.runtime.sendMessage({ 
+          action: "updatePerformanceConfig", 
+          config: defaultConfig 
+        });
+        
+        await loadPerformanceConfig(); // Recarrega a interface
+        showNotification("Configurações restauradas para padrão", "success");
+      } catch (error) {
+        console.error("Erro ao resetar configurações:", error);
+        showNotification("Erro ao restaurar configurações", "error");
+      }
+    }
+  }
+  
+  // Event listeners para configuração de performance
+  if (ui.savePerformanceConfig) {
+    ui.savePerformanceConfig.addEventListener("click", savePerformanceConfig);
+  }
+  
+  if (ui.resetPerformanceConfig) {
+    ui.resetPerformanceConfig.addEventListener("click", resetPerformanceConfig);
+  }
+
   initialize();
   initializeHelpTooltips();
   
-  // Carrega estatísticas de memória iniciais
+  // Carrega configurações iniciais
   setTimeout(updateMemoryStats, 1000);
+  setTimeout(loadPerformanceConfig, 1500);
 });

@@ -302,6 +302,100 @@
         <h2
           class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
         >
+          Configurações de Performance
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div>
+              <label for="queueDelay" class="block text-sm font-medium mb-1">
+                Delay da Fila (ms):
+              </label>
+              <input
+                type="number"
+                id="queueDelay"
+                min="100"
+                max="5000"
+                step="50"
+                class="w-full p-2 border border-slate-300 rounded-md dark:bg-slate-700 dark:border-slate-600"
+              />
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Tempo de espera antes de processar fila de abas
+              </p>
+            </div>
+            
+            <div>
+              <label for="batchSize" class="block text-sm font-medium mb-1">
+                Tamanho do Lote:
+              </label>
+              <input
+                type="number"
+                id="batchSize"
+                min="10"
+                max="100"
+                step="5"
+                class="w-full p-2 border border-slate-300 rounded-md dark:bg-slate-700 dark:border-slate-600"
+              />
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Número de operações processadas em lote
+              </p>
+            </div>
+          </div>
+          
+          <div class="space-y-4">
+            <div>
+              <label for="maxInjectionRetries" class="block text-sm font-medium mb-1">
+                Máx. Tentativas Injeção:
+              </label>
+              <input
+                type="number"
+                id="maxInjectionRetries"
+                min="1"
+                max="10"
+                class="w-full p-2 border border-slate-300 rounded-md dark:bg-slate-700 dark:border-slate-600"
+              />
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Tentativas de injeção de script antes de desistir
+              </p>
+            </div>
+            
+            <div>
+              <label for="performanceLogging" class="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="performanceLogging"
+                  class="rounded border-slate-300 dark:border-slate-600"
+                />
+                <span class="text-sm font-medium">Log de Performance</span>
+              </label>
+              <p class="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                Registra operações que demoram mais que o esperado
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+          <button
+            id="resetPerformanceConfig"
+            class="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm"
+          >
+            Restaurar Padrões
+          </button>
+          <button
+            id="savePerformanceConfig"
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+          >
+            Salvar Configurações
+          </button>
+        </div>
+      </section>
+
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
           Higienização Avançada
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -4,6 +4,7 @@
  */
 import Logger from "./logger.js";
 import { withErrorHandling, handleCriticalOperation } from "./error-handler.js";
+import { getConfig } from "./performance-config.js";
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
@@ -266,7 +267,7 @@ export async function updateSettings(newSettings) {
   }, {
     context: `updateSettings-${newSyncStatus ? 'sync' : 'local'}`,
     maxRetries: 3,
-    retryDelay: 1000,
+    retryDelay: getConfig('STORAGE_RETRY_DELAY'),
     criticalOperation: true,
     fallback: async () => {
       // Rollback: restaura configurações antigas
@@ -291,7 +292,7 @@ export function saveSmartNameCache() {
     }, {
       context: 'save-smart-cache',
       maxRetries: 3,
-      retryDelay: 500,
+      retryDelay: getConfig('CACHE_CLEANUP_RETRY_DELAY'),
       criticalOperation: false,
       fallback: () => {
         Logger.warn("SettingsManager", "Falha ao salvar cache de nomes inteligentes - continuando sem salvar.");
@@ -299,7 +300,7 @@ export function saveSmartNameCache() {
       }
     });
     saveCacheTimeout = null;
-  }, 2000);
+  }, getConfig('CACHE_SAVE_DELAY'));
 }
 
 export function clearSmartNameCache() {
@@ -324,7 +325,7 @@ export function cleanupOldCacheEntries(maxAge = 24 * 60 * 60 * 1000) {
   
   // Como o Map não armazena timestamps, usamos uma estratégia de LRU aproximada
   // removendo entradas antigas quando o cache excede um tamanho razoável
-  const maxCacheSize = 1000; // Tamanho máximo recomendado
+  const maxCacheSize = getConfig('MAX_CACHE_SIZE');
   
   if (smartNameCache.size > maxCacheSize) {
     const excess = smartNameCache.size - maxCacheSize;

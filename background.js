@@ -28,11 +28,22 @@ import {
   emergencyCleanup,
   getMemoryStats
 } from "./memory-manager.js";
+import {
+  getConfig,
+  loadConfigFromSettings,
+  getConfigForSettings,
+  createConfigurableDelay,
+  getAllConfig,
+  updateConfig
+} from "./performance-config.js";
+import {
+  globalTabBatchProcessor,
+  globalGroupBatchProcessor,
+  batchProcessTabs
+} from "./async-batch-processor.js";
 
 // --- Constantes e Variáveis de Estado ---
-
-const QUEUE_DELAY = 500;
-const TITLE_UPDATE_DEBOUNCE = 250; // ms
+// (Agora obtidas dinamicamente via getConfig)
 
 let tabProcessingQueue = new Set();
 let queueTimeout = null;
@@ -112,7 +123,7 @@ function scheduleQueueProcessing() {
       tabsToProcess
     );
     await processTabQueue(tabsToProcess);
-  }, QUEUE_DELAY);
+  }, getConfig('QUEUE_DELAY'));
 }
 
 // CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
@@ -274,7 +285,7 @@ function updateAutoCollapseTimer() {
           e
         );
       }
-    }, 5000);
+    }, getConfig('AUTO_COLLAPSE_CHECK_INTERVAL'));
   }
 }
 
@@ -348,7 +359,7 @@ function updateUngroupTimer() {
   if (ungroupInterval) clearInterval(ungroupInterval);
   ungroupInterval = null;
   if (settings.ungroupSingleTabs && settings.ungroupSingleTabsTimeout > 0) {
-    ungroupInterval = setInterval(checkSingleTabGroups, 1500);
+    ungroupInterval = setInterval(checkSingleTabGroups, getConfig('SINGLE_TAB_CHECK_INTERVAL'));
   }
 }
 
@@ -425,7 +436,7 @@ function scheduleTitleUpdate(groupId) {
   const timeoutId = setTimeout(() => {
     updateGroupTitleWithCount(groupId);
     debouncedTitleUpdaters.delete(groupId);
-  }, TITLE_UPDATE_DEBOUNCE);
+  }, getConfig('TITLE_UPDATE_DEBOUNCE'));
   debouncedTitleUpdaters.set(groupId, timeoutId);
 }
 
@@ -640,6 +651,13 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const cleanupStats = await performMemoryCleanup(memoryMaps);
           sendResponse(cleanupStats);
           break;
+        case "getPerformanceConfig":
+          sendResponse(getAllConfig());
+          break;
+        case "updatePerformanceConfig":
+          updateConfig(message.config);
+          sendResponse({ success: true });
+          break;
         case "log":
           if (
             sender.tab &&
@@ -699,6 +717,10 @@ async function main() {
     // Carregamento de configurações é crítico
     await loadSettings();
     Logger.setLevel(settings.logLevel);
+    
+    // Carrega configurações de performance
+    loadConfigFromSettings(settings);
+    
     Logger.info("Main", "Configurações iniciais carregadas:", settings);
 
     // --- ADIÇÃO DE LISTENERS COM VERIFICAÇÃO DE SEGURANÇA ---
@@ -764,7 +786,7 @@ async function main() {
     setTimeout(async () => {
       const initialCleanup = await performMemoryCleanup(memoryMaps);
       Logger.info("Main", "Limpeza inicial de memória concluída:", initialCleanup);
-    }, 10000); // 10 segundos após inicialização
+    }, getConfig('INITIAL_CLEANUP_DELAY'));
 
     Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", { settings });
     return { success: true };
