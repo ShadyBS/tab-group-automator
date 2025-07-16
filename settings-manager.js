@@ -5,6 +5,11 @@
 import Logger from "./logger.js";
 import { withErrorHandling, handleCriticalOperation } from "./error-handler.js";
 import { getConfig } from "./performance-config.js";
+import { 
+  validateSettings, 
+  validateCustomRule,
+  sanitizeString 
+} from "./validation-utils.js";
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
@@ -82,24 +87,38 @@ function getStorage(useSync) {
  * @returns {object} A regra no novo formato.
  */
 function migrateRuleToNewFormat(oldRule) {
-  // Se a regra já tem conditionGroup, ela já está no novo formato.
-  if (oldRule.conditionGroup) {
-    return oldRule;
+  // Validação básica da regra antiga
+  if (!oldRule || typeof oldRule !== 'object' || Array.isArray(oldRule)) {
+    Logger.error("MigrateRule", "Regra inválida para migração: deve ser um objeto");
+    return null;
   }
 
-  Logger.info("MigrateRule", `Migrando regra antiga: "${oldRule.name}"`);
+  // Se a regra já tem conditionGroup, ela já está no novo formato.
+  if (oldRule.conditionGroup) {
+    // Valida se o formato novo está correto
+    const validation = validateCustomRule(oldRule);
+    if (validation.isValid) {
+      return oldRule;
+    } else {
+      Logger.warn("MigrateRule", `Regra existente com formato inválido: ${validation.errors.join('; ')}`);
+      // Continua com a migração para tentar corrigir
+    }
+  }
+
+  const ruleName = sanitizeString(oldRule.name || 'Regra sem nome', 50);
+  Logger.info("MigrateRule", `Migrando regra antiga: "${ruleName}"`);
 
   const newRule = {
-    name: oldRule.name,
+    name: ruleName,
     color: oldRule.color || "grey",
-    minTabs: oldRule.minTabs || 1,
+    minTabs: (typeof oldRule.minTabs === 'number' && oldRule.minTabs > 0) ? oldRule.minTabs : 1,
     conditionGroup: {
       operator: "OR", // Múltiplos padrões no formato antigo funcionam como 'OU'
       conditions: [],
     },
   };
 
-  if (oldRule.patterns && oldRule.patterns.length > 0) {
+  if (oldRule.patterns && Array.isArray(oldRule.patterns) && oldRule.patterns.length > 0) {
     const propertyMap = {
       "url-wildcard": { property: "url", operator: "wildcard" },
       "url-regex": { property: "url", operator: "regex" },
@@ -111,13 +130,23 @@ function migrateRuleToNewFormat(oldRule) {
       operator: "contains",
     };
 
-    newRule.conditionGroup.conditions = oldRule.patterns.map((pattern) => ({
-      property: mapping.property,
-      operator: mapping.operator,
-      value: pattern,
-    }));
+    newRule.conditionGroup.conditions = oldRule.patterns
+      .filter(pattern => typeof pattern === 'string' && pattern.trim().length > 0)
+      .map((pattern) => ({
+        property: mapping.property,
+        operator: mapping.operator,
+        value: sanitizeString(pattern, 200),
+      }));
   }
 
+  // Valida a regra migrada
+  const validation = validateCustomRule(newRule);
+  if (!validation.isValid) {
+    Logger.error("MigrateRule", `Falha na migração da regra "${ruleName}": ${validation.errors.join('; ')}`);
+    return null;
+  }
+
+  Logger.info("MigrateRule", `Regra "${ruleName}" migrada com sucesso`);
   return newRule;
 }
 
@@ -182,6 +211,7 @@ export async function loadSettings() {
     // **SCRIPT DE MIGRAÇÃO DE REGRAS**
     if (
       settings.customRules &&
+      Array.isArray(settings.customRules) &&
       settings.customRules.length > 0 &&
       !settings.customRules[0].conditionGroup
     ) {
@@ -189,9 +219,21 @@ export async function loadSettings() {
         "SettingsManager",
         "Detectado formato de regras antigo. Iniciando migração..."
       );
-      settings.customRules = settings.customRules.map(migrateRuleToNewFormat);
+      
+      const migratedRules = settings.customRules
+        .map(migrateRuleToNewFormat)
+        .filter(rule => rule !== null); // Remove regras que falharam na migração
+      
+      if (migratedRules.length !== settings.customRules.length) {
+        Logger.warn(
+          "SettingsManager",
+          `${settings.customRules.length - migratedRules.length} regras foram removidas durante a migração devido a erros`
+        );
+      }
+      
+      settings.customRules = migratedRules;
       settingsWereMigrated = true;
-      Logger.info("SettingsManager", "Migração de regras concluída.");
+      Logger.info("SettingsManager", `Migração de regras concluída. ${migratedRules.length} regras migradas com sucesso.`);
     }
 
     // Se qualquer migração ocorreu, salva as configurações imediatamente.
@@ -227,10 +269,26 @@ export async function loadSettings() {
 }
 
 export async function updateSettings(newSettings) {
+  // Validação das novas configurações
+  if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) {
+    Logger.error("updateSettings", "newSettings deve ser um objeto válido");
+    throw new Error("Configurações inválidas fornecidas");
+  }
+
   const oldSettings = { ...settings };
   const oldSyncStatus = oldSettings.syncEnabled;
 
-  settings = { ...settings, ...newSettings };
+  // Mescla com validação
+  const mergedSettings = { ...settings, ...newSettings };
+  
+  // Validação completa das configurações mescladas
+  const validation = validateSettings(mergedSettings);
+  if (!validation.isValid) {
+    Logger.error("updateSettings", `Configurações inválidas: ${validation.errors.join('; ')}`);
+    throw new Error(`Configurações inválidas: ${validation.errors.join('; ')}`);
+  }
+
+  settings = mergedSettings;
   const newSyncStatus = settings.syncEnabled;
 
   const targetStorage = getStorage(newSyncStatus);

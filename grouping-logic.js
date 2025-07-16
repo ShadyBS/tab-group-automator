@@ -17,6 +17,14 @@ import {
 } from "./error-handler.js";
 import { getConfig } from "./performance-config.js";
 import { batchProcessTabs, batchProcessGroups } from "./async-batch-processor.js";
+import {
+  validateCondition,
+  validateTabObject,
+  sanitizeString,
+  sanitizeUrl,
+  VALID_TAB_PROPERTIES,
+  VALID_OPERATORS
+} from "./validation-utils.js";
 
 const colors = [
   "blue",
@@ -31,11 +39,18 @@ const colors = [
 let colorIndex = 0;
 
 function sanitizeDomainName(domain) {
-  if (!domain) return "";
+  if (!domain || typeof domain !== 'string') {
+    Logger.warn('sanitizeDomainName', `Domínio inválido recebido: ${typeof domain}`);
+    return "";
+  }
+  
+  const sanitizedDomain = sanitizeString(domain, 100);
+  if (!sanitizedDomain) return "";
+  
   const tldsToRemove = (settings.domainSanitizationTlds || []).sort(
     (a, b) => b.length - a.length
   );
-  let name = domain.toLowerCase().replace(/^www\./, "");
+  let name = sanitizedDomain.toLowerCase().replace(/^www\./, "");
   const tld = tldsToRemove.find((t) => name.endsWith(t));
   if (tld) name = name.slice(0, -tld.length);
   return name
@@ -53,17 +68,61 @@ function sanitizeDomainName(domain) {
  * @returns {boolean} - Verdadeiro se a condição for satisfeita.
  */
 function evaluateCondition(tab, condition) {
+  // Validação de entrada para tab
+  const tabValidation = validateTabObject(tab);
+  if (!tabValidation.isValid) {
+    Logger.error("evaluateCondition", `Tab inválida: ${tabValidation.errors.join('; ')}`);
+    return false;
+  }
+
+  // Validação de entrada para condition
+  const conditionValidation = validateCondition(condition);
+  if (!conditionValidation.isValid) {
+    Logger.error("evaluateCondition", `Condição inválida: ${conditionValidation.errors.join('; ')}`);
+    return false;
+  }
+
+  // Sanitização segura das propriedades da aba
+  const sanitizedUrl = sanitizeUrl(tab.url) || "";
+  const sanitizedTitle = sanitizeString(tab.title || "", 200);
+  const hostname = getHostname(sanitizedUrl) || "";
+  
+  let urlPath = "";
+  if (sanitizedUrl) {
+    try {
+      urlPath = new URL(sanitizedUrl).pathname || "";
+    } catch (e) {
+      Logger.warn("evaluateCondition", `Erro ao extrair pathname da URL: ${sanitizedUrl}`);
+      urlPath = "";
+    }
+  }
+
   const tabProperties = {
-    url: tab.url || "",
-    title: tab.title || "",
-    hostname: getHostname(tab.url) || "",
-    url_path: (tab.url ? new URL(tab.url).pathname : "") || "",
+    url: sanitizedUrl,
+    title: sanitizedTitle,
+    hostname: sanitizeString(hostname, 100),
+    url_path: sanitizeString(urlPath, 100),
   };
 
-  const propValue = String(tabProperties[condition.property] || "");
-  const condValue = String(condition.value || "");
+  // Validação adicional: verifica se a propriedade existe
+  if (!VALID_TAB_PROPERTIES.has(condition.property)) {
+    Logger.error("evaluateCondition", `Propriedade '${condition.property}' não suportada`);
+    return false;
+  }
 
-  if (condValue === "") return false; // Condições com valor vazio são sempre falsas.
+  const propValue = String(tabProperties[condition.property] || "");
+  const condValue = sanitizeString(String(condition.value || ""), 200);
+
+  if (condValue === "") {
+    Logger.debug("evaluateCondition", "Condição com valor vazio sempre retorna falso");
+    return false; // Condições com valor vazio são sempre falsas.
+  }
+
+  // Validação adicional: verifica se o operador é suportado
+  if (!VALID_OPERATORS.has(condition.operator)) {
+    Logger.error("evaluateCondition", `Operador '${condition.operator}' não suportado`);
+    return false;
+  }
 
   try {
     switch (condition.operator) {
@@ -78,23 +137,36 @@ function evaluateCondition(tab, condition) {
       case "equals":
         return propValue.toLowerCase() === condValue.toLowerCase();
       case "regex":
-        return new RegExp(condValue, "i").test(propValue);
+        try {
+          const regex = new RegExp(condValue, "i");
+          return regex.test(propValue);
+        } catch (regexError) {
+          Logger.error("evaluateCondition", `Regex inválida: "${condValue}". Erro: ${regexError.message}`);
+          return false;
+        }
       case "wildcard": // Mantido para retrocompatibilidade na migração
-        return new RegExp(
-          "^" +
-            condValue
-              .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-              .replace(/\\\*/g, ".*") +
-            "$",
-          "i"
-        ).test(propValue);
+        try {
+          const wildcardRegex = new RegExp(
+            "^" +
+              condValue
+                .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                .replace(/\\\*/g, ".*") +
+              "$",
+            "i"
+          );
+          return wildcardRegex.test(propValue);
+        } catch (wildcardError) {
+          Logger.error("evaluateCondition", `Wildcard inválido: "${condValue}". Erro: ${wildcardError.message}`);
+          return false;
+        }
       default:
+        Logger.error("evaluateCondition", `Operador desconhecido: ${condition.operator}`);
         return false;
     }
   } catch (e) {
     Logger.error(
       "evaluateCondition",
-      `Erro ao avaliar regex para o valor "${condValue}"`,
+      `Erro inesperado ao avaliar condição: propriedade="${condition.property}", operador="${condition.operator}", valor="${condValue}"`,
       e
     );
     return false;
@@ -108,43 +180,114 @@ function evaluateCondition(tab, condition) {
  * @returns {boolean} - Verdadeiro se a regra corresponder à aba.
  */
 function evaluateRule(tab, rule) {
+  // Validação da aba
+  const tabValidation = validateTabObject(tab);
+  if (!tabValidation.isValid) {
+    Logger.error("evaluateRule", `Tab inválida: ${tabValidation.errors.join('; ')}`);
+    return false;
+  }
+
+  // Validação da regra
+  if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+    Logger.error("evaluateRule", "Regra deve ser um objeto válido");
+    return false;
+  }
+
   if (
     !rule.conditionGroup ||
+    typeof rule.conditionGroup !== 'object' ||
+    Array.isArray(rule.conditionGroup)
+  ) {
+    Logger.error("evaluateRule", "Regra deve ter um conditionGroup válido");
+    return false;
+  }
+
+  if (
     !rule.conditionGroup.conditions ||
+    !Array.isArray(rule.conditionGroup.conditions) ||
     rule.conditionGroup.conditions.length === 0
   ) {
+    Logger.error("evaluateRule", "conditionGroup deve ter um array não vazio de conditions");
     return false;
   }
 
   const { operator, conditions } = rule.conditionGroup;
 
-  if (operator === "AND") {
-    // Avaliação "preguiçosa": para na primeira condição falsa.
-    return conditions.every((condition) => evaluateCondition(tab, condition));
+  // Validação do operador
+  if (!['AND', 'OR'].includes(operator)) {
+    Logger.error("evaluateRule", `Operador lógico inválido: ${operator}. Deve ser 'AND' ou 'OR'`);
+    return false;
   }
 
-  if (operator === "OR") {
-    // Avaliação "preguiçosa": para na primeira condição verdadeira.
-    return conditions.some((condition) => evaluateCondition(tab, condition));
-  }
+  try {
+    if (operator === "AND") {
+      // Avaliação "preguiçosa": para na primeira condição falsa.
+      return conditions.every((condition) => evaluateCondition(tab, condition));
+    }
 
-  return false;
+    if (operator === "OR") {
+      // Avaliação "preguiçosa": para na primeira condição verdadeira.
+      return conditions.some((condition) => evaluateCondition(tab, condition));
+    }
+
+    return false;
+  } catch (error) {
+    Logger.error("evaluateRule", `Erro inesperado ao avaliar regra: ${error.message}`, error);
+    return false;
+  }
 }
 
 // --- LÓGICA DE NOMENCLATURA ---
 
 export function isTabGroupable(tab) {
-  if (!tab || !tab.id || !tab.url || !tab.url.startsWith("http") || tab.pinned)
+  // Validação robusta da aba
+  const tabValidation = validateTabObject(tab);
+  if (!tabValidation.isValid) {
+    Logger.debug("isTabGroupable", `Tab inválida: ${tabValidation.errors.join('; ')}`);
     return false;
-  return !settings.exceptions.some(
-    (exception) => exception && tab.url.includes(exception)
-  );
+  }
+
+  // Verificações básicas
+  if (!tab || !tab.id || !tab.url || tab.pinned) {
+    return false;
+  }
+
+  // Sanitização e validação da URL
+  const sanitizedUrl = sanitizeUrl(tab.url);
+  if (!sanitizedUrl || !sanitizedUrl.startsWith("http")) {
+    return false;
+  }
+
+  // Verificação de exceções com validação
+  if (!Array.isArray(settings.exceptions)) {
+    Logger.warn("isTabGroupable", "settings.exceptions não é um array válido");
+    return true; // Se exceptions não for válido, considera que a aba é agrupável
+  }
+
+  return !settings.exceptions.some((exception) => {
+    if (typeof exception !== 'string' || !exception) {
+      Logger.warn("isTabGroupable", `Exceção inválida encontrada: ${typeof exception}`);
+      return false;
+    }
+    return sanitizedUrl.includes(exception);
+  });
 }
 
 function getHostname(url) {
+  if (typeof url !== 'string' || !url) {
+    Logger.debug("getHostname", `URL inválida recebida: ${typeof url}`);
+    return null;
+  }
+
+  const sanitizedUrl = sanitizeUrl(url);
+  if (!sanitizedUrl) {
+    return null;
+  }
+
   try {
-    return new URL(url).hostname;
+    return new URL(sanitizedUrl).hostname;
   } catch (e) {
+    Logger.debug("getHostname", `Erro ao extrair hostname da URL: ${sanitizedUrl}. Erro: ${e.message}`);
     return null;
   }
 }

@@ -419,32 +419,77 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      // Simula a lógica de evaluateRule
+      // Simula a lógica de evaluateRule com validação
       const evaluateCondition = (cond) => {
+        // Validação básica da condição
+        if (!cond || typeof cond !== 'object' || Array.isArray(cond)) {
+          console.warn('Condição inválida:', cond);
+          return false;
+        }
+
+        if (!cond.property || !cond.operator || cond.value === undefined) {
+          console.warn('Condição incompleta:', cond);
+          return false;
+        }
+
         const tabProperties = {
-          url: mockTab.url,
-          title: mockTab.title,
-          hostname: mockTab.hostname,
-          url_path: mockTab.pathname,
+          url: mockTab.url || "",
+          title: mockTab.title || "",
+          hostname: mockTab.hostname || "",
+          url_path: mockTab.pathname || "",
         };
+
+        // Validação da propriedade
+        if (!tabProperties.hasOwnProperty(cond.property)) {
+          console.warn('Propriedade inválida:', cond.property);
+          return false;
+        }
+
         const propValue = String(tabProperties[cond.property] || "");
-        const condValue = String(cond.value || "");
-        if (condValue === "") return false;
-        switch (cond.operator) {
-          case "contains":
-            return propValue.toLowerCase().includes(condValue.toLowerCase());
-          case "not_contains":
-            return !propValue.toLowerCase().includes(condValue.toLowerCase());
-          case "starts_with":
-            return propValue.toLowerCase().startsWith(condValue.toLowerCase());
-          case "ends_with":
-            return propValue.toLowerCase().endsWith(condValue.toLowerCase());
-          case "equals":
-            return propValue.toLowerCase() === condValue.toLowerCase();
-          case "regex":
-            return new RegExp(condValue, "i").test(propValue);
-          default:
-            return false;
+        const condValue = String(cond.value || "").trim();
+        
+        if (condValue === "") {
+          console.debug('Valor da condição vazio');
+          return false;
+        }
+
+        try {
+          switch (cond.operator) {
+            case "contains":
+              return propValue.toLowerCase().includes(condValue.toLowerCase());
+            case "not_contains":
+              return !propValue.toLowerCase().includes(condValue.toLowerCase());
+            case "starts_with":
+              return propValue.toLowerCase().startsWith(condValue.toLowerCase());
+            case "ends_with":
+              return propValue.toLowerCase().endsWith(condValue.toLowerCase());
+            case "equals":
+              return propValue.toLowerCase() === condValue.toLowerCase();
+            case "regex":
+              try {
+                return new RegExp(condValue, "i").test(propValue);
+              } catch (regexError) {
+                console.warn('Regex inválida:', condValue, regexError.message);
+                return false;
+              }
+            case "wildcard":
+              try {
+                const wildcardRegex = new RegExp(
+                  "^" + condValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*") + "$",
+                  "i"
+                );
+                return wildcardRegex.test(propValue);
+              } catch (wildcardError) {
+                console.warn('Wildcard inválido:', condValue, wildcardError.message);
+                return false;
+              }
+            default:
+              console.warn('Operador desconhecido:', cond.operator);
+              return false;
+          }
+        } catch (error) {
+          console.error('Erro ao avaliar condição:', error);
+          return false;
         }
       };
 
