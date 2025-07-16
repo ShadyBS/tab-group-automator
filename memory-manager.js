@@ -35,13 +35,29 @@ let memoryStats = {
 
 /**
  * Obtém estatísticas atuais de uso de memória
+ * @param {object} maps - Objeto contendo todos os mapas para obter tamanhos
  * @returns {object} Estatísticas de memória
  */
-export function getMemoryStats() {
-  return {
+export function getMemoryStats(maps = null) {
+  const baseStats = {
     ...memoryStats,
     timestamp: Date.now()
   };
+
+  // Se maps foram fornecidos, inclui os tamanhos atuais
+  if (maps) {
+    baseStats.sizes = {
+      tabGroupMap: maps.tabGroupMap?.size || 0,
+      debouncedTitleUpdaters: maps.debouncedTitleUpdaters?.size || 0,
+      groupActivity: maps.groupActivity?.size || 0,
+      singleTabGroupTimestamps: maps.singleTabGroupTimestamps?.size || 0,
+      smartNameCache: maps.smartNameCache?.size || 0,
+      injectionFailureMap: maps.injectionFailureMap?.size || 0,
+      pendingAutomaticGroups: maps.pendingAutomaticGroups?.size || 0
+    };
+  }
+
+  return baseStats;
 }
 
 /**

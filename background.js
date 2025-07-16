@@ -645,7 +645,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ status: "ok" });
           break;
         case "getMemoryStats":
-          sendResponse(getMemoryStats());
+          sendResponse(getMemoryStats(memoryMaps));
           break;
         case "cleanupMemory":
           const cleanupStats = await performMemoryCleanup(memoryMaps);

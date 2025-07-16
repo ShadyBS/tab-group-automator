@@ -889,21 +889,62 @@ document.addEventListener("DOMContentLoaded", () => {
   async function updateMemoryStats() {
     try {
       const stats = await browser.runtime.sendMessage({ action: "getMemoryStats" });
-      if (stats && stats.sizes) {
-        ui.memoryTabGroupMap.textContent = stats.sizes.tabGroupMap || "0";
-        ui.memoryTitleUpdaters.textContent = stats.sizes.debouncedTitleUpdaters || "0";
-        ui.memoryGroupActivity.textContent = stats.sizes.groupActivity || "0";
-        ui.memorySmartCache.textContent = stats.sizes.smartNameCache || "0";
-        ui.memoryInjectionFailures.textContent = stats.sizes.injectionFailureMap || "0";
-        ui.memoryPendingGroups.textContent = stats.sizes.pendingAutomaticGroups || "0";
+      console.log("Estatísticas recebidas:", stats); // Debug log
+      
+      if (stats) {
+        // Atualiza tamanhos dos mapas
+        if (stats.sizes) {
+          ui.memoryTabGroupMap.textContent = stats.sizes.tabGroupMap || "0";
+          ui.memoryTitleUpdaters.textContent = stats.sizes.debouncedTitleUpdaters || "0";
+          ui.memoryGroupActivity.textContent = stats.sizes.groupActivity || "0";
+          ui.memorySmartCache.textContent = stats.sizes.smartNameCache || "0";
+          ui.memoryInjectionFailures.textContent = stats.sizes.injectionFailureMap || "0";
+          ui.memoryPendingGroups.textContent = stats.sizes.pendingAutomaticGroups || "0";
+        } else {
+          // Se sizes não está disponível, mostra 0
+          ui.memoryTabGroupMap.textContent = "0";
+          ui.memoryTitleUpdaters.textContent = "0";
+          ui.memoryGroupActivity.textContent = "0";
+          ui.memorySmartCache.textContent = "0";
+          ui.memoryInjectionFailures.textContent = "0";
+          ui.memoryPendingGroups.textContent = "0";
+        }
         
-        ui.lastCleanupTime.textContent = new Date(stats.lastCleanup).toLocaleString();
+        // Atualiza estatísticas de limpeza
+        if (stats.lastCleanup) {
+          ui.lastCleanupTime.textContent = new Date(stats.lastCleanup).toLocaleString();
+        } else {
+          ui.lastCleanupTime.textContent = "Nunca";
+        }
+        
         ui.totalCleaned.textContent = stats.totalCleaned || "0";
         ui.cleanupCycles.textContent = stats.cleanupCycles || "0";
+      } else {
+        console.warn("Nenhuma estatística recebida");
+        // Define valores padrão se não houver dados
+        ui.memoryTabGroupMap.textContent = "N/A";
+        ui.memoryTitleUpdaters.textContent = "N/A";
+        ui.memoryGroupActivity.textContent = "N/A";
+        ui.memorySmartCache.textContent = "N/A";
+        ui.memoryInjectionFailures.textContent = "N/A";
+        ui.memoryPendingGroups.textContent = "N/A";
+        ui.lastCleanupTime.textContent = "N/A";
+        ui.totalCleaned.textContent = "N/A";
+        ui.cleanupCycles.textContent = "N/A";
       }
     } catch (error) {
       console.error("Erro ao obter estatísticas de memória:", error);
       showNotification("Erro ao obter estatísticas de memória", "error");
+      // Define valores de erro
+      ui.memoryTabGroupMap.textContent = "Erro";
+      ui.memoryTitleUpdaters.textContent = "Erro";
+      ui.memoryGroupActivity.textContent = "Erro";
+      ui.memorySmartCache.textContent = "Erro";
+      ui.memoryInjectionFailures.textContent = "Erro";
+      ui.memoryPendingGroups.textContent = "Erro";
+      ui.lastCleanupTime.textContent = "Erro";
+      ui.totalCleaned.textContent = "Erro";
+      ui.cleanupCycles.textContent = "Erro";
     }
   }
   
