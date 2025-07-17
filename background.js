@@ -103,6 +103,40 @@ browser.runtime.onInstalled.addListener(async (details) => {
   }
 });
 
+// --- Funções Auxiliares ---
+
+/**
+ * Extrai hostname de uma URL
+ * @param {string} url - URL para extrair hostname
+ * @returns {string|null} Hostname ou null se inválido
+ */
+function getHostnameFromUrl(url) {
+  if (typeof url !== 'string' || !url) {
+    return null;
+  }
+  
+  try {
+    return new URL(url).hostname;
+  } catch (e) {
+    Logger.debug("getHostnameFromUrl", `Erro ao extrair hostname da URL: ${url}`);
+    return null;
+  }
+}
+
+/**
+ * Invalida cache para mudanças de domínio
+ * @param {string} hostname - Hostname que mudou
+ * @param {string} changeType - Tipo de mudança
+ */
+async function invalidateCacheForDomainChange(hostname, changeType) {
+  try {
+    const { invalidateCacheByDomainChange } = await import("./settings-manager.js");
+    invalidateCacheByDomainChange(hostname, changeType);
+  } catch (e) {
+    Logger.debug("invalidateCacheForDomainChange", `Erro ao invalidar cache: ${e.message}`);
+  }
+}
+
 // --- Lógica de Processamento e Gestão de Eventos ---
 
 function scheduleQueueProcessing() {
@@ -147,6 +181,22 @@ function handleTabUpdated(tabId, changeInfo, tab) {
     }
     scheduleTitleUpdate(changeInfo.groupId);
     tabGroupMap.set(tabId, changeInfo.groupId);
+  }
+
+  // Invalidação de cache baseada em mudanças significativas
+  if (tab.url && tab.url.startsWith("http")) {
+    const hostname = getHostnameFromUrl(tab.url);
+    if (hostname) {
+      // Invalida cache se houve mudança de título significativa
+      if (changeInfo.title && tab.status === "complete") {
+        invalidateCacheForDomainChange(hostname, 'title_change');
+      }
+      
+      // Invalida cache se houve mudança de URL (navegação)
+      if (changeInfo.url) {
+        invalidateCacheForDomainChange(hostname, 'url_change');
+      }
+    }
   }
 
   // Determina se a aba precisa ser processada.
@@ -682,6 +732,34 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "setContextualErrorConfig":
           globalAdaptiveErrorHandler.setContextualConfig(message.context, message.config);
           sendResponse({ success: true });
+          break;
+        case "getCacheStats":
+          const { getCacheStats } = await import("./settings-manager.js");
+          sendResponse(getCacheStats());
+          break;
+        case "getDetailedCacheStats":
+          const { getDetailedCacheStats } = await import("./settings-manager.js");
+          sendResponse(getDetailedCacheStats());
+          break;
+        case "invalidateCacheByDomain":
+          const { invalidateCacheByDomainChange } = await import("./settings-manager.js");
+          invalidateCacheByDomainChange(message.hostname, message.changeType);
+          sendResponse({ success: true });
+          break;
+        case "invalidateCacheByCriteria":
+          const { invalidateCacheByCriteria } = await import("./settings-manager.js");
+          const invalidatedCount = invalidateCacheByCriteria(message.criteria);
+          sendResponse({ success: true, invalidated: invalidatedCount });
+          break;
+        case "clearAllCaches":
+          const { clearAllCaches } = await import("./settings-manager.js");
+          clearAllCaches();
+          sendResponse({ success: true });
+          break;
+        case "migrateLegacyCache":
+          const { migrateLegacyCacheToIntelligent } = await import("./settings-manager.js");
+          const migrationResult = await migrateLegacyCacheToIntelligent();
+          sendResponse(migrationResult);
           break;
         case "getPerformanceConfig":
           sendResponse(getAllConfig());

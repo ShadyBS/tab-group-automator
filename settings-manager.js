@@ -3,13 +3,21 @@
  * @description Gere as configurações da extensão e o armazenamento, com suporte para sincronização.
  */
 import Logger from "./logger.js";
-import { withErrorHandling, handleCriticalOperation } from "./error-handler.js";
+import { withErrorHandling, handleCriticalOperation } from "./adaptive-error-handler.js";
 import { getConfig } from "./performance-config.js";
 import { 
   validateSettings, 
   validateCustomRule,
   sanitizeString 
 } from "./validation-utils.js";
+import {
+  globalIntelligentCache,
+  getSmartNameFromCache,
+  setSmartNameInCache,
+  invalidateSmartNameCache,
+  clearSmartNameCache,
+  getSmartNameCacheStats
+} from "./intelligent-cache-manager.js";
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
@@ -406,9 +414,185 @@ export function cleanupOldCacheEntries(maxAge = 24 * 60 * 60 * 1000) {
  * @returns {object} Estatísticas do cache
  */
 export function getCacheStats() {
+  // Retorna estatísticas do cache inteligente se disponível
+  if (globalIntelligentCache) {
+    return getSmartNameCacheStats();
+  }
+  
+  // Fallback para cache legado
   return {
     size: smartNameCache.size,
     memoryUsage: JSON.stringify(Object.fromEntries(smartNameCache)).length,
+    timestamp: Date.now()
+  };
+}
+
+/**
+ * Migra cache legado para o novo sistema inteligente
+ */
+export async function migrateLegacyCacheToIntelligent() {
+  if (!smartNameCache || smartNameCache.size === 0) {
+    Logger.debug("SettingsManager", "Nenhum cache legado para migrar");
+    return { migrated: 0 };
+  }
+  
+  let migratedCount = 0;
+  const now = Date.now();
+  
+  Logger.info("SettingsManager", `Iniciando migração de ${smartNameCache.size} entradas do cache legado`);
+  
+  for (const [hostname, name] of smartNameCache.entries()) {
+    if (typeof hostname === 'string' && typeof name === 'string') {
+      setSmartNameInCache(hostname, name, {
+        source: 'legacy_migration',
+        confidence: 0.8, // Confiança menor para dados migrados
+        metadata: {
+          migratedAt: now,
+          originalSource: 'legacy'
+        }
+      });
+      migratedCount++;
+    }
+  }
+  
+  // Limpa cache legado após migração
+  smartNameCache.clear();
+  
+  Logger.info("SettingsManager", `Migração concluída: ${migratedCount} entradas migradas para cache inteligente`);
+  return { migrated: migratedCount };
+}
+
+/**
+ * Obtém nome do cache (compatibilidade com sistema antigo)
+ * @param {string} hostname - Hostname
+ * @returns {string|null} Nome do cache ou null
+ */
+export function getSmartNameFromLegacyCache(hostname) {
+  // Primeiro tenta cache inteligente
+  const intelligentResult = getSmartNameFromCache(hostname);
+  if (intelligentResult) {
+    return intelligentResult;
+  }
+  
+  // Fallback para cache legado
+  return smartNameCache.get(hostname) || null;
+}
+
+/**
+ * Define nome no cache (compatibilidade com sistema antigo)
+ * @param {string} hostname - Hostname
+ * @param {string} name - Nome a armazenar
+ * @param {object} options - Opções adicionais
+ */
+export function setSmartNameInLegacyCache(hostname, name, options = {}) {
+  // Define no cache inteligente
+  setSmartNameInCache(hostname, name, {
+    source: options.source || 'grouping_logic',
+    confidence: options.confidence || 1.0,
+    ttl: options.ttl,
+    metadata: options.metadata || {}
+  });
+  
+  // Mantém compatibilidade com cache legado
+  smartNameCache.set(hostname, name);
+}
+
+/**
+ * Invalida cache baseado em mudanças de domínio
+ * @param {string} hostname - Hostname que mudou
+ * @param {string} changeType - Tipo de mudança
+ */
+export function invalidateCacheByDomainChange(hostname, changeType = 'content') {
+  // Invalida no cache inteligente
+  if (globalIntelligentCache) {
+    globalIntelligentCache.invalidateByDomainChange(hostname, changeType);
+  }
+  
+  // Remove do cache legado também
+  const domainParts = hostname.split('.');
+  const domain = domainParts.length > 2 ? domainParts.slice(-2).join('.') : hostname;
+  
+  for (const key of smartNameCache.keys()) {
+    if (key.includes(domain)) {
+      smartNameCache.delete(key);
+    }
+  }
+  
+  Logger.debug("SettingsManager", `Cache invalidado para domínio: ${hostname} (tipo: ${changeType})`);
+}
+
+/**
+ * Invalida cache baseado em critérios específicos
+ * @param {object} criteria - Critérios de invalidação
+ * @returns {number} Número de entradas invalidadas
+ */
+export function invalidateCacheByCriteria(criteria) {
+  let invalidatedCount = 0;
+  
+  // Invalida no cache inteligente
+  if (globalIntelligentCache) {
+    invalidatedCount += invalidateSmartNameCache(criteria);
+  }
+  
+  // Invalida no cache legado
+  if (criteria.maxAge) {
+    const removed = cleanupOldCacheEntries(criteria.maxAge);
+    invalidatedCount += removed;
+  }
+  
+  if (criteria.keyPattern) {
+    const pattern = new RegExp(criteria.keyPattern);
+    for (const key of smartNameCache.keys()) {
+      if (pattern.test(key)) {
+        smartNameCache.delete(key);
+        invalidatedCount++;
+      }
+    }
+  }
+  
+  return invalidatedCount;
+}
+
+/**
+ * Força limpeza completa de ambos os caches
+ */
+export function clearAllCaches() {
+  // Limpa cache inteligente
+  clearSmartNameCache();
+  
+  // Limpa cache legado
+  smartNameCache.clear();
+  if (saveCacheTimeout) {
+    clearTimeout(saveCacheTimeout);
+    saveCacheTimeout = null;
+  }
+  
+  // Remove do armazenamento
+  browser.storage.local.remove(["smartNameCache", "intelligentSmartNameCache"]);
+  
+  Logger.info("SettingsManager", "Todos os caches foram limpos");
+}
+
+/**
+ * Obtém estatísticas combinadas de ambos os caches
+ * @returns {object} Estatísticas detalhadas
+ */
+export function getDetailedCacheStats() {
+  const intelligentStats = globalIntelligentCache ? 
+    globalIntelligentCache.getDetailedStats() : null;
+  
+  const legacyStats = {
+    size: smartNameCache.size,
+    memoryUsage: JSON.stringify(Object.fromEntries(smartNameCache)).length
+  };
+  
+  return {
+    intelligent: intelligentStats,
+    legacy: legacyStats,
+    combined: {
+      totalSize: (intelligentStats?.size || 0) + legacyStats.size,
+      totalMemoryUsage: (intelligentStats?.memoryUsage || 0) + legacyStats.memoryUsage
+    },
     timestamp: Date.now()
   };
 }

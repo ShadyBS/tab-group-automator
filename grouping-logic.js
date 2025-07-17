@@ -8,6 +8,9 @@ import {
   settings,
   smartNameCache,
   saveSmartNameCache,
+  getSmartNameFromLegacyCache,
+  setSmartNameInLegacyCache,
+  invalidateCacheByDomainChange
 } from "./settings-manager.js";
 import { pendingAutomaticGroups, injectionFailureMap } from "./app-state.js";
 import {
@@ -375,24 +378,53 @@ export async function getFinalGroupName(tab) {
   const hostname = getHostname(tab.url);
   if (!hostname) return null;
 
-  // 2. Cache
-  if (smartNameCache.has(hostname)) {
-    return smartNameCache.get(hostname);
+  // 2. Cache inteligente (com fallback para cache legado)
+  const cachedName = getSmartNameFromLegacyCache(hostname);
+  if (cachedName) {
+    Logger.debug("getFinalGroupName", `Cache hit para ${hostname}: ${cachedName}`);
+    return cachedName;
   }
 
   // 3. Nomenclatura Inteligente
   let groupName = null;
+  let confidence = 1.0;
+  let source = 'domain_fallback';
+  
   if (settings.groupingMode === "smart") {
     groupName = await fetchSmartName(tab);
+    if (groupName) {
+      confidence = 0.9; // Alta confiança para nomes obtidos via script
+      source = 'smart_extraction';
+      Logger.debug("getFinalGroupName", `Nome inteligente obtido para ${hostname}: ${groupName}`);
+    }
   }
 
   // 4. Fallback para nome de domínio
   if (!groupName) {
     groupName = sanitizeDomainName(hostname);
+    confidence = 0.7; // Confiança média para nomes de domínio
+    source = 'domain_sanitization';
+    Logger.debug("getFinalGroupName", `Nome de domínio usado para ${hostname}: ${groupName}`);
   }
 
-  smartNameCache.set(hostname, groupName);
-  saveSmartNameCache();
+  // 5. Armazena no cache inteligente com metadados
+  if (groupName) {
+    setSmartNameInLegacyCache(hostname, groupName, {
+      source,
+      confidence,
+      metadata: {
+        tabId: tab.id,
+        url: tab.url,
+        title: tab.title,
+        extractedAt: Date.now(),
+        groupingMode: settings.groupingMode
+      }
+    });
+    
+    // Mantém compatibilidade com sistema legado
+    saveSmartNameCache();
+  }
+
   return groupName;
 }
 

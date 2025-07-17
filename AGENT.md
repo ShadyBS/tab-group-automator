@@ -17,6 +17,7 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - `adaptive-error-handler.js` - **NEW**: Advanced adaptive error handling with contextual strategies
 - `memory-manager.js` - Legacy memory management system (maintained for compatibility)
 - `adaptive-memory-manager.js` - Advanced adaptive memory management with pressure detection
+- `intelligent-cache-manager.js` - **NEW**: Advanced cache system with TTL, versioning and auto-invalidation
 - `parallel-batch-processor.js` - Advanced parallel processing system with concurrency control
 - `async-batch-processor.js` - Legacy batch processing system (maintained for compatibility)
 - `performance-config.js` - Tunable performance configurations and rate limiting
@@ -47,6 +48,16 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - **Circuit Breaker**: Intelligent system to prevent repeated failures with automatic reset
 - **Contextual Configuration**: Different retry limits and multipliers per operation context
 - **Recovery Optimization**: Up to 70% faster recovery from transient errors
+
+### Intelligent Cache Management
+- **TTL-Based Expiration**: Configurable time-to-live for cache entries with automatic cleanup
+- **Auto-Invalidation**: Automatic cache invalidation based on tab changes and domain modifications
+- **Rich Metadata**: Storage of confidence levels, source information, timestamps and contextual data
+- **LRU Eviction**: Least Recently Used algorithm for intelligent memory management
+- **Version Control**: Cache versioning system that invalidates incompatible entries after updates
+- **Domain Change Tracking**: Pattern monitoring for proactive invalidation of frequently changing domains
+- **Usage Optimization**: Algorithm that removes rarely accessed entries to maintain performance
+- **Dual Compatibility**: Simultaneous support for legacy and intelligent cache during transition
 
 ## Code Style
 - ES6 modules with `import/export` syntax

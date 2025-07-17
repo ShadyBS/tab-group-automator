@@ -29,6 +29,13 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   MAX_CACHE_SIZE: 1000,                  // Tamanho máximo do cache de nomes
   CACHE_MAX_AGE: 24 * 60 * 60 * 1000,    // ms - Idade máxima do cache (24h)
   
+  // --- Configurações de Cache Inteligente ---
+  CACHE_DEFAULT_TTL: 24 * 60 * 60 * 1000, // ms - TTL padrão para entradas (24h)
+  CACHE_CLEANUP_INTERVAL: 5 * 60 * 1000,  // ms - Intervalo de limpeza automática (5min)
+  CACHE_OPTIMIZATION_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // ms - Threshold para otimização (7 dias)
+  CACHE_DOMAIN_CHANGE_THRESHOLD: 3,       // Número de mudanças para invalidar domínio
+  CACHE_VERSION_CHECK_ENABLED: true,      // Habilita verificação de versão do cache
+  
   // --- Configurações de Gerenciamento Adaptativo de Memória ---
   ADAPTIVE_MEMORY_ENABLED: true,         // Habilita gerenciamento adaptativo
   MEMORY_PRESSURE_CHECK_INTERVAL: 30000, // ms - Intervalo para verificar pressão
