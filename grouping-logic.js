@@ -311,12 +311,25 @@ async function fetchSmartName(tab) {
     );
     return null;
   }
+
+  // Enhanced URL validation to prevent injection on protected pages
+  if (!tab.url || !isValidUrlForInjection(tab.url)) {
+    Logger.debug("fetchSmartName", `URL não suportada para injeção: ${tab.url}`);
+    return null;
+  }
   
   const result = await withErrorHandling(async () => {
-    const injectionResults = await browser.scripting.executeScript({
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Script injection timeout')), 5000);
+    });
+    
+    const injectionPromise = browser.scripting.executeScript({
       target: { tabId },
       files: ["content-script.js"],
     });
+    
+    const injectionResults = await Promise.race([injectionPromise, timeoutPromise]);
     
     if (injectionResults && injectionResults[0] && injectionResults[0].result) {
       const details = injectionResults[0].result;
@@ -329,18 +342,19 @@ async function fetchSmartName(tab) {
         details.applicationName ||
         details.schemaName ||
         details.ogTitle;
-      if (priorityName) {
-        return priorityName;
+      if (priorityName && priorityName.trim()) {
+        return sanitizeString(priorityName.trim(), 50);
       }
 
       // 2. Valida o h1Content para garantir que ele é relevante para o domínio.
-      if (details.h1Content) {
+      if (details.h1Content && details.h1Content.trim()) {
         const hostname = getHostname(tab.url);
         if (hostname) {
           // Extrai a parte principal do domínio (ex: 'google' de 'www.google.com')
           const domainCore = hostname.split(".")[0].toLowerCase();
-          if (details.h1Content.toLowerCase().includes(domainCore)) {
-            return details.h1Content;
+          const h1Lower = details.h1Content.toLowerCase();
+          if (h1Lower.includes(domainCore) || h1Lower.length <= 30) {
+            return sanitizeString(details.h1Content.trim(), 50);
           }
         }
       }
@@ -363,6 +377,39 @@ async function fetchSmartName(tab) {
   }
   
   return result;
+}
+
+/**
+ * Validates if a URL is safe for content script injection
+ * @param {string} url - URL to validate
+ * @returns {boolean} - True if safe for injection
+ */
+function isValidUrlForInjection(url) {
+  if (!url || typeof url !== 'string') return false;
+  
+  // Protected schemes that don't allow content script injection
+  const protectedSchemes = [
+    'chrome://',
+    'chrome-extension://',
+    'moz-extension://',
+    'about:',
+    'data:',
+    'file:',
+    'ftp:',
+    'javascript:',
+    'blob:',
+    'chrome-search://',
+    'chrome-devtools://',
+    'view-source:'
+  ];
+  
+  const lowerUrl = url.toLowerCase();
+  if (protectedSchemes.some(scheme => lowerUrl.startsWith(scheme))) {
+    return false;
+  }
+  
+  // Only allow http and https
+  return lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://');
 }
 
 export async function getFinalGroupName(tab) {

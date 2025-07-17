@@ -190,13 +190,30 @@ function handleTabUpdated(tabId, changeInfo, tab) {
     tabGroupMap.set(tabId, changeInfo.groupId);
   }
 
-  // Invalidação de cache baseada em mudanças significativas
+  // Invalidação de cache baseada em mudanças significativas (otimizada)
   if (tab.url && tab.url.startsWith("http")) {
     const hostname = getHostnameFromUrl(tab.url);
     if (hostname) {
-      // Invalida cache se houve mudança de título significativa
+      // Invalida cache apenas para mudanças de título significativas
       if (changeInfo.title && tab.status === "complete") {
-        invalidateCacheForDomainChange(hostname, 'title_change');
+        // Só invalida se o título mudou substancialmente (n��o apenas contadores)
+        const titleChange = changeInfo.title;
+        const isSignificantChange = titleChange && 
+          titleChange.length > 5 && 
+          !titleChange.match(/^\(\d+\)/) && // Não é apenas um contador
+          !titleChange.match(/\d+\s*(new|unread|messages?|notifications?)$/i); // Não é apenas notificação
+        
+        if (isSignificantChange) {
+          // Debounce cache invalidation to avoid excessive calls
+          const cacheKey = `cache-invalidate-${hostname}`;
+          if (!debouncedTitleUpdaters.has(cacheKey)) {
+            const timeoutId = setTimeout(() => {
+              invalidateCacheForDomainChange(hostname, 'title_change');
+              debouncedTitleUpdaters.delete(cacheKey);
+            }, 2000); // 2 second debounce
+            debouncedTitleUpdaters.set(cacheKey, timeoutId);
+          }
+        }
       }
       
       // Invalida cache se houve mudança de URL (navegação)

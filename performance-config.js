@@ -85,6 +85,17 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   API_OPERATION_MAX_AGE: 30000,          // ms - Idade máxima de operação na fila (30s)
   API_BURST_RECOVERY_TIME: 5000,         // ms - Tempo de recuperação após burst (5s)
   API_RATE_LIMIT_ENABLED: true,          // Habilita rate limiting de APIs
+  
+  // Configurações de Renomeação de Abas
+  TAB_RENAMING_DELAY: 2000,               // ms - Delay após carregamento da página
+  TAB_RENAMING_TIMEOUT: 10000,            // ms - Timeout para extração de conteúdo
+  TAB_RENAMING_CACHE_TTL: 300000,         // ms - TTL padrão do cache (5 min)
+  TAB_RENAMING_CACHE_CLEANUP_INTERVAL: 600000, // ms - Intervalo de limpeza do cache (10 min)
+  TAB_RENAMING_MAX_CONCURRENT: 3,         // Máximo de abas processadas simultaneamente
+  TAB_RENAMING_RETRY_DELAY: 1000,         // ms - Delay entre tentativas
+  TAB_RENAMING_MAX_TITLE_LENGTH: 100,     // Comprimento máximo do título
+  TAB_RENAMING_MAX_RULES: 50,             // Máximo de regras de renomeação
+  TAB_RENAMING_ENABLED: false             // Habilita renomeação automática (padrão: desabilitado)
 };
 
 // Configurações atuais (podem ser modificadas)

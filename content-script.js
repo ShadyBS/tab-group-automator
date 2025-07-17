@@ -43,13 +43,24 @@
     try {
       // Resolve o URL do manifesto em relação ao URL base do documento
       const manifestUrl = new URL(manifestLink.href, document.baseURI);
-      const response = await fetch(manifestUrl);
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      const response = await fetch(manifestUrl, { 
+        signal: controller.signal,
+        cache: 'force-cache' // Use cache to avoid repeated requests
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) return null;
+      
       const manifestData = await response.json();
       // Prefere short_name se existir, pois é muitas vezes mais limpo.
-      return (
-        (manifestData.short_name || manifestData.name || "").trim() || null
-      );
+      const name = (manifestData.short_name || manifestData.name || "").trim();
+      return name.length > 0 && name.length <= 50 ? name : null;
     } catch (e) {
       // Ignora erros de fetch ou de parsing de JSON.
       return null;

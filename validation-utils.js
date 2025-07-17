@@ -443,6 +443,320 @@ export function sanitizeUrl(input) {
 }
 
 /**
+ * Valida uma regra de renomeação de abas
+ * @param {object} rule - Regra de renomeação a validar
+ * @returns {ValidationResult} Resultado da validação
+ */
+export function validateTabRenamingRule(rule) {
+  const errors = [];
+  
+  // Validação básica da estrutura
+  if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+    errors.push('Regra deve ser um objeto válido');
+    return { isValid: false, errors };
+  }
+  
+  // Validação do nome
+  if (!rule.name || typeof rule.name !== 'string' || rule.name.trim().length === 0) {
+    errors.push('Nome da regra é obrigatório');
+  } else if (rule.name.length > 100) {
+    errors.push('Nome da regra deve ter no máximo 100 caracteres');
+  }
+  
+  // Validação da prioridade
+  if (rule.priority !== undefined) {
+    if (typeof rule.priority !== 'number' || rule.priority < 1 || rule.priority > 999) {
+      errors.push('Prioridade deve ser um número entre 1 e 999');
+    }
+  }
+  
+  // Validação das condições
+  if (!rule.conditions || typeof rule.conditions !== 'object') {
+    errors.push('Condições são obrigatórias');
+  } else {
+    const conditionErrors = validateRenamingConditions(rule.conditions);
+    errors.push(...conditionErrors);
+  }
+  
+  // Validação das estratégias de renomeação
+  if (!rule.renamingStrategies || !Array.isArray(rule.renamingStrategies) || rule.renamingStrategies.length === 0) {
+    errors.push('Pelo menos uma estratégia de renomeação é obrigatória');
+  } else {
+    for (let i = 0; i < rule.renamingStrategies.length; i++) {
+      const strategyErrors = validateRenamingStrategy(rule.renamingStrategies[i], i);
+      errors.push(...strategyErrors);
+    }
+  }
+  
+  // Validação das opções
+  if (rule.options && typeof rule.options !== 'object') {
+    errors.push('Opções devem ser um objeto');
+  } else if (rule.options) {
+    const optionErrors = validateRenamingOptions(rule.options);
+    errors.push(...optionErrors);
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
+ * Valida condições de uma regra de renomeação
+ * @param {object} conditions - Condições a validar
+ * @returns {Array} Array de erros
+ */
+function validateRenamingConditions(conditions) {
+  const errors = [];
+  
+  // Deve ter pelo menos uma condição
+  const hasConditions = conditions.hostPatterns?.length > 0 ||
+                       conditions.hostRegex ||
+                       conditions.urlPatterns?.length > 0 ||
+                       conditions.titlePatterns?.length > 0;
+  
+  if (!hasConditions) {
+    errors.push('Pelo menos uma condição deve ser especificada');
+  }
+  
+  // Validação de padrões de host
+  if (conditions.hostPatterns) {
+    if (!Array.isArray(conditions.hostPatterns)) {
+      errors.push('hostPatterns deve ser um array');
+    } else {
+      for (let i = 0; i < conditions.hostPatterns.length; i++) {
+        const pattern = conditions.hostPatterns[i];
+        if (typeof pattern !== 'string' || pattern.trim().length === 0) {
+          errors.push(`Padrão de host ${i + 1} deve ser uma string não vazia`);
+        }
+      }
+    }
+  }
+  
+  // Validação de regex de host
+  if (conditions.hostRegex) {
+    if (typeof conditions.hostRegex !== 'string') {
+      errors.push('hostRegex deve ser uma string');
+    } else {
+      try {
+        new RegExp(conditions.hostRegex);
+      } catch (e) {
+        errors.push('hostRegex contém uma expressão regular inválida');
+      }
+    }
+  }
+  
+  // Validação de padrões de URL
+  if (conditions.urlPatterns) {
+    if (!Array.isArray(conditions.urlPatterns)) {
+      errors.push('urlPatterns deve ser um array');
+    } else {
+      for (let i = 0; i < conditions.urlPatterns.length; i++) {
+        const pattern = conditions.urlPatterns[i];
+        if (typeof pattern !== 'string' || pattern.trim().length === 0) {
+          errors.push(`Padrão de URL ${i + 1} deve ser uma string não vazia`);
+        }
+      }
+    }
+  }
+  
+  // Validação de padrões de título
+  if (conditions.titlePatterns) {
+    if (!Array.isArray(conditions.titlePatterns)) {
+      errors.push('titlePatterns deve ser um array');
+    } else {
+      for (let i = 0; i < conditions.titlePatterns.length; i++) {
+        const pattern = conditions.titlePatterns[i];
+        if (typeof pattern !== 'string' || pattern.trim().length === 0) {
+          errors.push(`Padrão de título ${i + 1} deve ser uma string não vazia`);
+        }
+      }
+    }
+  }
+  
+  return errors;
+}
+
+/**
+ * Valida uma estratégia de renomeação
+ * @param {object} strategy - Estratégia a validar
+ * @param {number} index - Índice da estratégia
+ * @returns {Array} Array de erros
+ */
+function validateRenamingStrategy(strategy, index) {
+  const errors = [];
+  const prefix = `Estratégia ${index + 1}`;
+  
+  if (!strategy || typeof strategy !== 'object') {
+    errors.push(`${prefix}: deve ser um objeto`);
+    return errors;
+  }
+  
+  // Validação do tipo
+  const validTypes = ['css_extract', 'title_manipulation', 'domain_based', 'original_title'];
+  if (!strategy.type || !validTypes.includes(strategy.type)) {
+    errors.push(`${prefix}: tipo deve ser um de: ${validTypes.join(', ')}`);
+  }
+  
+  // Validação específica por tipo
+  switch (strategy.type) {
+    case 'css_extract':
+      if (!strategy.selector || typeof strategy.selector !== 'string') {
+        errors.push(`${prefix}: seletor CSS é obrigatório para extração CSS`);
+      } else {
+        // Testa se o seletor CSS é válido
+        try {
+          // Simula teste de seletor (não pode usar document.querySelector aqui)
+          if (strategy.selector.includes('<') || strategy.selector.includes('>') && !strategy.selector.match(/^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\|]+$/)) {
+            errors.push(`${prefix}: seletor CSS parece inválido`);
+          }
+        } catch (e) {
+          errors.push(`${prefix}: seletor CSS inválido`);
+        }
+      }
+      
+      if (strategy.attribute && typeof strategy.attribute !== 'string') {
+        errors.push(`${prefix}: atributo deve ser uma string`);
+      }
+      break;
+      
+    case 'title_manipulation':
+      if (!strategy.operations || !Array.isArray(strategy.operations) || strategy.operations.length === 0) {
+        errors.push(`${prefix}: operações são obrigatórias para manipulação de título`);
+      } else {
+        for (let i = 0; i < strategy.operations.length; i++) {
+          const opErrors = validateTextOperation(strategy.operations[i], i, prefix);
+          errors.push(...opErrors);
+        }
+      }
+      break;
+  }
+  
+  // Validação de fallback
+  if (strategy.fallback && !validTypes.includes(strategy.fallback)) {
+    errors.push(`${prefix}: fallback deve ser um tipo válido`);
+  }
+  
+  return errors;
+}
+
+/**
+ * Valida uma operação de texto
+ * @param {object} operation - Operação a validar
+ * @param {number} index - Índice da operação
+ * @param {string} strategyPrefix - Prefixo da estratégia
+ * @returns {Array} Array de erros
+ */
+function validateTextOperation(operation, index, strategyPrefix) {
+  const errors = [];
+  const prefix = `${strategyPrefix}, Operação ${index + 1}`;
+  
+  if (!operation || typeof operation !== 'object') {
+    errors.push(`${prefix}: deve ser um objeto`);
+    return errors;
+  }
+  
+  const validActions = ['replace', 'prepend', 'append', 'remove', 'truncate', 'extract'];
+  if (!operation.action || !validActions.includes(operation.action)) {
+    errors.push(`${prefix}: ação deve ser uma de: ${validActions.join(', ')}`);
+    return errors;
+  }
+  
+  // Validação específica por ação
+  switch (operation.action) {
+    case 'replace':
+    case 'remove':
+    case 'extract':
+      if (!operation.pattern || typeof operation.pattern !== 'string') {
+        errors.push(`${prefix}: padrão é obrigatório para ação ${operation.action}`);
+      } else {
+        try {
+          new RegExp(operation.pattern, operation.flags || '');
+        } catch (e) {
+          errors.push(`${prefix}: padrão contém regex inválida`);
+        }
+      }
+      
+      if (operation.action === 'replace' && operation.replacement === undefined) {
+        errors.push(`${prefix}: substituição é obrigatória para ação replace`);
+      }
+      
+      if (operation.action === 'extract' && operation.group !== undefined) {
+        if (typeof operation.group !== 'number' || operation.group < 0) {
+          errors.push(`${prefix}: grupo deve ser um número não negativo`);
+        }
+      }
+      break;
+      
+    case 'prepend':
+    case 'append':
+      if (!operation.text || typeof operation.text !== 'string') {
+        errors.push(`${prefix}: texto é obrigatório para ação ${operation.action}`);
+      }
+      break;
+      
+    case 'truncate':
+      if (!operation.maxLength || typeof operation.maxLength !== 'number' || operation.maxLength <= 0) {
+        errors.push(`${prefix}: maxLength deve ser um número positivo`);
+      }
+      
+      if (operation.ellipsis && typeof operation.ellipsis !== 'string') {
+        errors.push(`${prefix}: ellipsis deve ser uma string`);
+      }
+      break;
+  }
+  
+  // Validação de flags
+  if (operation.flags && typeof operation.flags !== 'string') {
+    errors.push(`${prefix}: flags devem ser uma string`);
+  }
+  
+  return errors;
+}
+
+/**
+ * Valida opções de uma regra de renomeação
+ * @param {object} options - Opções a validar
+ * @returns {Array} Array de erros
+ */
+function validateRenamingOptions(options) {
+  const errors = [];
+  
+  if (options.waitForLoad !== undefined && typeof options.waitForLoad !== 'boolean') {
+    errors.push('waitForLoad deve ser um boolean');
+  }
+  
+  if (options.retryAttempts !== undefined) {
+    if (typeof options.retryAttempts !== 'number' || options.retryAttempts < 0 || options.retryAttempts > 10) {
+      errors.push('retryAttempts deve ser um número entre 0 e 10');
+    }
+  }
+  
+  if (options.retryDelay !== undefined) {
+    if (typeof options.retryDelay !== 'number' || options.retryDelay < 0) {
+      errors.push('retryDelay deve ser um número não negativo');
+    }
+  }
+  
+  if (options.cacheResult !== undefined && typeof options.cacheResult !== 'boolean') {
+    errors.push('cacheResult deve ser um boolean');
+  }
+  
+  if (options.cacheTTL !== undefined) {
+    if (typeof options.cacheTTL !== 'number' || options.cacheTTL < 0) {
+      errors.push('cacheTTL deve ser um número não negativo');
+    }
+  }
+  
+  if (options.respectManualChanges !== undefined && typeof options.respectManualChanges !== 'boolean') {
+    errors.push('respectManualChanges deve ser um boolean');
+  }
+  
+  return errors;
+}
+
+/**
  * Resultado de validação
  * @typedef {Object} ValidationResult
  * @property {boolean} isValid - Se a validação passou

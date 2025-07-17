@@ -268,8 +268,8 @@ export class TabParallelProcessor extends ParallelBatchProcessor {
     super({
       ...options,
       context: 'TabParallelProcessor',
-      maxConcurrency: options.maxConcurrency || getConfig('MAX_TAB_CONCURRENCY') || 4,
-      batchSize: options.batchSize || getConfig('TAB_BATCH_SIZE') || 10
+      maxConcurrency: options.maxConcurrency || getConfig('MAX_TAB_CONCURRENCY') || 2, // Reduced from 4
+      batchSize: options.batchSize || getConfig('TAB_BATCH_SIZE') || 8 // Reduced from 10
     });
   }
   
