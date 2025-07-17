@@ -514,7 +514,4 @@ export async function handleCriticalOperation(operation, context, fallback = nul
   });
 }
 
-// Exporta tipos e estratégias para compatibilidade
-export { ErrorType, RecoveryStrategy };
-
 Logger.debug("AdaptiveErrorHandler", "Sistema de tratamento adaptativo de erros inicializado.");

@@ -43,9 +43,13 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Inicializa o popup, carregando as configurações e definindo o estado da UI.
      */
-    async function initializePopup() {
-        statusDiv.textContent = 'A carregar...';
+    async function initializePopup(retryCount = 0) {
+        const maxRetries = 3;
+        const retryDelay = 500; // 500ms
+        
+        statusDiv.textContent = retryCount > 0 ? `A tentar reconectar... (${retryCount}/${maxRetries})` : 'A carregar...';
         statusDiv.className = 'text-xs text-center mt-2 h-4'; // Reset class
+        
         try {
             const settings = await browser.runtime.sendMessage({ action: 'getSettings' });
             if (settings) {
@@ -56,7 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error("Erro ao inicializar o popup:", error);
-            showError("Erro de comunicação. Recarregue a extensão.");
+            
+            // Tenta reconectar se ainda há tentativas disponíveis
+            if (retryCount < maxRetries) {
+                setTimeout(() => {
+                    initializePopup(retryCount + 1);
+                }, retryDelay * (retryCount + 1)); // Delay progressivo
+            } else {
+                showError("Erro de comunicação. Recarregue a extensão.");
+            }
         }
     }
 
