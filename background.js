@@ -48,12 +48,12 @@ import {
   globalWindowDataProcessor
 } from "./parallel-batch-processor.js";
 import {
-  globalAPIRateLimiter,
   getAPIWrapperStats,
   clearAPIQueues,
   pauseAPICategory,
   resumeAPICategory
 } from "./browser-api-wrapper.js";
+import { globalAPIRateLimiter } from "./api-rate-limiter.js";
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
