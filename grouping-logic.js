@@ -17,6 +17,10 @@ import {
 } from "./error-handler.js";
 import { getConfig } from "./performance-config.js";
 import { batchProcessTabs, batchProcessGroups } from "./async-batch-processor.js";
+import { 
+  globalTabParallelProcessor, 
+  globalWindowDataProcessor 
+} from "./parallel-batch-processor.js";
 import {
   validateCondition,
   validateTabObject,
@@ -405,32 +409,28 @@ export function getNextColor() {
  * @param {number[]} tabIds - IDs das abas
  * @returns {Promise<browser.tabs.Tab[]>} Abas válidas
  */
+/**
+ * Obtém múltiplas abas em paralelo de forma otimizada
+ * @param {number[]} tabIds - IDs das abas
+ * @returns {Promise<browser.tabs.Tab[]>} Abas válidas
+ */
+async function batchGetTabsParallel(tabIds) {
+  Logger.debug("batchGetTabsParallel", `Obtendo ${tabIds.length} abas em paralelo`);
+  
+  // Usa o processador paralelo para obter abas
+  const validTabs = await globalTabParallelProcessor.getTabsParallel(tabIds);
+  
+  Logger.debug("batchGetTabsParallel", `${validTabs.length}/${tabIds.length} abas obtidas com sucesso`);
+  return validTabs;
+}
+
+/**
+ * Função otimizada que substitui a implementação sequencial anterior
+ * @param {number[]} tabIds - IDs das abas
+ * @returns {Promise<browser.tabs.Tab[]>} Abas válidas
+ */
 async function batchGetTabs(tabIds) {
-  const batchSize = getConfig('API_BATCH_SIZE');
-  const results = [];
-  
-  // Processa em lotes para evitar sobrecarga de API
-  for (let i = 0; i < tabIds.length; i += batchSize) {
-    const batch = tabIds.slice(i, i + batchSize);
-    
-    const batchResults = await Promise.allSettled(
-      batch.map(id => browser.tabs.get(id))
-    );
-    
-    // Filtra apenas resultados bem-sucedidos
-    const validTabs = batchResults
-      .filter(result => result.status === 'fulfilled')
-      .map(result => result.value);
-    
-    results.push(...validTabs);
-    
-    // Pequena pausa entre lotes se houver mais para processar
-    if (i + batchSize < tabIds.length) {
-      await new Promise(resolve => setTimeout(resolve, getConfig('BATCH_DELAY')));
-    }
-  }
-  
-  return results;
+  return batchGetTabsParallel(tabIds);
 }
 
 /**
@@ -465,50 +465,39 @@ async function batchGetWindowData(windowId) {
 }
 
 /**
- * Processa nomes de grupos em lote
+ * Processa nomes de grupos em paralelo
  * @param {browser.tabs.Tab[]} tabs - Abas
  * @returns {Promise<Map>} Mapa de tabId para groupName
  */
-async function batchProcessGroupNames(tabs) {
-  const batchSize = getConfig('BATCH_SIZE');
-  const tabIdToGroupName = new Map();
+async function batchProcessGroupNamesParallel(tabs) {
+  Logger.debug("batchProcessGroupNamesParallel", `Processando nomes para ${tabs.length} abas em paralelo`);
   
-  // Processa nomes em lotes para melhor performance
-  for (let i = 0; i < tabs.length; i += batchSize) {
-    const batch = tabs.slice(i, i + batchSize);
-    
-    const namePromises = batch.map(async (tab) => ({
-      tabId: tab.id,
-      groupName: await getFinalGroupName(tab)
-    }));
-    
-    const batchResults = await Promise.allSettled(namePromises);
-    
-    // Processa resultados bem-sucedidos
-    batchResults.forEach(result => {
-      if (result.status === 'fulfilled') {
-        const { tabId, groupName } = result.value;
-        tabIdToGroupName.set(tabId, groupName);
-      }
-    });
-    
-    // Pequena pausa entre lotes
-    if (i + batchSize < tabs.length) {
-      await new Promise(resolve => setTimeout(resolve, getConfig('BATCH_DELAY')));
-    }
-  }
+  // Usa o processador paralelo para obter nomes de grupos
+  const tabIdToGroupName = await globalTabParallelProcessor.processGroupNamesParallel(tabs, getFinalGroupName);
   
+  Logger.debug("batchProcessGroupNamesParallel", `${tabIdToGroupName.size} nomes de grupos processados`);
   return tabIdToGroupName;
 }
 
 /**
- * Executa operações de agrupamento em lote otimizado
+ * Função otimizada que substitui a implementação sequencial anterior
+ * @param {browser.tabs.Tab[]} tabs - Abas
+ * @returns {Promise<Map>} Mapa de tabId para groupName
+ */
+async function batchProcessGroupNames(tabs) {
+  return batchProcessGroupNamesParallel(tabs);
+}
+
+/**
+ * Executa operações de agrupamento em paralelo otimizado
  * @param {Map} tabsToGroup - Mapa de groupName para tabIds
  * @param {number} windowId - ID da janela
  * @param {Map} groupTitleToIdMap - Mapa de títulos para IDs de grupo
  */
-async function batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap) {
+async function batchGroupOperationsParallel(tabsToGroup, windowId, groupTitleToIdMap) {
   const operations = [];
+  
+  Logger.debug("batchGroupOperationsParallel", `Preparando ${tabsToGroup.size} operações de agrupamento`);
   
   // Prepara operações em lote
   for (const [groupName, tabIdsForGroup] of tabsToGroup.entries()) {
@@ -524,32 +513,36 @@ async function batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap) {
       });
     } else if (!existingGroupId) {
       // Operação de criar novo grupo
+      const matchedRule = settings.customRules.find(r => r.name === groupName);
+      const color = matchedRule?.color || getNextColor();
+      
       operations.push({
         type: 'createNew',
         windowId,
         tabIds: tabIdsForGroup,
-        groupName
+        groupName,
+        color
       });
     }
   }
   
-  // Executa operações de adição a grupos existentes primeiro (mais rápidas)
-  const addOperations = operations.filter(op => op.type === 'addToExisting');
-  const createOperations = operations.filter(op => op.type === 'createNew');
+  if (operations.length === 0) return;
   
-  // Processa adições em paralelo (mais seguro)
-  if (addOperations.length > 0) {
-    await Promise.allSettled(
-      addOperations.map(op => executeGroupOperation(op))
-    );
-  }
+  // Usa o processador paralelo para executar operações
+  const results = await globalTabParallelProcessor.executeGroupOperationsParallel(operations);
   
-  // Processa criações sequencialmente (evita conflitos)
-  for (const op of createOperations) {
-    await executeGroupOperation(op);
-    // Pequena pausa entre criações para evitar conflitos
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
+  Logger.debug("batchGroupOperationsParallel", `${results.length} operações de agrupamento concluídas`);
+  return results;
+}
+
+/**
+ * Função otimizada que substitui a implementação sequencial anterior
+ * @param {Map} tabsToGroup - Mapa de groupName para tabIds
+ * @param {number} windowId - ID da janela
+ * @param {Map} groupTitleToIdMap - Mapa de títulos para IDs de grupo
+ */
+async function batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap) {
+  return batchGroupOperationsParallel(tabsToGroup, windowId, groupTitleToIdMap);
 }
 
 /**

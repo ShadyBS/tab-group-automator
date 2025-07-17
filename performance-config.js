@@ -29,10 +29,25 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   MAX_CACHE_SIZE: 1000,                  // Tamanho máximo do cache de nomes
   CACHE_MAX_AGE: 24 * 60 * 60 * 1000,    // ms - Idade máxima do cache (24h)
   
+  // --- Configurações de Gerenciamento Adaptativo de Memória ---
+  ADAPTIVE_MEMORY_ENABLED: true,         // Habilita gerenciamento adaptativo
+  MEMORY_PRESSURE_CHECK_INTERVAL: 30000, // ms - Intervalo para verificar pressão
+  MEMORY_ADAPTATION_SENSITIVITY: 0.2,    // Sensibilidade da adaptação (0-1)
+  EMERGENCY_CLEANUP_THRESHOLD: 0.95,     // Threshold para limpeza de emergência
+  MEMORY_HISTORY_SIZE: 10,               // Tamanho do histórico de pressão
+  
   // --- Configurações de Batching ---
   BATCH_SIZE: 50,                        // Tamanho padrão do batch para operações
   BATCH_DELAY: 10,                       // ms - Delay entre processamento de batches
   MAX_CONCURRENT_OPERATIONS: 5,          // Máximo de operações concorrentes
+  
+  // --- Configurações de Processamento Paralelo ---
+  MAX_TAB_CONCURRENCY: 4,                // Máximo de operações de aba concorrentes
+  TAB_BATCH_SIZE: 10,                    // Tamanho do batch para operações de aba
+  WINDOW_CONCURRENCY: 2,                 // Máximo de janelas processadas concorrentemente
+  GROUP_OPERATION_DELAY: 150,            // ms - Delay entre operações de grupo
+  ITEM_CONCURRENCY: 3,                   // Itens processados concorrentemente por batch
+  SUB_BATCH_DELAY: 50,                   // ms - Delay entre sub-batches
   
   // --- Configurações de API Calls ---
   API_TIMEOUT: 5000,                     // ms - Timeout para chamadas de API

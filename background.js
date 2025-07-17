@@ -26,8 +26,9 @@ import {
   performMemoryCleanup,
   isMemoryLimitExceeded,
   emergencyCleanup,
-  getMemoryStats
-} from "./memory-manager.js";
+  getMemoryStats,
+  globalAdaptiveMemoryManager
+} from "./adaptive-memory-manager.js";
 import {
   getConfig,
   loadConfigFromSettings,
@@ -41,6 +42,10 @@ import {
   globalGroupBatchProcessor,
   batchProcessTabs
 } from "./async-batch-processor.js";
+import {
+  globalTabParallelProcessor,
+  globalWindowDataProcessor
+} from "./parallel-batch-processor.js";
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
@@ -650,6 +655,17 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "cleanupMemory":
           const cleanupStats = await performMemoryCleanup(memoryMaps);
           sendResponse(cleanupStats);
+          break;
+        case "getAdaptiveMemoryStats":
+          sendResponse(globalAdaptiveMemoryManager.getDetailedStats(memoryMaps));
+          break;
+        case "forceAdaptiveCleanup":
+          const adaptiveCleanupStats = await globalAdaptiveMemoryManager.performAdaptiveCleanup(memoryMaps, message.strategy);
+          sendResponse(adaptiveCleanupStats);
+          break;
+        case "emergencyAdaptiveCleanup":
+          const emergencyStats = await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
+          sendResponse(emergencyStats);
           break;
         case "getPerformanceConfig":
           sendResponse(getAllConfig());
