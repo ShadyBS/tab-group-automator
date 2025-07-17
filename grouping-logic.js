@@ -14,7 +14,7 @@ import {
   handleTabOperation,
   handleGroupOperation,
   withErrorHandling
-} from "./error-handler.js";
+} from "./adaptive-error-handler.js";
 import { getConfig } from "./performance-config.js";
 import { batchProcessTabs, batchProcessGroups } from "./async-batch-processor.js";
 import { 

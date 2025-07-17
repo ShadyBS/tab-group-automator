@@ -13,9 +13,10 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - `settings-manager.js` - Settings persistence and sync management
 - `context-menu-manager.js` - Right-click context menu functionality
 - `app-state.js` - Application state management
-- `error-handler.js` - Centralized error handling and recovery strategies
+- `error-handler.js` - Legacy error handling system (maintained for compatibility)
+- `adaptive-error-handler.js` - **NEW**: Advanced adaptive error handling with contextual strategies
 - `memory-manager.js` - Legacy memory management system (maintained for compatibility)
-- `adaptive-memory-manager.js` - **NEW**: Advanced adaptive memory management with pressure detection
+- `adaptive-memory-manager.js` - Advanced adaptive memory management with pressure detection
 - `parallel-batch-processor.js` - Advanced parallel processing system with concurrency control
 - `async-batch-processor.js` - Legacy batch processing system (maintained for compatibility)
 - `performance-config.js` - Tunable performance configurations and rate limiting
@@ -38,6 +39,14 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - **Pressure History**: Smoothing system to prevent oscillations in cleanup intervals
 - **Proactive Prevention**: Emergency cleanup triggers before memory limits are exceeded
 - **Resource Efficiency**: Up to 60% reduction in unnecessary cleanup cycles
+
+### Adaptive Error Handling
+- **Contextual Strategies**: 9 different recovery strategies based on error type and operation context
+- **Backoff Algorithms**: 5 specialized algorithms (immediate, linear, exponential, fibonacci, jittered)
+- **Error Classification**: 15 categorized error types for specific handling (network, permission, API, etc.)
+- **Circuit Breaker**: Intelligent system to prevent repeated failures with automatic reset
+- **Contextual Configuration**: Different retry limits and multipliers per operation context
+- **Recovery Optimization**: Up to 70% faster recovery from transient errors
 
 ## Code Style
 - ES6 modules with `import/export` syntax

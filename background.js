@@ -18,8 +18,9 @@ import {
   handleTabOperation,
   handleGroupOperation,
   handleCriticalOperation,
-  withErrorHandling
-} from "./error-handler.js";
+  withErrorHandling,
+  globalAdaptiveErrorHandler
+} from "./adaptive-error-handler.js";
 import {
   startMemoryCleanup,
   stopMemoryCleanup,
@@ -666,6 +667,21 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "emergencyAdaptiveCleanup":
           const emergencyStats = await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
           sendResponse(emergencyStats);
+          break;
+        case "getErrorStats":
+          sendResponse(globalAdaptiveErrorHandler.getErrorStats());
+          break;
+        case "resetErrorStats":
+          globalAdaptiveErrorHandler.resetStats();
+          sendResponse({ success: true });
+          break;
+        case "setCustomErrorStrategy":
+          globalAdaptiveErrorHandler.setCustomStrategy(message.errorType, message.config);
+          sendResponse({ success: true });
+          break;
+        case "setContextualErrorConfig":
+          globalAdaptiveErrorHandler.setContextualConfig(message.context, message.config);
+          sendResponse({ success: true });
           break;
         case "getPerformanceConfig":
           sendResponse(getAllConfig());

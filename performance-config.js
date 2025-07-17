@@ -36,6 +36,14 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   EMERGENCY_CLEANUP_THRESHOLD: 0.95,     // Threshold para limpeza de emergência
   MEMORY_HISTORY_SIZE: 10,               // Tamanho do histórico de pressão
   
+  // --- Configurações de Tratamento Adaptativo de Erros ---
+  ADAPTIVE_ERROR_HANDLING_ENABLED: true, // Habilita tratamento adaptativo de erros
+  ERROR_RETRY_BASE_DELAY: 1000,          // ms - Delay base para retry de erros
+  ERROR_RETRY_MAX_DELAY: 30000,          // ms - Delay máximo para retry de erros
+  CIRCUIT_BREAKER_THRESHOLD: 5,          // Número de falhas para ativar circuit breaker
+  CIRCUIT_BREAKER_RESET_TIME: 60000,     // ms - Tempo para reset do circuit breaker
+  ERROR_STATS_RETENTION_TIME: 300000,    // ms - Tempo de retenção das estatísticas de erro
+  
   // --- Configurações de Batching ---
   BATCH_SIZE: 50,                        // Tamanho padrão do batch para operações
   BATCH_DELAY: 10,                       // ms - Delay entre processamento de batches
