@@ -15,7 +15,6 @@ import {
   getSmartNameFromCache,
   setSmartNameInCache,
   invalidateSmartNameCache,
-  clearSmartNameCache,
   getSmartNameCacheStats
 } from "./intelligent-cache-manager.js";
 
@@ -558,17 +557,12 @@ export function invalidateCacheByCriteria(criteria) {
  */
 export function clearAllCaches() {
   // Limpa cache inteligente
-  clearSmartNameCache();
-  
-  // Limpa cache legado
-  smartNameCache.clear();
-  if (saveCacheTimeout) {
-    clearTimeout(saveCacheTimeout);
-    saveCacheTimeout = null;
+  if (globalIntelligentCache) {
+    globalIntelligentCache.clear();
   }
   
-  // Remove do armazenamento
-  browser.storage.local.remove(["smartNameCache", "intelligentSmartNameCache"]);
+  // Limpa cache legado local
+  clearSmartNameCache();
   
   Logger.info("SettingsManager", "Todos os caches foram limpos");
 }

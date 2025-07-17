@@ -18,6 +18,8 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - `memory-manager.js` - Legacy memory management system (maintained for compatibility)
 - `adaptive-memory-manager.js` - Advanced adaptive memory management with pressure detection
 - `intelligent-cache-manager.js` - **NEW**: Advanced cache system with TTL, versioning and auto-invalidation
+- `api-rate-limiter.js` - **NEW**: Centralized API rate limiting system with queuing and prioritization
+- `browser-api-wrapper.js` - **NEW**: Transparent wrapper for browser APIs with automatic rate limiting
 - `parallel-batch-processor.js` - Advanced parallel processing system with concurrency control
 - `async-batch-processor.js` - Legacy batch processing system (maintained for compatibility)
 - `performance-config.js` - Tunable performance configurations and rate limiting
@@ -58,6 +60,17 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - **Domain Change Tracking**: Pattern monitoring for proactive invalidation of frequently changing domains
 - **Usage Optimization**: Algorithm that removes rarely accessed entries to maintain performance
 - **Dual Compatibility**: Simultaneous support for legacy and intelligent cache during transition
+
+### API Rate Limiting and Throttling
+- **Centralized Rate Limiting**: Single system managing all browser API calls with intelligent queuing
+- **Priority-Based Queues**: Separate queues for different operation types (critical, user, automated, background)
+- **Category-Specific Limits**: Different rate limits for tabs, tabGroups, windows, storage, and background operations
+- **Concurrency Control**: Configurable limits on simultaneous operations to prevent browser overload
+- **Burst Protection**: Intelligent burst detection and cooldown periods to prevent API throttling
+- **Adaptive Retry**: Automatic retry with exponential backoff for failed operations
+- **Transparent Wrapper**: Seamless integration that intercepts API calls without code changes
+- **Fallback System**: Automatic fallback to native APIs when rate limiting fails
+- **Performance Monitoring**: Detailed statistics on API usage, queue sizes, and performance metrics
 
 ## Code Style
 - ES6 modules with `import/export` syntax

@@ -47,6 +47,13 @@ import {
   globalTabParallelProcessor,
   globalWindowDataProcessor
 } from "./parallel-batch-processor.js";
+import {
+  globalAPIRateLimiter,
+  getAPIWrapperStats,
+  clearAPIQueues,
+  pauseAPICategory,
+  resumeAPICategory
+} from "./browser-api-wrapper.js";
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
@@ -767,6 +774,24 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case "updatePerformanceConfig":
           updateConfig(message.config);
           sendResponse({ success: true });
+          break;
+        case "getAPIRateLimiterStats":
+          sendResponse(getAPIWrapperStats());
+          break;
+        case "clearAPIQueues":
+          const clearedCount = clearAPIQueues();
+          sendResponse({ success: true, cleared: clearedCount });
+          break;
+        case "pauseAPICategory":
+          pauseAPICategory(message.category);
+          sendResponse({ success: true });
+          break;
+        case "resumeAPICategory":
+          resumeAPICategory(message.category);
+          sendResponse({ success: true });
+          break;
+        case "getRateLimiterDetailedStats":
+          sendResponse(globalAPIRateLimiter.getDetailedStats());
           break;
         case "log":
           if (

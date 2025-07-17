@@ -76,6 +76,15 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   // --- Configurações de Throttling ---
   THROTTLE_DELAY: 100,                   // ms - Delay para throttling
   MAX_OPERATIONS_PER_SECOND: 50,         // Máximo de operações por segundo
+  
+  // --- Configurações de Rate Limiting de APIs ---
+  API_TIMEOUT: 10000,                    // ms - Timeout para operações de API
+  API_QUEUE_PROCESS_INTERVAL: 50,        // ms - Intervalo de processamento das filas
+  API_CLEANUP_INTERVAL: 60000,           // ms - Intervalo de limpeza das filas (1min)
+  API_MAX_QUEUE_SIZE: 1000,              // Tamanho máximo da fila por categoria
+  API_OPERATION_MAX_AGE: 30000,          // ms - Idade máxima de operação na fila (30s)
+  API_BURST_RECOVERY_TIME: 5000,         // ms - Tempo de recuperação após burst (5s)
+  API_RATE_LIMIT_ENABLED: true,          // Habilita rate limiting de APIs
 };
 
 // Configurações atuais (podem ser modificadas)
