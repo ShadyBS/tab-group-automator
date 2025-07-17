@@ -4,8 +4,8 @@
  */
 
 import Logger from "./logger.js";
-import { withErrorHandling } from "./error-handler.js";
 import { getConfig } from "./performance-config.js";
+import { withErrorHandling } from "./adaptive-error-handler.js";
 
 // Limites de tamanho para estruturas de dados (configuráveis)
 const MEMORY_LIMITS = {

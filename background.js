@@ -39,11 +39,6 @@ import {
   updateConfig
 } from "./performance-config.js";
 import {
-  globalTabBatchProcessor,
-  globalGroupBatchProcessor,
-  batchProcessTabs
-} from "./async-batch-processor.js";
-import {
   globalTabParallelProcessor,
   globalWindowDataProcessor
 } from "./parallel-batch-processor.js";

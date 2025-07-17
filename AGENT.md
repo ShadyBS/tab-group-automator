@@ -13,15 +13,12 @@ Browser extension (WebExtension) compatible with Firefox and Chrome. Main compon
 - `settings-manager.js` - Settings persistence and sync management
 - `context-menu-manager.js` - Right-click context menu functionality
 - `app-state.js` - Application state management
-- `error-handler.js` - Legacy error handling system (maintained for compatibility)
-- `adaptive-error-handler.js` - **NEW**: Advanced adaptive error handling with contextual strategies
-- `memory-manager.js` - Legacy memory management system (maintained for compatibility)
+- `adaptive-error-handler.js` - Advanced adaptive error handling with contextual strategies
 - `adaptive-memory-manager.js` - Advanced adaptive memory management with pressure detection
-- `intelligent-cache-manager.js` - **NEW**: Advanced cache system with TTL, versioning and auto-invalidation
-- `api-rate-limiter.js` - **NEW**: Centralized API rate limiting system with queuing and prioritization
-- `browser-api-wrapper.js` - **NEW**: Transparent wrapper for browser APIs with automatic rate limiting
+- `intelligent-cache-manager.js` - Advanced cache system with TTL, versioning and auto-invalidation
+- `api-rate-limiter.js` - Centralized API rate limiting system with queuing and prioritization
+- `browser-api-wrapper.js` - Transparent wrapper for browser APIs with automatic rate limiting
 - `parallel-batch-processor.js` - Advanced parallel processing system with concurrency control
-- `async-batch-processor.js` - Legacy batch processing system (maintained for compatibility)
 - `performance-config.js` - Tunable performance configurations and rate limiting
 - `validation-utils.js` - Input validation and sanitization utilities
 - `popup/` - Extension toolbar popup UI

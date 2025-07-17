@@ -5,7 +5,7 @@
 
 import Logger from "./logger.js";
 import { getConfig } from "./performance-config.js";
-import { withErrorHandling } from "./error-handler.js";
+import { withErrorHandling } from "./adaptive-error-handler.js";
 
 /**
  * Processador paralelo avançado com controle de concorrência
