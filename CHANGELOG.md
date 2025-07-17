@@ -5,6 +5,33 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [3.7.1] - 2024-12-19
+
+### Corrigido
+- **Campo Description do Package.json**: Corrigido campo description corrompido que continha documentação misturada em vez de uma descrição adequada do pacote
+- **Metadados do Pacote**: Melhorados metadados incluindo keywords relevantes, autor e main entry point correto
+- **Qualidade dos Metadados**: Aprimorada qualidade dos metadados para melhor integração com npm e registros de pacotes
+
+### Melhorado
+- **Integração NPM**: Melhor integração com npm e gerenciadores de pacotes através de metadados limpos
+- **Aparência Profissional**: Aparência mais profissional em registros de pacotes e repositórios
+- **Descoberta**: Melhor descoberta através de keywords relevantes e descrição clara
+
+### Técnico
+- **package.json**: Descrição limpa e concisa substituindo conteúdo corrompido
+- **Keywords**: Adicionadas 10 keywords relevantes para melhor categorização
+- **Main Entry Point**: Corrigido de "app-state.js" para "background.js"
+- **Autor**: Definido autor como "ShadyBS"
+- **Versão**: Incrementada para 3.7.1 para refletir a correção
+
+### Benefícios
+- **Metadados de qualidade profissional** para melhor apresentação
+- **Melhor integração** com ferramentas de desenvolvimento
+- **Descoberta aprimorada** através de keywords e descrição clara
+- **Conformidade** com padrões de empacotamento npm
+
+---
+
 ## [3.7.0] - 2024-12-19
 
 ### Adicionado
