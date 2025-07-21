@@ -43,20 +43,20 @@
     try {
       // Resolve o URL do manifesto em relação ao URL base do documento
       const manifestUrl = new URL(manifestLink.href, document.baseURI);
-      
+
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      const response = await fetch(manifestUrl, { 
+
+      const response = await fetch(manifestUrl, {
         signal: controller.signal,
-        cache: 'force-cache' // Use cache to avoid repeated requests
+        cache: "force-cache", // Use cache to avoid repeated requests
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) return null;
-      
+
       const manifestData = await response.json();
       // Prefere short_name se existir, pois é muitas vezes mais limpo.
       const name = (manifestData.short_name || manifestData.name || "").trim();
@@ -123,6 +123,45 @@
     .catch(() => {
       /* Ignora o erro intencionalmente */
     });
+
+  // --- NOVO: Listener para extração de conteúdo via CSS ---
+  // Este listener permite que o background script solicite a extração de conteúdo
+  // da página usando um seletor CSS.
+  browser.runtime.onMessage.addListener((message) => {
+    if (message.action === "extractContent") {
+      try {
+        const element = document.querySelector(message.selector);
+        let extractedContent = null;
+
+        if (element) {
+          if (message.attribute) {
+            extractedContent = element.getAttribute(message.attribute);
+          } else {
+            extractedContent = element.textContent;
+          }
+        }
+        // Retorna o conteúdo extraído (ou null)
+        return Promise.resolve(
+          extractedContent ? extractedContent.trim() : null
+        );
+      } catch (error) {
+        // Registra o erro e retorna null para o background script
+        browser.runtime
+          .sendMessage({
+            action: "log",
+            level: "error",
+            context: `ContentScript:extractContent`,
+            message: `Erro ao extrair conteúdo com seletor "${message.selector}": ${error.message}`,
+            details: [error],
+          })
+          .catch(() => {});
+        return Promise.resolve(null);
+      }
+    }
+    // Para outras mensagens, o comportamento padrão continua
+    return false;
+  });
+  // --- FIM NOVO ---
 
   return details;
 })();
