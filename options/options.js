@@ -35,6 +35,12 @@ const helpTexts = {
     "Use este campo para testar como uma URL e um título seriam agrupados com base nas suas regras e configurações atuais. O resultado mostrará qual regra personalizada correspondeu, ou se será usado o agrupamento padrão.",
   syncEnabled:
     "Se ativado, suas configurações e regras serão salvas na sua Conta Firefox e sincronizadas entre seus dispositivos. Se desativado, as configurações ficam salvas apenas neste computador.",
+  tabRenaming:
+    "Ative a renomeação automática de abas para personalizar os títulos. Crie regras com condições e estratégias para extrair ou manipular o texto do título da aba. As regras são aplicadas em ordem de prioridade.",
+  renamingStrategy:
+    "Define como o novo título será gerado. <ul><li><strong>Extração CSS:</strong> Tenta pegar texto de um elemento específico na página.</li><li><strong>Manipulação de Título:</strong> Modifica o título atual da aba.</li><li><strong>Baseado em Domínio:</strong> Usa o nome do domínio da aba.</li><li><strong>Título Original:</strong> Mantém o título original da aba (útil como fallback).</li></ul>",
+  textOperations:
+    "Sequência de operações para manipular o título. As operações são aplicadas uma após a outra. Por exemplo, você pode remover um padrão e depois adicionar um prefixo.",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -56,14 +62,14 @@ document.addEventListener("DOMContentLoaded", () => {
     domainSanitizationTlds: document.getElementById("domainSanitizationTlds"),
     titleSanitizationNoise: document.getElementById("titleSanitizationNoise"),
     titleDelimiters: document.getElementById("titleDelimiters"),
-    rulesList: document.getElementById("rulesList"),
+    rulesList: document.getElementById("rulesList"), // Agrupamento
     importBtn: document.getElementById("importBtn"),
     exportBtn: document.getElementById("exportBtn"),
     importFile: document.getElementById("importFile"),
-    ruleModal: document.getElementById("ruleModal"),
+    ruleModal: document.getElementById("ruleModal"), // Modal de Agrupamento
     modalTitle: document.getElementById("modalTitle"),
     ruleForm: document.getElementById("ruleForm"),
-    addRuleBtn: document.getElementById("addRuleBtn"),
+    addRuleBtn: document.getElementById("addRuleBtn"), // Agrupamento
     cancelRuleBtn: document.getElementById("cancelRuleBtn"),
     saveRuleBtn: document.getElementById("saveRuleBtn"),
     ruleIndex: document.getElementById("ruleIndex"),
@@ -71,8 +77,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ruleColor: document.getElementById("ruleColor"),
     ruleMinTabs: document.getElementById("ruleMinTabs"),
     ruleOperator: document.getElementById("ruleOperator"),
-    conditionsContainer: document.getElementById("conditionsContainer"),
-    addConditionBtn: document.getElementById("addConditionBtn"),
+    conditionsContainer: document.getElementById("conditionsContainer"), // Agrupamento
+    addConditionBtn: document.getElementById("addConditionBtn"), // Agrupamento
     confirmModal: document.getElementById("confirmModal"),
     confirmModalText: document.getElementById("confirmModalText"),
     confirmOkBtn: document.getElementById("confirmOkBtn"),
@@ -101,10 +107,44 @@ document.addEventListener("DOMContentLoaded", () => {
     performanceLogging: document.getElementById("performanceLogging"),
     resetPerformanceConfig: document.getElementById("resetPerformanceConfig"),
     savePerformanceConfig: document.getElementById("savePerformanceConfig"),
+    // NOVO: Elementos de Renomeação Automática de Abas
+    tabRenamingEnabled: document.getElementById("tabRenamingEnabled"),
+    addRenamingRuleBtn: document.getElementById("addRenamingRuleBtn"),
+    renamingRulesList: document.getElementById("renamingRulesList"),
+    renamingRuleModal: document.getElementById("renamingRuleModal"),
+    renamingModalTitle: document.getElementById("renamingModalTitle"),
+    renamingRuleForm: document.getElementById("renamingRuleForm"),
+    renamingRuleId: document.getElementById("renamingRuleId"),
+    renamingRuleName: document.getElementById("renamingRuleName"),
+    renamingRulePriority: document.getElementById("renamingRulePriority"),
+    renamingRuleEnabled: document.getElementById("renamingRuleEnabled"),
+    renamingConditionsContainer: document.getElementById(
+      "renamingConditionsContainer"
+    ),
+    addRenamingConditionBtn: document.getElementById("addRenamingConditionBtn"),
+    renamingStrategiesContainer: document.getElementById(
+      "renamingStrategiesContainer"
+    ),
+    addRenamingStrategyBtn: document.getElementById("addRenamingStrategyBtn"),
+    renamingOptionWaitForLoad: document.getElementById(
+      "renamingOptionWaitForLoad"
+    ),
+    renamingOptionCacheResult: document.getElementById(
+      "renamingOptionCacheResult"
+    ),
+    renamingOptionRespectManualChanges: document.getElementById(
+      "renamingOptionRespectManualChanges"
+    ),
+    renamingOptionRetryAttempts: document.getElementById(
+      "renamingOptionRetryAttempts"
+    ),
+    cancelRenamingRuleBtn: document.getElementById("cancelRenamingRuleBtn"),
+    saveRenamingRuleBtn: document.getElementById("saveRenamingRuleBtn"),
   };
 
   let currentSettings = {};
-  let sortableInstance = null;
+  let sortableInstance = null; // Para regras de agrupamento
+  let renamingSortableInstance = null; // Para regras de renomeação
   let confirmCallback = null;
   let saveTimeout = null;
 
@@ -123,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // --- LÓGICA DO CONSTRUTOR DE REGRAS ---
+  // --- LÓGICA DO CONSTRUTOR DE REGRAS DE AGRUPAMENTO ---
 
   const propertyOptions = `
         <option value="url">URL Completa</option>
@@ -146,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function createConditionElement(condition = {}) {
     const conditionDiv = document.createElement("div");
     conditionDiv.className =
-      "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-600";
+      "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600";
 
     // Layout em grid responsivo para melhor distribuição do espaço
     conditionDiv.innerHTML = `
@@ -199,6 +239,308 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.conditionsContainer.appendChild(createConditionElement());
   });
 
+  // --- NOVO: LÓGICA DO CONSTRUTOR DE REGRAS DE RENOMEAÇÃO ---
+
+  const renamingStrategyOptions = `
+    <option value="css_extract">Extração CSS</option>
+    <option value="title_manipulation">Manipulação de Título</option>
+    <option value="domain_based">Baseado em Domínio</option>
+    <option value="original_title">Título Original (Fallback)</option>
+  `;
+
+  const textActionOptions = `
+    <option value="replace">Substituir</option>
+    <option value="prepend">Adicionar no Início</option>
+    <option value="append">Adicionar no Fim</option>
+    <option value="remove">Remover</option>
+    <option value="truncate">Truncar</option>
+    <option value="extract">Extrair (Regex)</option>
+  `;
+
+  function createRenamingConditionElement(condition = {}) {
+    const conditionDiv = document.createElement("div");
+    conditionDiv.className =
+      "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600";
+    conditionDiv.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+            <div class="md:col-span-3">
+                <select class="condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                    ${propertyOptions}
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <select class="condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                    ${operatorOptions.string}
+                </select>
+            </div>
+            <div class="md:col-span-5">
+                <input type="text" class="condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Digite o valor aqui...">
+            </div>
+            <div class="md:col-span-1 flex justify-center">
+                <button type="button" class="remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    if (condition.property)
+      conditionDiv.querySelector(".condition-property").value =
+        condition.property;
+    if (condition.operator)
+      conditionDiv.querySelector(".condition-operator").value =
+        condition.operator;
+    if (condition.value)
+      conditionDiv.querySelector(".condition-value").value = condition.value;
+
+    conditionDiv
+      .querySelector(".remove-condition-btn")
+      .addEventListener("click", () => {
+        conditionDiv.remove();
+      });
+    return conditionDiv;
+  }
+
+  function createTextOperationElement(operation = {}) {
+    const opDiv = document.createElement("div");
+    opDiv.className =
+      "text-operation-item bg-slate-100 dark:bg-slate-700/70 p-3 rounded-lg border border-slate-200 dark:border-slate-600";
+    opDiv.innerHTML = `
+        <div class="flex justify-between items-center mb-2">
+            <label class="font-semibold text-sm">Ação:</label>
+            <select class="operation-action p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                ${textActionOptions}
+            </select>
+            <button type="button" class="remove-operation-btn text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="operation-fields space-y-2">
+            <!-- Campos dinâmicos aqui -->
+        </div>
+    `;
+    const actionSelect = opDiv.querySelector(".operation-action");
+    const fieldsContainer = opDiv.querySelector(".operation-fields");
+
+    actionSelect.value = operation.action || "replace";
+
+    const updateFields = () => {
+      fieldsContainer.innerHTML = "";
+      const action = actionSelect.value;
+
+      let fieldsHtml = "";
+      switch (action) {
+        case "replace":
+        case "remove":
+        case "extract":
+          fieldsHtml += `
+            <div>
+                <label class="block text-xs font-medium mb-1">Padrão (Regex):</label>
+                <input type="text" class="operation-pattern w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: (.*) - YouTube">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1">Flags (opcional):</label>
+                <input type="text" class="operation-flags w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: gi (global, case-insensitive)">
+            </div>
+          `;
+          if (action === "replace") {
+            fieldsHtml += `
+              <div>
+                  <label class="block text-xs font-medium mb-1">Substituir por:</label>
+                  <input type="text" class="operation-replacement w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: $1">
+              </div>
+            `;
+          }
+          if (action === "extract") {
+            fieldsHtml += `
+              <div>
+                  <label class="block text-xs font-medium mb-1">Grupo de Captura (opcional):</label>
+                  <input type="number" min="0" class="operation-group w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: 1">
+              </div>
+            `;
+          }
+          break;
+        case "prepend":
+        case "append":
+          fieldsHtml += `
+            <div>
+                <label class="block text-xs font-medium mb-1">Texto:</label>
+                <input type="text" class="operation-text w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: [Lido] ">
+            </div>
+          `;
+          break;
+        case "truncate":
+          fieldsHtml += `
+            <div>
+                <label class="block text-xs font-medium mb-1">Comprimento Máximo:</label>
+                <input type="number" min="1" class="operation-max-length w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1">Elipse (opcional):</label>
+                <input type="text" class="operation-ellipsis w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: ...">
+            </div>
+          `;
+          break;
+      }
+      fieldsContainer.innerHTML = fieldsHtml;
+
+      // Preencher valores dinâmicos
+      if (operation.pattern)
+        fieldsContainer.querySelector(".operation-pattern").value =
+          operation.pattern;
+      if (operation.replacement)
+        fieldsContainer.querySelector(".operation-replacement").value =
+          operation.replacement;
+      if (operation.flags)
+        fieldsContainer.querySelector(".operation-flags").value =
+          operation.flags;
+      if (operation.group)
+        fieldsContainer.querySelector(".operation-group").value =
+          operation.group;
+      if (operation.text)
+        fieldsContainer.querySelector(".operation-text").value = operation.text;
+      if (operation.maxLength)
+        fieldsContainer.querySelector(".operation-max-length").value =
+          operation.maxLength;
+      if (operation.ellipsis)
+        fieldsContainer.querySelector(".operation-ellipsis").value =
+          operation.ellipsis;
+    };
+
+    actionSelect.addEventListener("change", updateFields);
+    opDiv
+      .querySelector(".remove-operation-btn")
+      .addEventListener("click", () => opDiv.remove());
+
+    updateFields(); // Chama na criação para renderizar os campos iniciais
+    return opDiv;
+  }
+
+  function createRenamingStrategyElement(strategy = {}) {
+    const strategyDiv = document.createElement("div");
+    strategyDiv.className =
+      "renaming-strategy-item bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-600";
+    strategyDiv.innerHTML = `
+        <div class="flex justify-between items-center mb-3">
+            <label class="font-semibold">Estratégia:</label>
+            <select class="strategy-type p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                ${renamingStrategyOptions}
+            </select>
+            <button type="button" class="remove-strategy-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="strategy-fields space-y-3">
+            <!-- Campos específicos da estratégia -->
+        </div>
+        <div class="mt-3">
+            <label class="block text-sm font-medium mb-1">Fallback (opcional):</label>
+            <select class="strategy-fallback w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                <option value="">Nenhum</option>
+                ${renamingStrategyOptions}
+            </select>
+            <p class="text-xs text-slate-500 mt-1">
+                Se esta estratégia falhar, tente a estratégia de fallback.
+            </p>
+        </div>
+    `;
+    const typeSelect = strategyDiv.querySelector(".strategy-type");
+    const fieldsContainer = strategyDiv.querySelector(".strategy-fields");
+    const fallbackSelect = strategyDiv.querySelector(".strategy-fallback");
+
+    typeSelect.value = strategy.type || "original_title";
+    if (strategy.fallback) fallbackSelect.value = strategy.fallback;
+
+    const updateFields = () => {
+      fieldsContainer.innerHTML = "";
+      const type = typeSelect.value;
+      let fieldsHtml = "";
+
+      switch (type) {
+        case "css_extract":
+          fieldsHtml += `
+            <div>
+                <label class="block text-sm font-medium mb-1">Seletor CSS:</label>
+                <input type="text" class="strategy-selector w-full p-2 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: h1.title, .article-header h2">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Atributo (opcional):</label>
+                <input type="text" class="strategy-attribute w-full p-2 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: alt, title (para imagens)">
+            </div>
+          `;
+          break;
+        case "title_manipulation":
+          fieldsHtml += `
+            <div class="text-operations-container space-y-2">
+                <!-- Operações de texto aqui -->
+            </div>
+            <button type="button" class="add-operation-btn mt-2 bg-blue-400 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg text-xs">
+                + Adicionar Operação de Texto
+            </button>
+          `;
+          break;
+        case "domain_based":
+        case "original_title":
+          // Não há campos adicionais para essas estratégias
+          break;
+      }
+      fieldsContainer.innerHTML = fieldsHtml;
+
+      // Se for manipulação de título, inicializa as operações
+      if (type === "title_manipulation") {
+        const opsContainer = fieldsContainer.querySelector(
+          ".text-operations-container"
+        );
+        const addOpBtn = fieldsContainer.querySelector(".add-operation-btn");
+        addOpBtn.addEventListener("click", () =>
+          opsContainer.appendChild(createTextOperationElement())
+        );
+
+        if (strategy.operations && strategy.operations.length > 0) {
+          strategy.operations.forEach((op) =>
+            opsContainer.appendChild(createTextOperationElement(op))
+          );
+        } else {
+          opsContainer.appendChild(createTextOperationElement()); // Adiciona uma operação padrão
+        }
+      }
+
+      // Preencher valores específicos da estratégia
+      if (strategy.selector)
+        fieldsContainer.querySelector(".strategy-selector").value =
+          strategy.selector;
+      if (strategy.attribute)
+        fieldsContainer.querySelector(".strategy-attribute").value =
+          strategy.attribute;
+    };
+
+    typeSelect.addEventListener("change", updateFields);
+    strategyDiv
+      .querySelector(".remove-strategy-btn")
+      .addEventListener("click", () => strategyDiv.remove());
+
+    updateFields(); // Chama na criação para renderizar os campos iniciais
+    return strategyDiv;
+  }
+
+  ui.addRenamingConditionBtn.addEventListener("click", () => {
+    ui.renamingConditionsContainer.appendChild(
+      createRenamingConditionElement()
+    );
+  });
+
+  ui.addRenamingStrategyBtn.addEventListener("click", () => {
+    ui.renamingStrategiesContainer.appendChild(createRenamingStrategyElement());
+  });
+
   // --- FUNÇÕES DE GESTÃO DE DADOS ---
 
   async function loadSettings() {
@@ -236,7 +578,10 @@ document.addEventListener("DOMContentLoaded", () => {
       settings.titleSanitizationNoise || []
     ).join("\n");
     ui.titleDelimiters.value = settings.titleDelimiters || "|–—:·»«-";
-    renderRulesList();
+    renderRulesList(); // Agrupamento
+    // NOVO: Renomeação de Abas
+    ui.tabRenamingEnabled.checked = settings.tabRenamingEnabled || false;
+    renderRenamingRulesList();
   }
 
   function collectSettingsFromForm() {
@@ -266,7 +611,10 @@ document.addEventListener("DOMContentLoaded", () => {
         .map((e) => e.trim())
         .filter(Boolean),
       titleDelimiters: ui.titleDelimiters.value,
-      customRules: currentSettings.customRules || [],
+      customRules: currentSettings.customRules || [], // Regras de agrupamento
+      // NOVO: Renomeação de Abas
+      tabRenamingEnabled: ui.tabRenamingEnabled.checked,
+      tabRenamingRules: currentSettings.tabRenamingRules || [],
     };
   }
 
@@ -277,11 +625,13 @@ document.addEventListener("DOMContentLoaded", () => {
     saveTimeout = setTimeout(async () => {
       const newSettings = collectSettingsFromForm();
       try {
-        await browser.runtime.sendMessage({
+        const response = await browser.runtime.sendMessage({
           action: "updateSettings",
           settings: newSettings,
         });
-        currentSettings = newSettings;
+        // Usar a resposta do background para garantir que as configurações são as validadas
+        currentSettings = response;
+        populateForm(currentSettings); // Repopula o formulário com as settings validadas
         updateSaveStatus("saved");
         await testCurrentRule();
       } catch (e) {
@@ -399,6 +749,86 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // NOVO: Renderiza a lista de regras de renomeação
+  function renderRenamingRulesList() {
+    ui.renamingRulesList.innerHTML = "";
+    const rules = currentSettings.tabRenamingRules || [];
+    if (rules.length === 0) {
+      ui.renamingRulesList.innerHTML =
+        '<p class="text-slate-500 italic text-center p-4 dark:text-slate-400">Nenhuma regra de renomeação personalizada ainda.</p>';
+      return;
+    }
+
+    rules.forEach((rule, index) => {
+      const ruleElement = document.createElement("div");
+      ruleElement.className =
+        "rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50";
+      ruleElement.dataset.id = rule.id; // Usar ID único para renomeação
+      ruleElement.dataset.index = index; // Manter índice para ordenação
+      const summary = rule.conditions
+        ? `Condições: ${
+            rule.conditions.hostPatterns?.join(", ") ||
+            rule.conditions.hostRegex ||
+            rule.conditions.urlPatterns?.join(", ") ||
+            rule.conditions.titlePatterns?.join(", ") ||
+            "Nenhuma"
+          }`
+        : "Sem condições";
+
+      ruleElement.innerHTML = `
+        <div class="flex items-center space-x-4 flex-grow min-w-0">
+          <span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">☰</span>
+          <div class="flex-grow min-w-0">
+            <strong class="text-indigo-700 dark:text-indigo-400">${
+              rule.name
+            }</strong>
+            <p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${summary}">${summary}</p>
+          </div>
+          <span class="text-xs font-semibold px-2 py-1 rounded-full ${
+            rule.enabled
+              ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300"
+              : "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300"
+          }">
+            ${rule.enabled ? "Ativa" : "Inativa"}
+          </span>
+        </div>
+        <div class="flex space-x-1 flex-shrink-0">
+          <button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button>
+          <button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button>
+          <button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button>
+        </div>
+      `;
+      ui.renamingRulesList.appendChild(ruleElement);
+    });
+
+    initRenamingSortable();
+  }
+
+  // NOVO: Inicializa o Sortable.js para regras de renomeação
+  function initRenamingSortable() {
+    if (renamingSortableInstance) renamingSortableInstance.destroy();
+    if (
+      ui.renamingRulesList &&
+      currentSettings.tabRenamingRules &&
+      currentSettings.tabRenamingRules.length > 0
+    ) {
+      renamingSortableInstance = new Sortable(ui.renamingRulesList, {
+        group: "renaming-rules-list",
+        handle: ".drag-handle",
+        animation: 150,
+        onEnd: (evt) => {
+          const movedItem = currentSettings.tabRenamingRules.splice(
+            evt.oldIndex,
+            1
+          )[0];
+          currentSettings.tabRenamingRules.splice(evt.newIndex, 0, movedItem);
+          renderRenamingRulesList();
+          scheduleSave();
+        },
+      });
+    }
+  }
+
   // --- TESTADOR DE REGRAS ---
 
   async function testCurrentRule() {
@@ -422,13 +852,13 @@ document.addEventListener("DOMContentLoaded", () => {
       // Simula a lógica de evaluateRule com validação
       const evaluateCondition = (cond) => {
         // Validação básica da condição
-        if (!cond || typeof cond !== 'object' || Array.isArray(cond)) {
-          console.warn('Condição inválida:', cond);
+        if (!cond || typeof cond !== "object" || Array.isArray(cond)) {
+          console.warn("Condição inválida:", cond);
           return false;
         }
 
         if (!cond.property || !cond.operator || cond.value === undefined) {
-          console.warn('Condição incompleta:', cond);
+          console.warn("Condição incompleta:", cond);
           return false;
         }
 
@@ -441,15 +871,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Validação da propriedade
         if (!tabProperties.hasOwnProperty(cond.property)) {
-          console.warn('Propriedade inválida:', cond.property);
+          console.warn("Propriedade inválida:", cond.property);
           return false;
         }
 
         const propValue = String(tabProperties[cond.property] || "");
         const condValue = String(cond.value || "").trim();
-        
+
         if (condValue === "") {
-          console.debug('Valor da condição vazio');
+          console.debug("Valor da condição vazio");
           return false;
         }
 
@@ -460,7 +890,9 @@ document.addEventListener("DOMContentLoaded", () => {
             case "not_contains":
               return !propValue.toLowerCase().includes(condValue.toLowerCase());
             case "starts_with":
-              return propValue.toLowerCase().startsWith(condValue.toLowerCase());
+              return propValue
+                .toLowerCase()
+                .startsWith(condValue.toLowerCase());
             case "ends_with":
               return propValue.toLowerCase().endsWith(condValue.toLowerCase());
             case "equals":
@@ -469,48 +901,109 @@ document.addEventListener("DOMContentLoaded", () => {
               try {
                 return new RegExp(condValue, "i").test(propValue);
               } catch (regexError) {
-                console.warn('Regex inválida:', condValue, regexError.message);
+                console.warn("Regex inválida:", condValue, regexError.message);
                 return false;
               }
             case "wildcard":
               try {
                 const wildcardRegex = new RegExp(
-                  "^" + condValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\\*/g, ".*") + "$",
+                  "^" +
+                    condValue
+                      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                      .replace(/\\\*/g, ".*") +
+                    "$",
                   "i"
                 );
                 return wildcardRegex.test(propValue);
               } catch (wildcardError) {
-                console.warn('Wildcard inválido:', condValue, wildcardError.message);
+                console.warn(
+                  "Wildcard inválido:",
+                  condValue,
+                  wildcardError.message
+                );
                 return false;
               }
             default:
-              console.warn('Operador desconhecido:', cond.operator);
+              console.warn("Operador desconhecido:", cond.operator);
               return false;
           }
         } catch (error) {
-          console.error('Erro ao avaliar condição:', error);
+          console.error("Erro ao avaliar condição:", error);
           return false;
         }
       };
 
-      const matchingRule = (currentSettings.customRules || []).find((rule) => {
-        if (!rule.conditionGroup) return false;
-        const { operator, conditions } = rule.conditionGroup;
-        if (!conditions || conditions.length === 0) return false;
+      // Teste de regras de agrupamento
+      const matchingGroupingRule = (currentSettings.customRules || []).find(
+        (rule) => {
+          if (!rule.conditionGroup) return false;
+          const { operator, conditions } = rule.conditionGroup;
+          if (!conditions || conditions.length === 0) return false;
 
-        if (operator === "AND") return conditions.every(evaluateCondition);
-        if (operator === "OR") return conditions.some(evaluateCondition);
-        return false;
-      });
+          if (operator === "AND") return conditions.every(evaluateCondition);
+          if (operator === "OR") return conditions.some(evaluateCondition);
+          return false;
+        }
+      );
 
-      if (matchingRule) {
-        ui.ruleTesterResult.innerHTML = `Correspondeu: <strong class="text-indigo-600 dark:text-indigo-400">${matchingRule.name}</strong>`;
-      } else {
-        ui.ruleTesterResult.innerHTML =
-          "Nenhuma regra personalizada correspondeu. Usará a nomenclatura inteligente/domínio.";
+      // NOVO: Teste de regras de renomeação
+      let finalTitle = mockTab.title;
+      let appliedRenamingRule = null;
+
+      if (ui.tabRenamingEnabled.checked) {
+        // Importar dinamicamente para evitar dependência circular no carregamento inicial
+        const { globalTabRenamingEngine } = await import(
+          "./tab-renaming-engine.js"
+        );
+        const renamingRules = currentSettings.tabRenamingRules || [];
+
+        // Simular o findApplicableRules e executeRenamingRules
+        const applicableRenamingRules = renamingRules
+          .filter(
+            (rule) =>
+              rule.enabled &&
+              globalTabRenamingEngine.matchesConditions(
+                mockTab,
+                rule.conditions
+              )
+          )
+          .sort((a, b) => (a.priority || 999) - (b.priority || 999));
+
+        for (const rule of applicableRenamingRules) {
+          const tempTitle = await globalTabRenamingEngine.executeRule(
+            mockTab,
+            rule
+          );
+          if (tempTitle && tempTitle.trim()) {
+            finalTitle = tempTitle.trim();
+            appliedRenamingRule = rule;
+            break; // Aplica a primeira regra que gerar um título válido
+          }
+        }
       }
+
+      let resultHtml = "";
+      if (matchingGroupingRule) {
+        resultHtml += `Agrupamento: <strong class="text-indigo-600 dark:text-indigo-400">${matchingGroupingRule.name}</strong><br>`;
+      } else {
+        resultHtml += `Agrupamento: Nenhuma regra personalizada correspondeu. Usará a nomenclatura inteligente/domínio.<br>`;
+      }
+
+      if (ui.tabRenamingEnabled.checked) {
+        if (appliedRenamingRule) {
+          resultHtml += `Renomeação: <strong class="text-indigo-600 dark:text-indigo-400">${appliedRenamingRule.name}</strong><br>`;
+          resultHtml += `Título Final: <strong class="text-green-600 dark:text-green-400">${finalTitle}</strong>`;
+        } else {
+          resultHtml += `Renomeação: Nenhuma regra de renomeação correspondeu ou gerou título. Título original: <strong class="text-orange-600 dark:text-orange-400">${mockTab.title}</strong>`;
+        }
+      } else {
+        resultHtml += `Renomeação: Desativada. Título original: <strong class="text-orange-600 dark:text-orange-400">${mockTab.title}</strong>`;
+      }
+
+      ui.ruleTesterResult.innerHTML = resultHtml;
     } catch (e) {
       ui.ruleTesterResult.innerHTML = `<span class="text-red-500">Erro na avaliação da regra: ${e.message}</span>`;
+      console.error("Erro no testador de regras:", e);
     }
   }
 
@@ -618,6 +1111,340 @@ document.addEventListener("DOMContentLoaded", () => {
     showNotification(`Regra "${originalRule.name}" duplicada.`, "info");
   }
 
+  // NOVO: Funções para regras de renomeação
+  function openModalForRenamingRuleAdd() {
+    ui.renamingModalTitle.textContent = "Adicionar Nova Regra de Renomeação";
+    ui.renamingRuleForm.reset();
+    ui.renamingRuleId.value = "";
+    ui.renamingRuleName.value = "";
+    ui.renamingRulePriority.value = 100;
+    ui.renamingRuleEnabled.checked = true;
+    ui.renamingConditionsContainer.innerHTML = "";
+    ui.renamingConditionsContainer.appendChild(
+      createRenamingConditionElement()
+    );
+    ui.renamingStrategiesContainer.innerHTML = "";
+    ui.renamingStrategiesContainer.appendChild(createRenamingStrategyElement());
+    ui.renamingOptionWaitForLoad.checked = false;
+    ui.renamingOptionCacheResult.checked = true;
+    ui.renamingOptionRespectManualChanges.checked = true;
+    ui.renamingOptionRetryAttempts.value = 1;
+
+    ui.renamingRuleModal.classList.remove("hidden");
+  }
+
+  function openModalForRenamingRuleEdit(ruleId) {
+    const rule = currentSettings.tabRenamingRules.find((r) => r.id === ruleId);
+    if (!rule) {
+      showNotification("Regra de renomeação não encontrada.", "error");
+      return;
+    }
+
+    ui.renamingModalTitle.textContent = "Editar Regra de Renomeação";
+    ui.renamingRuleId.value = rule.id;
+    ui.renamingRuleName.value = rule.name;
+    ui.renamingRulePriority.value = rule.priority || 100;
+    ui.renamingRuleEnabled.checked = rule.enabled !== false; // Padrão é true
+
+    ui.renamingConditionsContainer.innerHTML = "";
+    if (rule.conditions) {
+      // Para renomeação, as condições não têm um operador AND/OR de grupo
+      // Elas são um objeto com arrays de padrões/regex
+      if (rule.conditions.hostPatterns)
+        rule.conditions.hostPatterns.forEach((p) =>
+          ui.renamingConditionsContainer.appendChild(
+            createRenamingConditionElement({
+              property: "hostname",
+              operator: "wildcard",
+              value: p,
+            })
+          )
+        );
+      if (rule.conditions.hostRegex)
+        ui.renamingConditionsContainer.appendChild(
+          createRenamingConditionElement({
+            property: "hostname",
+            operator: "regex",
+            value: rule.conditions.hostRegex,
+          })
+        );
+      if (rule.conditions.urlPatterns)
+        rule.conditions.urlPatterns.forEach((p) =>
+          ui.renamingConditionsContainer.appendChild(
+            createRenamingConditionElement({
+              property: "url_path",
+              operator: "wildcard",
+              value: p,
+            })
+          )
+        );
+      if (rule.conditions.titlePatterns)
+        rule.conditions.titlePatterns.forEach((p) =>
+          ui.renamingConditionsContainer.appendChild(
+            createRenamingConditionElement({
+              property: "title",
+              operator: "wildcard",
+              value: p,
+            })
+          )
+        );
+    }
+    if (ui.renamingConditionsContainer.children.length === 0) {
+      ui.renamingConditionsContainer.appendChild(
+        createRenamingConditionElement()
+      );
+    }
+
+    ui.renamingStrategiesContainer.innerHTML = "";
+    if (rule.renamingStrategies && rule.renamingStrategies.length > 0) {
+      rule.renamingStrategies.forEach((s) =>
+        ui.renamingStrategiesContainer.appendChild(
+          createRenamingStrategyElement(s)
+        )
+      );
+    } else {
+      ui.renamingStrategiesContainer.appendChild(
+        createRenamingStrategyElement()
+      );
+    }
+
+    // Opções avançadas
+    ui.renamingOptionWaitForLoad.checked = rule.options?.waitForLoad || false;
+    ui.renamingOptionCacheResult.checked = rule.options?.cacheResult !== false; // Padrão é true
+    ui.renamingOptionRespectManualChanges.checked =
+      rule.options?.respectManualChanges !== false; // Padrão é true
+    ui.renamingOptionRetryAttempts.value = rule.options?.retryAttempts || 1;
+
+    ui.renamingRuleModal.classList.remove("hidden");
+  }
+
+  function handleRenamingRuleFormSubmit(e) {
+    e.preventDefault();
+    const ruleId = ui.renamingRuleId.value;
+
+    // Coletar condições
+    const conditionsElements = Array.from(
+      ui.renamingConditionsContainer.children
+    );
+    const conditions = {
+      hostPatterns: [],
+      hostRegex: null,
+      urlPatterns: [],
+      titlePatterns: [],
+    };
+
+    conditionsElements.forEach((div) => {
+      const prop = div.querySelector(".condition-property").value;
+      const op = div.querySelector(".condition-operator").value;
+      const val = div.querySelector(".condition-value").value.trim();
+
+      if (val) {
+        if (prop === "hostname") {
+          if (op === "regex") conditions.hostRegex = val;
+          else conditions.hostPatterns.push(val);
+        } else if (prop === "url_path") {
+          conditions.urlPatterns.push(val);
+        } else if (prop === "title") {
+          conditions.titlePatterns.push(val);
+        } else if (prop === "url") {
+          // Se for URL completa, trata como padrão de URL
+          conditions.urlPatterns.push(val);
+        }
+      }
+    });
+
+    // Coletar estratégias
+    const strategiesElements = Array.from(
+      ui.renamingStrategiesContainer.children
+    );
+    const renamingStrategies = strategiesElements
+      .map((strategyDiv) => {
+        const type = strategyDiv.querySelector(".strategy-type").value;
+        const fallback =
+          strategyDiv.querySelector(".strategy-fallback").value || null;
+        const strategy = { type, fallback };
+
+        if (type === "css_extract") {
+          strategy.selector = strategyDiv
+            .querySelector(".strategy-selector")
+            .value.trim();
+          strategy.attribute =
+            strategyDiv.querySelector(".strategy-attribute").value.trim() ||
+            null;
+        } else if (type === "title_manipulation") {
+          const opsContainer = strategyDiv.querySelector(
+            ".text-operations-container"
+          );
+          strategy.operations = Array.from(opsContainer.children)
+            .map((opDiv) => {
+              const action = opDiv.querySelector(".operation-action").value;
+              const operation = { action };
+
+              if (
+                action === "replace" ||
+                action === "remove" ||
+                action === "extract"
+              ) {
+                operation.pattern = opDiv
+                  .querySelector(".operation-pattern")
+                  .value.trim();
+                operation.flags =
+                  opDiv.querySelector(".operation-flags").value.trim() || null;
+                if (action === "replace") {
+                  operation.replacement = opDiv.querySelector(
+                    ".operation-replacement"
+                  ).value;
+                }
+                if (action === "extract") {
+                  const groupVal =
+                    opDiv.querySelector(".operation-group").value;
+                  operation.group = groupVal
+                    ? parseInt(groupVal, 10)
+                    : undefined;
+                }
+              } else if (action === "prepend" || action === "append") {
+                operation.text = opDiv.querySelector(".operation-text").value;
+              } else if (action === "truncate") {
+                operation.maxLength = parseInt(
+                  opDiv.querySelector(".operation-max-length").value,
+                  10
+                );
+                operation.ellipsis =
+                  opDiv.querySelector(".operation-ellipsis").value.trim() ||
+                  null;
+              }
+              return operation;
+            })
+            .filter((op) => {
+              // Filtra operações inválidas (ex: sem padrão para regex)
+              if (
+                (op.action === "replace" ||
+                  op.action === "remove" ||
+                  op.action === "extract") &&
+                !op.pattern
+              )
+                return false;
+              if (
+                (op.action === "prepend" || op.action === "append") &&
+                !op.text
+              )
+                return false;
+              if (op.action === "truncate" && isNaN(op.maxLength)) return false;
+              return true;
+            });
+        }
+        return strategy;
+      })
+      .filter((s) => {
+        // Filtra estratégias vazias ou inválidas
+        if (s.type === "css_extract" && !s.selector) return false;
+        if (
+          s.type === "title_manipulation" &&
+          (!s.operations || s.operations.length === 0)
+        )
+          return false;
+        return true;
+      });
+
+    if (renamingStrategies.length === 0) {
+      showNotification(
+        "Pelo menos uma estratégia de renomeação válida é obrigatória.",
+        "error"
+      );
+      return;
+    }
+
+    const newRule = {
+      id:
+        ruleId ||
+        `rule-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: ui.renamingRuleName.value.trim(),
+      priority: parseInt(ui.renamingRulePriority.value, 10) || 100,
+      enabled: ui.renamingRuleEnabled.checked,
+      conditions: conditions,
+      renamingStrategies: renamingStrategies,
+      options: {
+        waitForLoad: ui.renamingOptionWaitForLoad.checked,
+        cacheResult: ui.renamingOptionCacheResult.checked,
+        respectManualChanges: ui.renamingOptionRespectManualChanges.checked,
+        retryAttempts: parseInt(ui.renamingOptionRetryAttempts.value, 10) || 1,
+      },
+    };
+
+    // Validação final da regra antes de salvar
+    // Importar dinamicamente para evitar dependência circular no carregamento inicial
+    import("./validation-utils.js").then(({ validateTabRenamingRule }) => {
+      const validationResult = validateTabRenamingRule(newRule);
+      if (!validationResult.isValid) {
+        showNotification(
+          `Erro na regra: ${validationResult.errors.join("; ")}`,
+          "error"
+        );
+        console.error(
+          "Erro de validação da regra de renomeação:",
+          validationResult.errors
+        );
+        return;
+      }
+
+      const existingRuleIndex = currentSettings.tabRenamingRules.findIndex(
+        (r) => r.id === newRule.id
+      );
+      if (existingRuleIndex !== -1) {
+        currentSettings.tabRenamingRules[existingRuleIndex] = newRule;
+      } else {
+        currentSettings.tabRenamingRules.push(newRule);
+      }
+
+      // Reordenar as regras por prioridade
+      currentSettings.tabRenamingRules.sort(
+        (a, b) => (a.priority || 999) - (b.priority || 999)
+      );
+
+      renderRenamingRulesList();
+      scheduleSave();
+      ui.renamingRuleModal.classList.add("hidden");
+    });
+  }
+
+  function deleteRenamingRule(ruleId) {
+    const rule = currentSettings.tabRenamingRules.find((r) => r.id === ruleId);
+    if (!rule) return;
+
+    showConfirmModal(
+      `Tem a certeza que deseja excluir a regra de renomeação "${rule.name}"?`,
+      () => {
+        currentSettings.tabRenamingRules =
+          currentSettings.tabRenamingRules.filter((r) => r.id !== ruleId);
+        renderRenamingRulesList();
+        scheduleSave();
+        showNotification(`Regra "${rule.name}" excluída.`, "info");
+      }
+    );
+  }
+
+  function duplicateRenamingRule(ruleId) {
+    const originalRule = currentSettings.tabRenamingRules.find(
+      (r) => r.id === ruleId
+    );
+    if (!originalRule) return;
+
+    const newRule = JSON.parse(JSON.stringify(originalRule));
+    newRule.id = `rule-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`; // Novo ID
+    newRule.name += " (cópia)";
+
+    currentSettings.tabRenamingRules.push(newRule);
+    currentSettings.tabRenamingRules.sort(
+      (a, b) => (a.priority || 999) - (b.priority || 999)
+    ); // Reordenar
+
+    renderRenamingRulesList();
+    scheduleSave();
+    showNotification(`Regra "${originalRule.name}" duplicada.`, "info");
+  }
+
   /**
    * Exibe um modal de confirmação genérico.
    * @param {string} text - A mensagem a ser exibida no modal.
@@ -653,9 +1480,14 @@ document.addEventListener("DOMContentLoaded", () => {
         error: "O ficheiro não contém um objeto de configurações válido.",
       };
     }
+    // Validação mais rigorosa para importação
     if (
       typeof imported.autoGroupingEnabled !== "boolean" ||
-      !Array.isArray(imported.customRules)
+      !Array.isArray(imported.customRules) ||
+      (imported.tabRenamingEnabled !== undefined &&
+        typeof imported.tabRenamingEnabled !== "boolean") || // NOVO
+      (imported.tabRenamingRules !== undefined &&
+        !Array.isArray(imported.tabRenamingRules)) // NOVO
     ) {
       return {
         valid: false,
@@ -701,6 +1533,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .ungroupSingleTabs.checked
       ? 1
       : 0.6;
+
+    // NOVO: Habilita/desabilita a seção de regras de renomeação
+    const renamingSection = ui.renamingRulesList.closest("section");
+    if (renamingSection) {
+      renamingSection.classList.toggle(
+        "disabled-section",
+        !ui.tabRenamingEnabled.checked
+      );
+      renamingSection
+        .querySelectorAll("button, input, select, textarea")
+        .forEach((el) => {
+          el.disabled = !ui.tabRenamingEnabled.checked;
+        });
+      // Re-habilita o próprio toggle de renomeação
+      ui.tabRenamingEnabled.disabled = false;
+    }
   }
 
   // --- INICIALIZAÇÃO E EVENT LISTENERS ---
@@ -723,6 +1571,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "titleDelimiters",
       "domainSanitizationTlds",
       "titleSanitizationNoise",
+      "tabRenamingEnabled", // NOVO
     ];
     autoSaveFields.forEach((id) => {
       const el = ui[id];
@@ -734,15 +1583,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.theme.addEventListener("change", () => applyTheme(ui.theme.value));
     ui.ungroupSingleTabs.addEventListener("change", updateDynamicUI);
+    ui.tabRenamingEnabled.addEventListener("change", updateDynamicUI); // NOVO
     ui.ruleTesterUrl.addEventListener("input", testCurrentRule);
     ui.ruleTesterTitle.addEventListener("input", testCurrentRule);
 
+    // Agrupamento
     ui.addRuleBtn.addEventListener("click", openModalForAdd);
     ui.cancelRuleBtn.addEventListener("click", () =>
       ui.ruleModal.classList.add("hidden")
     );
     ui.ruleForm.addEventListener("submit", handleRuleFormSubmit);
-
     ui.rulesList.addEventListener("click", (e) => {
       const button = e.target.closest("button");
       if (!button) return;
@@ -751,6 +1601,29 @@ document.addEventListener("DOMContentLoaded", () => {
       if (action === "edit") openModalForEdit(index);
       else if (action === "delete") deleteRule(index);
       else if (action === "duplicate") duplicateRule(index);
+    });
+
+    // NOVO: Renomeação
+    ui.addRenamingRuleBtn.addEventListener(
+      "click",
+      openModalForRenamingRuleAdd
+    );
+    ui.cancelRenamingRuleBtn.addEventListener("click", () =>
+      ui.renamingRuleModal.classList.add("hidden")
+    );
+    ui.renamingRuleForm.addEventListener(
+      "submit",
+      handleRenamingRuleFormSubmit
+    );
+    ui.renamingRulesList.addEventListener("click", (e) => {
+      const button = e.target.closest("button");
+      if (!button) return;
+      const action = button.dataset.action;
+      const ruleItem = button.closest(".rule-item");
+      const ruleId = ruleItem.dataset.id;
+      if (action === "edit") openModalForRenamingRuleEdit(ruleId);
+      else if (action === "delete") deleteRenamingRule(ruleId);
+      else if (action === "duplicate") duplicateRenamingRule(ruleId);
     });
 
     ui.importBtn.addEventListener("click", () => ui.importFile.click());
@@ -885,21 +1758,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // --- Funções de Diagnóstico de Memória ---
-  
+
   async function updateMemoryStats() {
     try {
-      const stats = await browser.runtime.sendMessage({ action: "getMemoryStats" });
+      const stats = await browser.runtime.sendMessage({
+        action: "getMemoryStats",
+      });
       console.log("Estatísticas recebidas:", stats); // Debug log
-      
+
       if (stats) {
         // Atualiza tamanhos dos mapas
         if (stats.sizes) {
           ui.memoryTabGroupMap.textContent = stats.sizes.tabGroupMap || "0";
-          ui.memoryTitleUpdaters.textContent = stats.sizes.debouncedTitleUpdaters || "0";
+          ui.memoryTitleUpdaters.textContent =
+            stats.sizes.debouncedTitleUpdaters || "0";
           ui.memoryGroupActivity.textContent = stats.sizes.groupActivity || "0";
           ui.memorySmartCache.textContent = stats.sizes.smartNameCache || "0";
-          ui.memoryInjectionFailures.textContent = stats.sizes.injectionFailureMap || "0";
-          ui.memoryPendingGroups.textContent = stats.sizes.pendingAutomaticGroups || "0";
+          ui.memoryInjectionFailures.textContent =
+            stats.sizes.injectionFailureMap || "0";
+          ui.memoryPendingGroups.textContent =
+            stats.sizes.pendingAutomaticGroups || "0";
         } else {
           // Se sizes não está disponível, mostra 0
           ui.memoryTabGroupMap.textContent = "0";
@@ -909,14 +1787,16 @@ document.addEventListener("DOMContentLoaded", () => {
           ui.memoryInjectionFailures.textContent = "0";
           ui.memoryPendingGroups.textContent = "0";
         }
-        
+
         // Atualiza estatísticas de limpeza
         if (stats.lastCleanup) {
-          ui.lastCleanupTime.textContent = new Date(stats.lastCleanup).toLocaleString();
+          ui.lastCleanupTime.textContent = new Date(
+            stats.lastCleanup
+          ).toLocaleString();
         } else {
           ui.lastCleanupTime.textContent = "Nunca";
         }
-        
+
         ui.totalCleaned.textContent = stats.totalCleaned || "0";
         ui.cleanupCycles.textContent = stats.cleanupCycles || "0";
       } else {
@@ -947,15 +1827,20 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.cleanupCycles.textContent = "Erro";
     }
   }
-  
+
   async function performMemoryCleanup() {
     try {
       ui.cleanupMemory.disabled = true;
       ui.cleanupMemory.textContent = "Limpando...";
-      
-      const result = await browser.runtime.sendMessage({ action: "cleanupMemory" });
+
+      const result = await browser.runtime.sendMessage({
+        action: "cleanupMemory",
+      });
       if (result) {
-        showNotification(`Limpeza concluída: ${result.cleaned || 0} entradas removidas`, "success");
+        showNotification(
+          `Limpeza concluída: ${result.cleaned || 0} entradas removidas`,
+          "success"
+        );
         await updateMemoryStats(); // Atualiza estatísticas após limpeza
       }
     } catch (error) {
@@ -966,89 +1851,97 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.cleanupMemory.textContent = "Limpar";
     }
   }
-  
+
   // Event listeners para diagnóstico de memória
   if (ui.refreshMemoryStats) {
     ui.refreshMemoryStats.addEventListener("click", updateMemoryStats);
   }
-  
+
   if (ui.cleanupMemory) {
     ui.cleanupMemory.addEventListener("click", performMemoryCleanup);
   }
 
   // --- Funções de Configuração de Performance ---
-  
+
   async function loadPerformanceConfig() {
     try {
-      const config = await browser.runtime.sendMessage({ action: "getPerformanceConfig" });
+      const config = await browser.runtime.sendMessage({
+        action: "getPerformanceConfig",
+      });
       if (config) {
         if (ui.queueDelay) ui.queueDelay.value = config.QUEUE_DELAY || 500;
         if (ui.batchSize) ui.batchSize.value = config.BATCH_SIZE || 50;
-        if (ui.maxInjectionRetries) ui.maxInjectionRetries.value = config.MAX_INJECTION_RETRIES || 3;
-        if (ui.performanceLogging) ui.performanceLogging.checked = config.BATCH_PERFORMANCE_LOG || false;
+        if (ui.maxInjectionRetries)
+          ui.maxInjectionRetries.value = config.MAX_INJECTION_RETRIES || 3;
+        if (ui.performanceLogging)
+          ui.performanceLogging.checked = config.BATCH_PERFORMANCE_LOG || false;
       }
     } catch (error) {
       console.error("Erro ao carregar configuração de performance:", error);
     }
   }
-  
+
   async function savePerformanceConfig() {
     try {
       const config = {
         QUEUE_DELAY: parseInt(ui.queueDelay?.value) || 500,
         BATCH_SIZE: parseInt(ui.batchSize?.value) || 50,
         MAX_INJECTION_RETRIES: parseInt(ui.maxInjectionRetries?.value) || 3,
-        BATCH_PERFORMANCE_LOG: ui.performanceLogging?.checked || false
+        BATCH_PERFORMANCE_LOG: ui.performanceLogging?.checked || false,
       };
-      
-      await browser.runtime.sendMessage({ 
-        action: "updatePerformanceConfig", 
-        config 
+
+      await browser.runtime.sendMessage({
+        action: "updatePerformanceConfig",
+        config,
       });
-      
+
       showNotification("Configurações de performance salvas", "success");
     } catch (error) {
       console.error("Erro ao salvar configuração de performance:", error);
       showNotification("Erro ao salvar configurações de performance", "error");
     }
   }
-  
+
   async function resetPerformanceConfig() {
-    if (confirm("Restaurar todas as configurações de performance para os valores padrão?")) {
-      try {
-        const defaultConfig = {
-          QUEUE_DELAY: 500,
-          BATCH_SIZE: 50,
-          MAX_INJECTION_RETRIES: 3,
-          BATCH_PERFORMANCE_LOG: false
-        };
-        
-        await browser.runtime.sendMessage({ 
-          action: "updatePerformanceConfig", 
-          config: defaultConfig 
-        });
-        
-        await loadPerformanceConfig(); // Recarrega a interface
-        showNotification("Configurações restauradas para padrão", "success");
-      } catch (error) {
-        console.error("Erro ao resetar configurações:", error);
-        showNotification("Erro ao restaurar configurações", "error");
+    // Substituído `confirm` por `showConfirmModal`
+    showConfirmModal(
+      "Restaurar todas as configurações de performance para os valores padrão?",
+      async () => {
+        try {
+          const defaultConfig = {
+            QUEUE_DELAY: 500,
+            BATCH_SIZE: 50,
+            MAX_INJECTION_RETRIES: 3,
+            BATCH_PERFORMANCE_LOG: false,
+          };
+
+          await browser.runtime.sendMessage({
+            action: "updatePerformanceConfig",
+            config: defaultConfig,
+          });
+
+          await loadPerformanceConfig(); // Recarrega a interface
+          showNotification("Configurações restauradas para padrão", "success");
+        } catch (error) {
+          console.error("Erro ao resetar configurações:", error);
+          showNotification("Erro ao restaurar configurações", "error");
+        }
       }
-    }
+    );
   }
-  
+
   // Event listeners para configuração de performance
   if (ui.savePerformanceConfig) {
     ui.savePerformanceConfig.addEventListener("click", savePerformanceConfig);
   }
-  
+
   if (ui.resetPerformanceConfig) {
     ui.resetPerformanceConfig.addEventListener("click", resetPerformanceConfig);
   }
 
   initialize();
   initializeHelpTooltips();
-  
+
   // Carrega configurações iniciais
   setTimeout(updateMemoryStats, 1000);
   setTimeout(loadPerformanceConfig, 1500);
