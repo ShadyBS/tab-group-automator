@@ -3,7 +3,7 @@
  * @description Módulo de aprendizado para sugerir grupos de abas com base no comportamento do usuário.
  */
 
-import { settingsManager } from "./settings-manager.js";
+import { settings, updateSettings } from "./settings-manager.js";
 import Logger from "./logger.js";
 
 const LOG_PREFIX = "[LearningEngine]";
@@ -19,13 +19,14 @@ class LearningEngine {
   }
 
   async loadPatterns() {
-    const data = await settingsManager.get("userPatterns");
-    this.patterns = data || [];
+    // Acessa diretamente a propriedade do objeto de configurações importado
+    this.patterns = settings.userPatterns || [];
     Logger.debug(`${LOG_PREFIX} Padrões de usuário carregados:`, this.patterns);
   }
 
   async savePatterns() {
-    await settingsManager.set({ userPatterns: this.patterns });
+    // Usa a função updateSettings para salvar a propriedade específica
+    await updateSettings({ userPatterns: this.patterns });
     Logger.debug(`${LOG_PREFIX} Padrões de usuário salvos.`);
   }
 
