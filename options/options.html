@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="options.css" />
   </head>
   <body
-    class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
+    class="antialiased bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
   >
     <div class="container mx-auto p-4 md:p-8 max-w-5xl">
       <header class="flex justify-between items-center mb-10 text-center">
@@ -228,6 +228,50 @@
         </div>
       </section>
 
+      <!-- NOVO: Seção de Renomeação Automática de Abas -->
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <div
+          class="flex justify-between items-center mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          <h2 class="text-2xl font-bold flex items-center">
+            Renomeação Automática de Abas
+            <button
+              type="button"
+              class="help-tooltip"
+              data-help-key="tabRenaming"
+            >
+              ?
+            </button>
+          </h2>
+          <div class="flex items-center space-x-2">
+            <label for="tabRenamingEnabled" class="font-semibold"
+              >Ativar Renomeação:</label
+            >
+            <input
+              type="checkbox"
+              id="tabRenamingEnabled"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+            />
+          </div>
+        </div>
+        <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">
+          Crie regras para renomear automaticamente os títulos das suas abas. As
+          regras são aplicadas em ordem de prioridade (de cima para baixo).
+        </p>
+        <div class="flex justify-end mb-4">
+          <button
+            id="addRenamingRuleBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200 dark:bg-indigo-500 dark:hover:bg-indigo-600"
+          >
+            Adicionar Nova Regra de Renomeação
+          </button>
+        </div>
+        <div id="renamingRulesList" class="space-y-3"></div>
+      </section>
+      <!-- FIM NOVO: Seção de Renomeação Automática de Abas -->
+
       <section
         class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
       >
@@ -237,60 +281,91 @@
           Diagnóstico de Memória
         </h2>
         <div class="space-y-4">
-          <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-            <span class="font-semibold">Status da Memória:</span>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50"
+          >
+            <span class="font-semibold">Status da Memória e Cache:</span>
             <div class="flex gap-2">
-              <button 
-                id="refreshMemoryStats" 
+              <button
+                id="refreshMemoryStats"
                 class="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
               >
                 Atualizar
               </button>
-              <button 
-                id="cleanupMemory" 
+              <button
+                id="cleanupMemory"
                 class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
               >
-                Limpar
+                Limpar Memória
+              </button>
+              <button
+                id="clearCacheBtn"
+                class="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+              >
+                Limpar Cache
               </button>
             </div>
           </div>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Mapa Aba-Grupo</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Mapa Aba-Grupo
+              </div>
               <div id="memoryTabGroupMap" class="text-lg font-semibold">-</div>
             </div>
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Updaters de Título</div>
-              <div id="memoryTitleUpdaters" class="text-lg font-semibold">-</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Updaters de Título
+              </div>
+              <div id="memoryTitleUpdaters" class="text-lg font-semibold">
+                -
+              </div>
             </div>
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Atividade de Grupos</div>
-              <div id="memoryGroupActivity" class="text-lg font-semibold">-</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Atividade de Grupos
+              </div>
+              <div id="memoryGroupActivity" class="text-lg font-semibold">
+                -
+              </div>
             </div>
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Cache de Nomes</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Cache de Nomes
+              </div>
               <div id="memorySmartCache" class="text-lg font-semibold">-</div>
             </div>
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Falhas de Injeção</div>
-              <div id="memoryInjectionFailures" class="text-lg font-semibold">-</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Falhas de Injeção
+              </div>
+              <div id="memoryInjectionFailures" class="text-lg font-semibold">
+                -
+              </div>
             </div>
             <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
-              <div class="text-sm text-slate-600 dark:text-slate-400">Grupos Pendentes</div>
-              <div id="memoryPendingGroups" class="text-lg font-semibold">-</div>
+              <div class="text-sm text-slate-600 dark:text-slate-400">
+                Grupos Pendentes
+              </div>
+              <div id="memoryPendingGroups" class="text-lg font-semibold">
+                -
+              </div>
             </div>
           </div>
-          
+
           <div class="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
             <div class="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Última Limpeza:</strong> <span id="lastCleanupTime">-</span>
+              <strong>Última Limpeza:</strong>
+              <span id="lastCleanupTime">-</span>
             </div>
             <div class="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Total Limpo:</strong> <span id="totalCleaned">-</span> entradas
+              <strong>Total Limpo:</strong>
+              <span id="totalCleaned">-</span> entradas
             </div>
             <div class="text-sm text-blue-700 dark:text-blue-300">
-              <strong>Ciclos de Limpeza:</strong> <span id="cleanupCycles">-</span>
+              <strong>Ciclos de Limpeza:</strong>
+              <span id="cleanupCycles">-</span>
             </div>
           </div>
         </div>
@@ -322,7 +397,7 @@
                 Tempo de espera antes de processar fila de abas
               </p>
             </div>
-            
+
             <div>
               <label for="batchSize" class="block text-sm font-medium mb-1">
                 Tamanho do Lote:
@@ -340,10 +415,13 @@
               </p>
             </div>
           </div>
-          
+
           <div class="space-y-4">
             <div>
-              <label for="maxInjectionRetries" class="block text-sm font-medium mb-1">
+              <label
+                for="maxInjectionRetries"
+                class="block text-sm font-medium mb-1"
+              >
                 Máx. Tentativas Injeção:
               </label>
               <input
@@ -357,9 +435,12 @@
                 Tentativas de injeção de script antes de desistir
               </p>
             </div>
-            
+
             <div>
-              <label for="performanceLogging" class="flex items-center space-x-2">
+              <label
+                for="performanceLogging"
+                class="flex items-center space-x-2"
+              >
                 <input
                   type="checkbox"
                   id="performanceLogging"
@@ -373,8 +454,10 @@
             </div>
           </div>
         </div>
-        
-        <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+
+        <div
+          class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 flex gap-2"
+        >
           <button
             id="resetPerformanceConfig"
             class="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm"
@@ -720,6 +803,232 @@ youtube.com"
         </form>
       </div>
     </div>
+
+    <!-- NOVO: Modal de Regras de Renomeação -->
+    <div
+      id="renamingRuleModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 pb-10 overflow-y-auto"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-3xl m-4 dark:bg-slate-800"
+      >
+        <h3 id="renamingModalTitle" class="text-2xl font-bold mb-6">
+          Nova Regra de Renomeação
+        </h3>
+        <form id="renamingRuleForm">
+          <input type="hidden" id="renamingRuleId" />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label for="renamingRuleName" class="font-semibold block mb-1"
+                >Nome da Regra<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingRuleName"
+                >
+                  ?
+                </button></label
+              >
+              <input
+                type="text"
+                id="renamingRuleName"
+                placeholder="Ex: Títulos de Artigos"
+                class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+                required
+              />
+            </div>
+            <div>
+              <label for="renamingRulePriority" class="font-semibold block mb-1"
+                >Prioridade<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingPriority"
+                >
+                  ?
+                </button></label
+              >
+              <input
+                type="number"
+                id="renamingRulePriority"
+                min="1"
+                max="999"
+                value="100"
+                class="w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              />
+              <p class="text-sm text-slate-500 mt-1 dark:text-slate-400">
+                Menor número = maior prioridade.
+              </p>
+            </div>
+            <div class="md:col-span-2 flex items-center p-2">
+              <input
+                type="checkbox"
+                id="renamingRuleEnabled"
+                class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                checked
+              />
+              <label for="renamingRuleEnabled" class="ml-2 font-semibold"
+                >Regra Ativada</label
+              >
+            </div>
+          </div>
+
+          <hr class="my-6 dark:border-slate-600" />
+
+          <!-- Condições da Regra de Renomeação -->
+          <div>
+            <div class="flex items-center space-x-4 mb-4">
+              <h4 class="text-lg font-semibold">
+                Aplicar regra SE<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingConditions"
+                >
+                  ?
+                </button>
+              </h4>
+              <select
+                id="renamingRuleConditionOperator"
+                class="p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              >
+                <option value="AND">TODAS</option>
+                <option value="OR">QUALQUER UMA</option>
+              </select>
+              <h4 class="text-lg font-semibold">
+                das seguintes condições forem verdadeiras:
+              </h4>
+            </div>
+            <div
+              id="renamingConditionsContainer"
+              class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
+            >
+              <!-- Condições serão adicionadas aqui via JS -->
+            </div>
+            <button
+              type="button"
+              id="addRenamingConditionBtn"
+              class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm"
+            >
+              + Adicionar Condição
+            </button>
+          </div>
+
+          <hr class="my-6 dark:border-slate-600" />
+
+          <!-- Estratégias de Renomeação -->
+          <div>
+            <h4 class="text-lg font-semibold mb-3">
+              Estratégias de Renomeação (aplicadas em ordem):<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="renamingStrategies"
+              >
+                ?
+              </button>
+            </h4>
+            <div
+              id="renamingStrategiesContainer"
+              class="space-y-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
+            >
+              <!-- Estratégias serão adicionadas aqui via JS -->
+            </div>
+            <button
+              type="button"
+              id="addRenamingStrategyBtn"
+              class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg text-sm"
+            >
+              + Adicionar Estratégia
+            </button>
+          </div>
+
+          <hr class="my-6 dark:border-slate-600" />
+
+          <!-- Opções Avançadas de Renomeação -->
+          <div>
+            <h4 class="text-lg font-semibold mb-3">
+              Opções Avançadas:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="advancedRenamingOptions"
+              >
+                ?
+              </button>
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-center p-2">
+                <input
+                  type="checkbox"
+                  id="renamingOptionWaitForLoad"
+                  class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                />
+                <label
+                  for="renamingOptionWaitForLoad"
+                  class="ml-2 font-semibold text-sm"
+                  >Aguardar carregamento completo da página</label
+                >
+              </div>
+              <div class="flex items-center p-2">
+                <input
+                  type="checkbox"
+                  id="renamingOptionCacheResult"
+                  class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                  checked
+                />
+                <label
+                  for="renamingOptionCacheResult"
+                  class="ml-2 font-semibold text-sm"
+                  >Armazenar resultado em cache</label
+                >
+              </div>
+              <div class="flex items-center p-2">
+                <input
+                  type="checkbox"
+                  id="renamingOptionRespectManualChanges"
+                  class="h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                  checked
+                />
+                <label
+                  for="renamingOptionRespectManualChanges"
+                  class="ml-2 font-semibold text-sm"
+                  >Respeitar alterações manuais</label
+                >
+              </div>
+              <div class="flex items-center p-2">
+                <label
+                  for="renamingOptionRetryAttempts"
+                  class="font-semibold text-sm mr-2"
+                  >Tentativas de Reaplicação:</label
+                >
+                <input
+                  type="number"
+                  id="renamingOptionRetryAttempts"
+                  min="0"
+                  max="5"
+                  value="1"
+                  class="w-20 p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="flex justify-end space-x-4 mt-8">
+            <button
+              type="button"
+              id="cancelRenamingRuleBtn"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              id="saveRenamingRuleBtn"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg dark:bg-indigo-500 dark:hover:bg-indigo-600"
+            >
+              Salvar Regra
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <!-- FIM NOVO: Modal de Regras de Renomeação -->
 
     <div
       id="confirmModal"

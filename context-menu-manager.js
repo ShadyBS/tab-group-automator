@@ -13,6 +13,10 @@ import {
 } from "./grouping-logic.js";
 import { pendingAutomaticGroups } from "./app-state.js";
 
+/**
+ * Cria ou atualiza todos os itens do menu de contexto da extensão.
+ * Garante que os menus reflitam o estado atual das configurações e regras.
+ */
 export async function updateContextMenus() {
   // Adiciona uma verificação para garantir que a API de menus está disponível.
   // Isto evita erros se a permissão "menus" estiver em falta no manifest.
@@ -24,7 +28,10 @@ export async function updateContextMenus() {
   // Detecta o navegador e define contextos compatíveis
   // Firefox: suporta "tab" para menus de contexto nas abas
   // Chrome: não suporta "tab", usa apenas "page" para conteúdo das páginas
-  const isFirefox = typeof browser !== 'undefined' && browser.runtime && browser.runtime.getBrowserInfo;
+  const isFirefox =
+    typeof browser !== "undefined" &&
+    browser.runtime &&
+    browser.runtime.getBrowserInfo;
   const validContexts = isFirefox ? ["page", "tab"] : ["page"];
 
   const mainParentId = "main-parent";
@@ -115,6 +122,12 @@ export async function updateContextMenus() {
   });
 }
 
+/**
+ * Lida com cliques nos itens do menu de contexto.
+ * Executa a ação correspondente ao item de menu selecionado.
+ * @param {browser.contextMenus.OnClickData} info - Informações sobre o clique.
+ * @param {browser.tabs.Tab} tab - A aba onde o clique ocorreu.
+ */
 async function handleContextMenuClick(info, tab) {
   if (!tab) return;
   Logger.info(
@@ -334,6 +347,13 @@ async function handleContextMenuClick(info, tab) {
   }
 }
 
+/**
+ * Lida com o evento de exibição do menu de contexto.
+ * Atualiza a visibilidade e os títulos dos itens de menu dinâmicos
+ * com base no estado da aba atual (ex: se está em um grupo).
+ * @param {browser.contextMenus.OnShownInfo} info - Informações sobre o menu exibido.
+ * @param {browser.tabs.Tab} tab - A aba onde o menu foi aberto.
+ */
 async function handleMenuShown(info, tab) {
   if (tab && tab.url) {
     try {
@@ -359,6 +379,10 @@ async function handleMenuShown(info, tab) {
   browser.contextMenus.refresh();
 }
 
+/**
+ * Inicializa os listeners para os eventos do menu de contexto.
+ * Adiciona verificações de segurança para garantir que a API de menus está disponível.
+ */
 export function initializeContextMenus() {
   // Adiciona uma verificação para garantir que a API de menus está disponível.
   // Isto evita que a extensão falhe ao iniciar se a permissão "menus" estiver em falta.

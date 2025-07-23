@@ -1,22 +1,22 @@
 /* Styling is primarily handled by TailwindCSS */
-body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+
+/* Estilos para itens de lista de regras (agrupamento e renomeação) */
+#rulesList .rule-item,
+#renamingRulesList .rule-item {
+  transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  border: 1px solid transparent;
 }
 
-#rulesList .rule-item {
-    transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
-    border: 1px solid transparent;
+#rulesList .rule-item:hover,
+#renamingRulesList .rule-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #e2e8f0; /* slate-200 */
 }
 
-#rulesList .rule-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    border-color: #e2e8f0;
-}
-
-.dark #rulesList .rule-item:hover {
-    border-color: #374151;
+.dark #rulesList .rule-item:hover,
+.dark #renamingRulesList .rule-item:hover {
+  border-color: #374151; /* slate-700 */
 }
 
 /* Estilos para o Tooltip de Ajuda */
@@ -38,7 +38,7 @@ body {
   transition: background-color 0.2s;
 }
 .help-tooltip:hover {
-    background-color: #94a3b8; /* slate-400 */
+  background-color: #94a3b8; /* slate-400 */
 }
 
 .dark .help-tooltip {
@@ -46,9 +46,8 @@ body {
   color: #cbd5e1; /* slate-300 */
 }
 .dark .help-tooltip:hover {
-    background-color: #64748b; /* slate-500 */
+  background-color: #64748b; /* slate-500 */
 }
-
 
 /* O balão do tooltip (inicialmente escondido) */
 .tooltip-content {
@@ -64,7 +63,7 @@ body {
   font-size: 14px;
   font-weight: normal;
   line-height: 1.5;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   z-index: 100;
   visibility: hidden;
   opacity: 0;
@@ -72,9 +71,9 @@ body {
   text-align: left;
 }
 .tooltip-content ul {
-    list-style-type: disc;
-    padding-left: 1.5rem;
-    margin-top: 0.5rem;
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
 }
 
 /* Triângulo/seta para o balão */
@@ -93,4 +92,94 @@ body {
 .help-tooltip:focus .tooltip-content {
   visibility: visible;
   opacity: 1;
+}
+
+/* Estilos para desabilitar seções */
+.disabled-section {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Estilos para operações de texto (dentro das estratégias de renomeação) */
+.text-operation-item {
+  position: relative;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #e2e8f0; /* slate-200 */
+}
+
+.dark .text-operation-item {
+  border-color: #374151; /* slate-700 */
+}
+
+.text-operation-item .remove-operation-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+.text-operation-item .operation-fields {
+  margin-top: 0.75rem;
+}
+
+/* Estilos para estratégias de renomeação */
+.renaming-strategy-item {
+  position: relative;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #cbd5e1; /* slate-300 */
+  background-color: #f8fafc; /* slate-50 */
+}
+
+.dark .renaming-strategy-item {
+  border-color: #475569; /* slate-600 */
+  background-color: #1e293b; /* slate-800 */
+}
+
+.renaming-strategy-item .remove-strategy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+.renaming-strategy-item .strategy-fields {
+  margin-top: 0.75rem;
+}
+
+/* NOVO: Estilos para inputs e selects desabilitados */
+input[type="text"]:disabled,
+input[type="number"]:disabled,
+input[type="url"]:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: #e2e8f0; /* slate-200 */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.dark input[type="text"]:disabled,
+.dark input[type="number"]:disabled,
+.dark input[type="url"]:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background-color: #475569; /* slate-600 */
+}
+
+/* NOVO: Melhoria nos estilos de foco para inputs e selects */
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="url"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #4f46e5; /* indigo-600 */
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); /* indigo-500 with opacity */
+}
+
+/* NOVO: Estilo para botões desabilitados */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

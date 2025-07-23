@@ -7,7 +7,13 @@
 import "./vendor/browser-polyfill.js";
 
 import Logger from "./logger.js";
-import { settings, loadSettings, updateSettings, DEFAULT_SETTINGS, smartNameCache } from "./settings-manager.js";
+import {
+  settings,
+  loadSettings,
+  updateSettings,
+  DEFAULT_SETTINGS,
+  smartNameCache,
+} from "./settings-manager.js";
 import { processTabQueue } from "./grouping-logic.js";
 import {
   initializeContextMenus,
@@ -19,7 +25,7 @@ import {
   handleGroupOperation,
   handleCriticalOperation,
   withErrorHandling,
-  globalAdaptiveErrorHandler
+  globalAdaptiveErrorHandler,
 } from "./adaptive-error-handler.js";
 import {
   startMemoryCleanup,
@@ -28,7 +34,7 @@ import {
   isMemoryLimitExceeded,
   emergencyCleanup,
   getMemoryStats,
-  globalAdaptiveMemoryManager
+  globalAdaptiveMemoryManager,
 } from "./adaptive-memory-manager.js";
 import {
   getConfig,
@@ -36,19 +42,20 @@ import {
   getConfigForSettings,
   createConfigurableDelay,
   getAllConfig,
-  updateConfig
+  updateConfig,
 } from "./performance-config.js";
 import {
   globalTabParallelProcessor,
-  globalWindowDataProcessor
+  globalWindowDataProcessor,
 } from "./parallel-batch-processor.js";
 import {
   getAPIWrapperStats,
   clearAPIQueues,
   pauseAPICategory,
-  resumeAPICategory
+  resumeAPICategory,
 } from "./browser-api-wrapper.js";
 import { globalAPIRateLimiter } from "./api-rate-limiter.js";
+import { globalTabRenamingEngine } from "./tab-renaming-engine.js"; // Importa o motor de renomeação de abas
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
@@ -56,7 +63,7 @@ import { globalAPIRateLimiter } from "./api-rate-limiter.js";
 let tabProcessingQueue = new Set();
 let queueTimeout = null;
 let tabGroupMap = new Map();
-let debouncedTitleUpdaters = new Map();
+let debouncedTitleUpdaters = new Map(); // Usado para debounce de títulos de grupo E invalidação de cache
 let groupActivity = new Map();
 let collapseInterval = null;
 let ungroupInterval = null;
@@ -64,13 +71,27 @@ let singleTabGroupTimestamps = new Map();
 
 // Objeto para facilitar passagem de mapas para gerenciador de memória
 const memoryMaps = {
-  get tabGroupMap() { return tabGroupMap; },
-  get debouncedTitleUpdaters() { return debouncedTitleUpdaters; },
-  get groupActivity() { return groupActivity; },
-  get singleTabGroupTimestamps() { return singleTabGroupTimestamps; },
-  get smartNameCache() { return smartNameCache; },
-  get injectionFailureMap() { return injectionFailureMap; },
-  get pendingAutomaticGroups() { return pendingAutomaticGroups; }
+  get tabGroupMap() {
+    return tabGroupMap;
+  },
+  get debouncedTitleUpdaters() {
+    return debouncedTitleUpdaters;
+  },
+  get groupActivity() {
+    return groupActivity;
+  },
+  get singleTabGroupTimestamps() {
+    return singleTabGroupTimestamps;
+  },
+  get smartNameCache() {
+    return smartNameCache;
+  },
+  get injectionFailureMap() {
+    return injectionFailureMap;
+  },
+  get pendingAutomaticGroups() {
+    return pendingAutomaticGroups;
+  },
 };
 
 // --- Lógica de Onboarding ---
@@ -113,14 +134,17 @@ browser.runtime.onInstalled.addListener(async (details) => {
  * @returns {string|null} Hostname ou null se inválido
  */
 function getHostnameFromUrl(url) {
-  if (typeof url !== 'string' || !url) {
+  if (typeof url !== "string" || !url) {
     return null;
   }
-  
+
   try {
     return new URL(url).hostname;
   } catch (e) {
-    Logger.debug("getHostnameFromUrl", `Erro ao extrair hostname da URL: ${url}`);
+    Logger.debug(
+      "getHostnameFromUrl",
+      `Erro ao extrair hostname da URL: ${url}`
+    );
     return null;
   }
 }
@@ -132,29 +156,45 @@ function getHostnameFromUrl(url) {
  */
 async function invalidateCacheForDomainChange(hostname, changeType) {
   try {
-    const { invalidateCacheByDomainChange } = await import("./settings-manager.js");
+    const { invalidateCacheByDomainChange } = await import(
+      "./settings-manager.js"
+    );
     invalidateCacheByDomainChange(hostname, changeType);
   } catch (e) {
-    Logger.debug("invalidateCacheForDomainChange", `Erro ao invalidar cache: ${e.message}`);
+    Logger.debug(
+      "invalidateCacheForDomainChange",
+      `Erro ao invalidar cache: ${e.message}`
+    );
   }
 }
 
 // --- Lógica de Processamento e Gestão de Eventos ---
 
+/**
+ * Agenda o processamento da fila de abas.
+ * Usa um timeout para agrupar múltiplas adições de abas em um único processamento.
+ * Realiza uma verificação de memória de emergência antes de processar.
+ */
 function scheduleQueueProcessing() {
   Logger.debug(
     "scheduleQueueProcessing",
     "Agendamento de processamento da fila."
   );
-  
+
   // Verifica se precisa de limpeza de emergência antes de processar
   if (isMemoryLimitExceeded(memoryMaps)) {
-    Logger.warn("scheduleQueueProcessing", "Limite de memória excedido - executando limpeza de emergência.");
+    Logger.warn(
+      "scheduleQueueProcessing",
+      "Limite de memória excedido - executando limpeza de emergência."
+    );
     emergencyCleanup(memoryMaps).then(() => {
-      Logger.info("scheduleQueueProcessing", "Limpeza de emergência concluída.");
+      Logger.info(
+        "scheduleQueueProcessing",
+        "Limpeza de emergência concluída."
+      );
     });
   }
-  
+
   if (queueTimeout) clearTimeout(queueTimeout);
   queueTimeout = setTimeout(async () => {
     const tabsToProcess = Array.from(tabProcessingQueue);
@@ -165,9 +205,17 @@ function scheduleQueueProcessing() {
       tabsToProcess
     );
     await processTabQueue(tabsToProcess);
-  }, getConfig('QUEUE_DELAY'));
+  }, getConfig("QUEUE_DELAY"));
 }
 
+/**
+ * Lida com o evento de atualização de uma aba (onUpdated).
+ * Responsável por acionar o agrupamento, a renomeação de abas e a invalidação de cache
+ * com base em mudanças de status, título ou URL.
+ * @param {number} tabId - ID da aba que foi atualizada.
+ * @param {object} changeInfo - Objeto que descreve as mudanças na aba.
+ * @param {browser.tabs.Tab} tab - O estado atual da aba.
+ */
 // CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
 function handleTabUpdated(tabId, changeInfo, tab) {
   Logger.debug("handleTabUpdated", `Aba ${tabId} atualizada.`, {
@@ -191,70 +239,116 @@ function handleTabUpdated(tabId, changeInfo, tab) {
     if (hostname) {
       // Invalida cache apenas para mudanças de título significativas
       if (changeInfo.title && tab.status === "complete") {
-        // Só invalida se o título mudou substancialmente (n��o apenas contadores)
+        // Só invalida se o título mudou substancialmente (não apenas contadores)
         const titleChange = changeInfo.title;
-        const isSignificantChange = titleChange && 
-          titleChange.length > 5 && 
+        const isSignificantChange =
+          titleChange &&
+          titleChange.length > 5 &&
           !titleChange.match(/^\(\d+\)/) && // Não é apenas um contador
           !titleChange.match(/\d+\s*(new|unread|messages?|notifications?)$/i); // Não é apenas notificação
-        
+
         if (isSignificantChange) {
           // Debounce cache invalidation to avoid excessive calls
           const cacheKey = `cache-invalidate-${hostname}`;
           if (!debouncedTitleUpdaters.has(cacheKey)) {
             const timeoutId = setTimeout(() => {
-              invalidateCacheForDomainChange(hostname, 'title_change');
+              invalidateCacheForDomainChange(hostname, "title_change");
               debouncedTitleUpdaters.delete(cacheKey);
             }, 2000); // 2 second debounce
             debouncedTitleUpdaters.set(cacheKey, timeoutId);
           }
         }
       }
-      
+
       // Invalida cache se houve mudança de URL (navegação)
       if (changeInfo.url) {
-        invalidateCacheForDomainChange(hostname, 'url_change');
+        invalidateCacheForDomainChange(hostname, "url_change");
       }
     }
   }
 
-  // Determina se a aba precisa ser processada.
+  // Determina se a aba precisa ser processada para AGRUPAMENTO.
   // Isto acontece se o status mudou para 'complete' OU se o título mudou enquanto a aba já estava 'complete'.
-  const needsProcessing =
+  const needsGroupingProcessing =
     settings.autoGroupingEnabled &&
     tab.url &&
     tab.url.startsWith("http") &&
     (changeInfo.status === "complete" ||
       (changeInfo.title && tab.status === "complete"));
 
-  if (needsProcessing) {
+  if (needsGroupingProcessing) {
     Logger.debug(
       "handleTabUpdated",
-      `Aba ${tabId} marcada para processamento devido a mudança de status ou título.`
+      `Aba ${tabId} marcada para processamento de agrupamento devido a mudança de status ou título.`
     );
     injectionFailureMap.delete(tabId);
     tabProcessingQueue.add(tabId);
     scheduleQueueProcessing();
   }
+
+  // --- NOVO: Acionamento da Renomeação de Abas ---
+  // A renomeação deve ocorrer após o agrupamento, mas pode ser acionada por mudanças de título ou URL.
+  // Usamos um debounce específico para renomeação para evitar sobrecarga.
+  const renamingDebounceKey = `renaming-${tabId}`;
+  if (debouncedTitleUpdaters.has(renamingDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(renamingDebounceKey));
+  }
+
+  if (
+    settings.tabRenamingEnabled &&
+    tab.url &&
+    tab.url.startsWith("http") &&
+    (changeInfo.status === "complete" || changeInfo.title || changeInfo.url)
+  ) {
+    const timeoutId = setTimeout(async () => {
+      Logger.debug(
+        "handleTabUpdated",
+        `Acionando motor de renomeação para aba ${tabId}.`
+      );
+      await globalTabRenamingEngine.processTab(tabId, tab);
+      debouncedTitleUpdaters.delete(renamingDebounceKey);
+    }, getConfig("TAB_RENAMING_DELAY")); // Usa um delay configurável para renomeação
+    debouncedTitleUpdaters.set(renamingDebounceKey, timeoutId);
+  }
+  // --- FIM NOVO ---
 }
 
+/**
+ * Lida com o evento de remoção de uma aba (onRemoved).
+ * Limpa os recursos associados à aba removida e agenda a atualização
+ * do título do grupo ao qual pertencia.
+ * @param {number} tabId - ID da aba que foi removida.
+ * @param {object} removeInfo - Informações sobre a remoção (ex: isWindowClosing).
+ */
 function handleTabRemoved(tabId, removeInfo) {
   Logger.debug("handleTabRemoved", `Aba ${tabId} removida.`, { removeInfo });
   const oldGroupId = tabGroupMap.get(tabId);
   if (oldGroupId) {
     scheduleTitleUpdate(oldGroupId);
   }
-  
+
   // Limpeza proativa de recursos relacionados à aba removida
   tabGroupMap.delete(tabId);
   injectionFailureMap.delete(tabId);
-  
+
   // Remove entrada de grupos pendentes se a aba era a chave
   if (pendingAutomaticGroups.has(tabId)) {
     pendingAutomaticGroups.delete(tabId);
   }
+
+  // Limpa qualquer debounce de renomeação pendente para esta aba
+  const renamingDebounceKey = `renaming-${tabId}`;
+  if (debouncedTitleUpdaters.has(renamingDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(renamingDebounceKey));
+    debouncedTitleUpdaters.delete(renamingDebounceKey);
+  }
 }
 
+/**
+ * Ativa ou desativa os listeners de eventos de abas (onUpdated, onRemoved).
+ * Inclui otimizações e fallbacks para garantir a compatibilidade entre navegadores.
+ * @param {boolean} enable - `true` para ativar os listeners, `false` para desativar.
+ */
 // CORRIGIDO: Adiciona "title" às propriedades que o listener de onUpdated observa.
 function toggleListeners(enable) {
   // Adiciona verificações de segurança para garantir que as APIs existem antes de usá-las.
@@ -278,7 +372,7 @@ function toggleListeners(enable) {
         // Tenta registar o listener com um filtro otimizado.
         // Isto é mais eficiente, pois a extensão só é notificada sobre as alterações que lhe interessam.
         browser.tabs.onUpdated.addListener(handleTabUpdated, {
-          properties: ["status", "groupId", "title"],
+          properties: ["status", "groupId", "title", "url"], // Adicionado 'url' para renomeação
         });
       } catch (e) {
         // Fallback para navegadores (como algumas versões do Edge) que podem não suportar
@@ -308,6 +402,10 @@ function toggleListeners(enable) {
 
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
+/**
+ * Inicia ou para o temporizador que verifica e recolhe grupos de abas inativos.
+ * A configuração é baseada em `settings.autoCollapseTimeout`.
+ */
 function updateAutoCollapseTimer() {
   Logger.debug(
     "Timers",
@@ -360,10 +458,14 @@ function updateAutoCollapseTimer() {
           e
         );
       }
-    }, getConfig('AUTO_COLLAPSE_CHECK_INTERVAL'));
+    }, getConfig("AUTO_COLLAPSE_CHECK_INTERVAL"));
   }
 }
 
+/**
+ * Verifica e desagrupa grupos que contêm apenas uma aba por um período de tempo configurado.
+ * Ignora grupos marcados como manuais.
+ */
 async function checkSingleTabGroups() {
   if (!settings.ungroupSingleTabs || settings.ungroupSingleTabsTimeout <= 0)
     return;
@@ -422,6 +524,10 @@ async function checkSingleTabGroups() {
   }
 }
 
+/**
+ * Inicia ou para o temporizador que verifica e desagrupa grupos com uma única aba.
+ * A configuração é baseada em `settings.ungroupSingleTabs`.
+ */
 function updateUngroupTimer() {
   Logger.debug(
     "Timers",
@@ -434,13 +540,23 @@ function updateUngroupTimer() {
   if (ungroupInterval) clearInterval(ungroupInterval);
   ungroupInterval = null;
   if (settings.ungroupSingleTabs && settings.ungroupSingleTabsTimeout > 0) {
-    ungroupInterval = setInterval(checkSingleTabGroups, getConfig('SINGLE_TAB_CHECK_INTERVAL'));
+    ungroupInterval = setInterval(
+      checkSingleTabGroups,
+      getConfig("SINGLE_TAB_CHECK_INTERVAL")
+    );
   }
 }
 
+/**
+ * Lida com a ativação de uma aba.
+ * Se a configuração `uncollapseOnActivate` estiver ativa, expande o grupo
+ * da aba ativada e atualiza o seu tempo de atividade.
+ * @param {object} activeInfo - Informações sobre a aba ativada.
+ * @param {number} activeInfo.tabId - O ID da aba que foi ativada.
+ */
 async function handleTabActivated({ tabId }) {
   if (!settings.uncollapseOnActivate) return;
-  
+
   const result = await handleTabOperation(async () => {
     const tab = await browser.tabs.get(tabId);
     if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
@@ -455,16 +571,25 @@ async function handleTabActivated({ tabId }) {
       }
       return { success: true, groupId: group.id };
     }
-    return { success: false, reason: 'no_group' };
+    return { success: false, reason: "no_group" };
   }, `handleTabActivated-${tabId}`);
-  
+
   if (result === null) {
-    Logger.debug("handleTabActivated", `Aba ${tabId} ou grupo não encontrado - operação ignorada.`);
+    Logger.debug(
+      "handleTabActivated",
+      `Aba ${tabId} ou grupo não encontrado - operação ignorada.`
+    );
   }
 }
 
 // --- Lógica de Contagem e Títulos dos Grupos ---
 
+/**
+ * Atualiza o título de um grupo para incluir a contagem de abas.
+ * Ex: "Meu Grupo" -> "Meu Grupo (3)".
+ * Adiciona um pino (📌) para grupos manuais.
+ * @param {number} groupId - O ID do grupo a ser atualizado.
+ */
 async function updateGroupTitleWithCount(groupId) {
   if (
     !settings.showTabCount ||
@@ -472,7 +597,7 @@ async function updateGroupTitleWithCount(groupId) {
     groupId === browser.tabs.TAB_ID_NONE
   )
     return;
-    
+
   const result = await handleGroupOperation(async () => {
     const group = await browser.tabGroups.get(groupId);
     const tabsInGroup = await browser.tabs.query({ groupId });
@@ -495,30 +620,44 @@ async function updateGroupTitleWithCount(groupId) {
       await browser.tabGroups.update(groupId, { title: newTitle });
       return { success: true, newTitle };
     }
-    return { success: false, reason: 'no_change_needed' };
+    return { success: false, reason: "no_change_needed" };
   }, `updateGroupTitle-${groupId}`);
-  
+
   if (result === null) {
-    Logger.debug("updateGroupTitle", `Grupo ${groupId} não encontrado - operação ignorada.`);
+    Logger.debug(
+      "updateGroupTitle",
+      `Grupo ${groupId} não encontrado - operação ignorada.`
+    );
   }
 }
 
+/**
+ * Agenda uma atualização do título do grupo usando um debounce.
+ * Evita atualizações excessivas quando várias abas são movidas rapidamente.
+ * @param {number} groupId - O ID do grupo a ter o título atualizado.
+ */
 function scheduleTitleUpdate(groupId) {
   if (!groupId || groupId === browser.tabs.TAB_ID_NONE) return;
-  if (debouncedTitleUpdaters.has(groupId)) {
-    clearTimeout(debouncedTitleUpdaters.get(groupId));
+  // Usamos debouncedTitleUpdaters para debounce de títulos de grupo E invalidação de cache
+  // Para evitar conflitos, usamos um prefixo diferente para títulos de grupo
+  const groupTitleDebounceKey = `group-title-${groupId}`;
+  if (debouncedTitleUpdaters.has(groupTitleDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(groupTitleDebounceKey));
   }
   const timeoutId = setTimeout(() => {
     updateGroupTitleWithCount(groupId);
-    debouncedTitleUpdaters.delete(groupId);
-  }, getConfig('TITLE_UPDATE_DEBOUNCE'));
-  debouncedTitleUpdaters.set(groupId, timeoutId);
+    debouncedTitleUpdaters.delete(groupTitleDebounceKey);
+  }, getConfig("TITLE_UPDATE_DEBOUNCE"));
+  debouncedTitleUpdaters.set(groupTitleDebounceKey, timeoutId);
 }
 
 // --- Lógica de Grupos Manuais e Edição de Regras ---
 
 /**
- * Lida com a criação de um novo grupo de abas.
+ * Lida com a criação de um novo grupo de abas (onCreated).
+ * Determina se o grupo foi criado manualmente pelo utilizador ou automaticamente pela extensão.
+ * Grupos manuais são rastreados para evitar que sejam processados automaticamente.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi criado.
  */
 async function handleTabGroupCreated(group) {
   const tabsInNewGroup = await browser.tabs.query({ groupId: group.id });
@@ -559,9 +698,9 @@ async function handleTabGroupCreated(group) {
         });
         return { success: true, title: `📌 ${cleanTitle}` };
       }
-      return { success: false, reason: 'already_pinned' };
+      return { success: false, reason: "already_pinned" };
     }, `handleTabGroupCreated-pin-${group.id}`);
-    
+
     if (pinResult === null) {
       Logger.warn(
         "handleTabGroupCreated",
@@ -571,6 +710,12 @@ async function handleTabGroupCreated(group) {
   }
 }
 
+/**
+ * Lida com a atualização de um grupo de abas (onUpdated).
+ * Garante que o pino (📌) seja adicionado ou removido do título
+ * para refletir o estado manual do grupo.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi atualizado.
+ */
 async function handleTabGroupUpdated(group) {
   Logger.debug("handleTabGroupUpdated", `Grupo ${group.id} atualizado.`, group);
   const isManual = settings.manualGroupIds.includes(group.id);
@@ -586,9 +731,15 @@ async function handleTabGroupUpdated(group) {
   }
 }
 
+/**
+ * Lida com a remoção de um grupo de abas (onRemoved).
+ * Limpa o estado associado, como o ID do grupo manual,
+ * timers e entradas de mapa.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi removido.
+ */
 async function handleTabGroupRemoved(group) {
   Logger.info("handleTabGroupRemoved", `Grupo ${group.id} removido.`, group);
-  
+
   // Atualiza configurações se era um grupo manual
   if (settings.manualGroupIds.includes(group.id)) {
     const newManualIds = settings.manualGroupIds.filter(
@@ -596,17 +747,18 @@ async function handleTabGroupRemoved(group) {
     );
     await updateSettings({ manualGroupIds: newManualIds });
   }
-  
+
   // Limpeza proativa de recursos relacionados ao grupo removido
   groupActivity.delete(group.id);
   singleTabGroupTimestamps.delete(group.id);
-  
+
   // Cancela qualquer updater de título pendente para este grupo
-  if (debouncedTitleUpdaters.has(group.id)) {
-    clearTimeout(debouncedTitleUpdaters.get(group.id));
-    debouncedTitleUpdaters.delete(group.id);
+  const groupTitleDebounceKey = `group-title-${group.id}`;
+  if (debouncedTitleUpdaters.has(groupTitleDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(groupTitleDebounceKey));
+    debouncedTitleUpdaters.delete(groupTitleDebounceKey);
   }
-  
+
   // Remove abas órfãs do mapa tab-grupo
   for (const [tabId, groupId] of tabGroupMap.entries()) {
     if (groupId === group.id) {
@@ -615,6 +767,13 @@ async function handleTabGroupRemoved(group) {
   }
 }
 
+/**
+ * Compara as regras antigas e novas para detetar edições (nome ou cor).
+ * Se uma regra foi alterada, atualiza os grupos de abas existentes
+ * que correspondem ao nome antigo da regra.
+ * @param {object} oldSettings - As configurações antigas.
+ * @param {object} newSettings - As novas configurações.
+ */
 async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
   const oldRules = oldSettings.customRules || [];
   const newRules = newSettings.customRules || [];
@@ -697,10 +856,14 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           Logger.setLevel(newSettings.logLevel);
 
           await checkForRenamedOrEditedRules(oldSettings, newSettings);
+          // NOVO: Recarrega as regras de renomeação no motor
+          globalTabRenamingEngine.loadRules(newSettings.tabRenamingRules || []);
 
           toggleListeners(
-            newSettings.autoGroupingEnabled || newSettings.showTabCount
-          );
+            newSettings.autoGroupingEnabled ||
+              newSettings.showTabCount ||
+              newSettings.tabRenamingEnabled
+          ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
           updateAutoCollapseTimer();
           updateUngroupTimer();
           await updateContextMenus();
@@ -727,14 +890,21 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(cleanupStats);
           break;
         case "getAdaptiveMemoryStats":
-          sendResponse(globalAdaptiveMemoryManager.getDetailedStats(memoryMaps));
+          sendResponse(
+            globalAdaptiveMemoryManager.getDetailedStats(memoryMaps)
+          );
           break;
         case "forceAdaptiveCleanup":
-          const adaptiveCleanupStats = await globalAdaptiveMemoryManager.performAdaptiveCleanup(memoryMaps, message.strategy);
+          const adaptiveCleanupStats =
+            await globalAdaptiveMemoryManager.performAdaptiveCleanup(
+              memoryMaps,
+              message.strategy
+            );
           sendResponse(adaptiveCleanupStats);
           break;
         case "emergencyAdaptiveCleanup":
-          const emergencyStats = await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
+          const emergencyStats =
+            await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
           sendResponse(emergencyStats);
           break;
         case "getErrorStats":
@@ -745,11 +915,17 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
         case "setCustomErrorStrategy":
-          globalAdaptiveErrorHandler.setCustomStrategy(message.errorType, message.config);
+          globalAdaptiveErrorHandler.setCustomStrategy(
+            message.errorType,
+            message.config
+          );
           sendResponse({ success: true });
           break;
         case "setContextualErrorConfig":
-          globalAdaptiveErrorHandler.setContextualConfig(message.context, message.config);
+          globalAdaptiveErrorHandler.setContextualConfig(
+            message.context,
+            message.config
+          );
           sendResponse({ success: true });
           break;
         case "getCacheStats":
@@ -757,16 +933,22 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse(getCacheStats());
           break;
         case "getDetailedCacheStats":
-          const { getDetailedCacheStats } = await import("./settings-manager.js");
+          const { getDetailedCacheStats } = await import(
+            "./settings-manager.js"
+          );
           sendResponse(getDetailedCacheStats());
           break;
         case "invalidateCacheByDomain":
-          const { invalidateCacheByDomainChange } = await import("./settings-manager.js");
+          const { invalidateCacheByDomainChange } = await import(
+            "./settings-manager.js"
+          );
           invalidateCacheByDomainChange(message.hostname, message.changeType);
           sendResponse({ success: true });
           break;
         case "invalidateCacheByCriteria":
-          const { invalidateCacheByCriteria } = await import("./settings-manager.js");
+          const { invalidateCacheByCriteria } = await import(
+            "./settings-manager.js"
+          );
           const invalidatedCount = invalidateCacheByCriteria(message.criteria);
           sendResponse({ success: true, invalidated: invalidatedCount });
           break;
@@ -776,7 +958,9 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ success: true });
           break;
         case "migrateLegacyCache":
-          const { migrateLegacyCacheToIntelligent } = await import("./settings-manager.js");
+          const { migrateLegacyCacheToIntelligent } = await import(
+            "./settings-manager.js"
+          );
           const migrationResult = await migrateLegacyCacheToIntelligent();
           sendResponse(migrationResult);
           break;
@@ -839,112 +1023,159 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Indica que a resposta será assíncrona.
 });
 
+/**
+ * Popula o mapa `tabGroupMap` com o estado atual de todas as abas e seus grupos.
+ * Essencial para ter uma visão correta do estado dos grupos no arranque da extensão.
+ */
 async function populateTabGroupMap() {
   tabGroupMap.clear();
-  await handleCriticalOperation(async () => {
-    const allTabs = await browser.tabs.query({});
-    for (const tab of allTabs) {
-      if (tab.groupId) {
-        tabGroupMap.set(tab.id, tab.groupId);
+  await handleCriticalOperation(
+    async () => {
+      const allTabs = await browser.tabs.query({});
+      for (const tab of allTabs) {
+        if (tab.groupId) {
+          tabGroupMap.set(tab.id, tab.groupId);
+        }
       }
+      Logger.debug(
+        "populateTabGroupMap",
+        `Mapa populado com ${tabGroupMap.size} entradas.`
+      );
+      return { success: true, count: tabGroupMap.size };
+    },
+    "populateTabGroupMap",
+    async () => {
+      // Fallback: inicia com mapa vazio, funcionalidades ainda funcionarão
+      Logger.warn(
+        "populateTabGroupMap",
+        "Usando fallback - mapa de abas vazio."
+      );
+      return { success: false, fallback: true };
     }
-    Logger.debug("populateTabGroupMap", `Mapa populado com ${tabGroupMap.size} entradas.`);
-    return { success: true, count: tabGroupMap.size };
-  }, "populateTabGroupMap", async () => {
-    // Fallback: inicia com mapa vazio, funcionalidades ainda funcionarão
-    Logger.warn("populateTabGroupMap", "Usando fallback - mapa de abas vazio.");
-    return { success: false, fallback: true };
-  });
+  );
 }
 
+/**
+ * Função principal de inicialização da extensão.
+ * Carrega configurações, inicializa listeners, temporizadores e todos os
+ * subsistemas necessários para o funcionamento da extensão.
+ * Inclui tratamento de erros críticos para garantir um arranque robusto.
+ */
 async function main() {
-  await handleCriticalOperation(async () => {
-    Logger.info("Main", "Extensão a inicializar...");
-    
-    // Carregamento de configurações é crítico
-    await loadSettings();
-    Logger.setLevel(settings.logLevel);
-    
-    // Carrega configurações de performance
-    loadConfigFromSettings(settings);
-    
-    Logger.info("Main", "Configurações iniciais carregadas:", settings);
+  await handleCriticalOperation(
+    async () => {
+      Logger.info("Main", "Extensão a inicializar...");
 
-    // --- ADIÇÃO DE LISTENERS COM VERIFICAÇÃO DE SEGURANÇA ---
-    // Cada 'addListener' é agora verificado para garantir que a API existe antes de ser usada.
-    // Isto previne a falha crítica 'Cannot read properties of undefined (reading 'addListener')'.
+      // Carregamento de configurações é crítico
+      await loadSettings();
+      Logger.setLevel(settings.logLevel);
 
-    if (browser.tabs && browser.tabs.onActivated) {
-      browser.tabs.onActivated.addListener(handleTabActivated);
-    } else {
-      Logger.warn("Main", "API 'tabs.onActivated' não disponível.");
-    }
+      // Carrega configurações de performance
+      loadConfigFromSettings(settings);
 
-    if (browser.tabGroups) {
-      await populateTabGroupMap();
+      Logger.info("Main", "Configurações iniciais carregadas:", settings);
 
-      if (settings.showTabCount && browser.tabGroups.query) {
-        await withErrorHandling(async () => {
-          const allGroups = await browser.tabGroups.query({});
-          const titleUpdatePromises = allGroups.map((group) =>
-            updateGroupTitleWithCount(group.id)
-          );
-          await Promise.allSettled(titleUpdatePromises);
-          return { success: true, groupCount: allGroups.length };
-        }, {
-          context: 'initial-title-updates',
-          maxRetries: 2,
-          criticalOperation: false
-        });
+      // --- ADIÇÃO DE LISTENERS COM VERIFICAÇÃO DE SEGURANÇA ---
+      // Cada 'addListener' é agora verificado para garantir que a API existe antes de ser usada.
+      // Isto previne a falha crítica 'Cannot read properties of undefined (reading 'addListener')'.
+
+      if (browser.tabs && browser.tabs.onActivated) {
+        browser.tabs.onActivated.addListener(handleTabActivated);
+      } else {
+        Logger.warn("Main", "API 'tabs.onActivated' não disponível.");
       }
 
-      // Verifica cada evento individualmente antes de adicionar o listener.
-      if (browser.tabGroups.onCreated)
-        browser.tabGroups.onCreated.addListener(handleTabGroupCreated);
-      if (browser.tabGroups.onUpdated)
-        browser.tabGroups.onUpdated.addListener(handleTabGroupUpdated);
-      if (browser.tabGroups.onRemoved)
-        browser.tabGroups.onRemoved.addListener(handleTabGroupRemoved);
-    } else {
-      Logger.warn(
-        "Main",
-        "A API 'tabGroups' não é suportada ou está indisponível. Funcionalidades de grupo desativadas."
+      if (browser.tabGroups) {
+        await populateTabGroupMap();
+
+        if (settings.showTabCount && browser.tabGroups.query) {
+          await withErrorHandling(
+            async () => {
+              const allGroups = await browser.tabGroups.query({});
+              const titleUpdatePromises = allGroups.map((group) =>
+                updateGroupTitleWithCount(group.id)
+              );
+              await Promise.allSettled(titleUpdatePromises);
+              return { success: true, groupCount: allGroups.length };
+            },
+            {
+              context: "initial-title-updates",
+              maxRetries: 2,
+              criticalOperation: false,
+            }
+          );
+        }
+
+        // Verifica cada evento individualmente antes de adicionar o listener.
+        if (browser.tabGroups.onCreated)
+          browser.tabGroups.onCreated.addListener(handleTabGroupCreated);
+        if (browser.tabGroups.onUpdated)
+          browser.tabGroups.onUpdated.addListener(handleTabGroupUpdated);
+        if (browser.tabGroups.onRemoved)
+          browser.tabGroups.onRemoved.addListener(handleTabGroupRemoved);
+      } else {
+        Logger.warn(
+          "Main",
+          "A API 'tabGroups' não é suportada ou está indisponível. Funcionalidades de grupo desativadas."
+        );
+      }
+
+      // Inicialização de componentes opcionais com tratamento de erro individual
+      await withErrorHandling(
+        async () => {
+          initializeContextMenus();
+          await updateContextMenus();
+        },
+        {
+          context: "context-menus-init",
+          maxRetries: 1,
+          criticalOperation: false,
+        }
       );
+
+      // NOVO: Carrega as regras de renomeação no motor
+      globalTabRenamingEngine.loadRules(settings.tabRenamingRules || []);
+      // NOVO: Inicia a limpeza do cache de renomeação
+      globalTabRenamingEngine.startCacheCleanup();
+
+      toggleListeners(
+        settings.autoGroupingEnabled ||
+          settings.showTabCount ||
+          settings.tabRenamingEnabled
+      );
+      updateAutoCollapseTimer();
+      updateUngroupTimer();
+
+      // Inicia o gerenciamento automático de memória
+      startMemoryCleanup(memoryMaps);
+
+      // Executa uma limpeza inicial após inicialização
+      setTimeout(async () => {
+        const initialCleanup = await performMemoryCleanup(memoryMaps);
+        Logger.info(
+          "Main",
+          "Limpeza inicial de memória concluída:",
+          initialCleanup
+        );
+      }, getConfig("INITIAL_CLEANUP_DELAY"));
+
+      Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", {
+        settings,
+      });
+      return { success: true };
+    },
+    "main-initialization",
+    async () => {
+      // Fallback para inicialização mínima
+      Logger.error(
+        "Main",
+        "Iniciando em modo de recuperação com configurações mínimas."
+      );
+      settings = { ...DEFAULT_SETTINGS };
+      Logger.setLevel("ERROR");
+      return { success: false, fallback: true };
     }
-
-    // Inicialização de componentes opcionais com tratamento de erro individual
-    await withErrorHandling(async () => {
-      initializeContextMenus();
-      await updateContextMenus();
-    }, {
-      context: 'context-menus-init',
-      maxRetries: 1,
-      criticalOperation: false
-    });
-
-    toggleListeners(settings.autoGroupingEnabled || settings.showTabCount);
-    updateAutoCollapseTimer();
-    updateUngroupTimer();
-
-    // Inicia o gerenciamento automático de memória
-    startMemoryCleanup(memoryMaps);
-    
-    // Executa uma limpeza inicial após inicialização
-    setTimeout(async () => {
-      const initialCleanup = await performMemoryCleanup(memoryMaps);
-      Logger.info("Main", "Limpeza inicial de memória concluída:", initialCleanup);
-    }, getConfig('INITIAL_CLEANUP_DELAY'));
-
-    Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", { settings });
-    return { success: true };
-    
-  }, "main-initialization", async () => {
-    // Fallback para inicialização mínima
-    Logger.error("Main", "Iniciando em modo de recuperação com configurações mínimas.");
-    settings = { ...DEFAULT_SETTINGS };
-    Logger.setLevel("ERROR");
-    return { success: false, fallback: true };
-  });
+  );
 }
 
 main();

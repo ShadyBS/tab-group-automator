@@ -3,6 +3,9 @@
  * @description Módulo de logging centralizado para a extensão.
  */
 
+// Mensagem de depuração para confirmar o carregamento do módulo
+console.log("logger.js loaded");
+
 // Define os níveis de log por ordem de severidade.
 const LOG_LEVELS = {
   DEBUG: 0,
@@ -61,7 +64,8 @@ function log(level, context, message, ...details) {
   );
 }
 
-export default {
+// Exporta as funções individualmente para maior compatibilidade e clareza
+export const Logger = {
   /**
    * Define o nível de log a ser exibido.
    * @param {string} levelName - 'DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE'.
@@ -83,3 +87,6 @@ export default {
   error: (context, message, ...details) =>
     log(LOG_LEVELS.ERROR, context, message, ...details),
 };
+
+// Exporta o objeto Logger como default para compatibilidade com importações existentes
+export default Logger;
