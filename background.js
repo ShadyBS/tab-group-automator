@@ -56,6 +56,7 @@ import {
 } from "./browser-api-wrapper.js";
 import { globalAPIRateLimiter } from "./api-rate-limiter.js";
 import { globalTabRenamingEngine } from "./tab-renaming-engine.js"; // Importa o motor de renomeação de abas
+import { learningEngine } from "./learning-engine.js"; // NOVO: Importa o motor de aprendizado
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
@@ -68,6 +69,8 @@ let groupActivity = new Map();
 let collapseInterval = null;
 let ungroupInterval = null;
 let singleTabGroupTimestamps = new Map();
+let pendingSuggestion = null; // NOVO: Armazena a sugestão pendente
+let suggestionCheckTimeout = null; // NOVO: Timeout para debounce da verificação
 
 // Objeto para facilitar passagem de mapas para gerenciador de memória
 const memoryMaps = {
@@ -95,6 +98,55 @@ const memoryMaps = {
 };
 
 // --- Lógica de Onboarding ---
+
+// --- NOVO: Lógica de Sugestões ---
+
+/**
+ * Agenda uma verificação de sugestões de grupo com debounce.
+ * Evita verificações repetidas em rápida sucessão.
+ */
+function scheduleSuggestionCheck() {
+  if (suggestionCheckTimeout) clearTimeout(suggestionCheckTimeout);
+
+  suggestionCheckTimeout = setTimeout(async () => {
+    if (!settings.suggestionsEnabled) {
+      pendingSuggestion = null;
+      return;
+    }
+
+    try {
+      const allTabs = await browser.tabs.query({
+        currentWindow: true,
+        pinned: false,
+      });
+      const ungroupedTabs = allTabs.filter(
+        (tab) => !tab.groupId || tab.groupId === browser.tabs.TAB_ID_NONE
+      );
+
+      pendingSuggestion = learningEngine.getSuggestion(ungroupedTabs);
+
+      if (pendingSuggestion) {
+        Logger.info(
+          "scheduleSuggestionCheck",
+          "Nova sugestão disponível.",
+          pendingSuggestion
+        );
+        // Notifica o popup que uma nova sugestão está pronta
+        browser.runtime
+          .sendMessage({ action: "suggestionUpdated" })
+          .catch(() => {});
+      }
+    } catch (e) {
+      Logger.error(
+        "scheduleSuggestionCheck",
+        "Erro ao verificar sugestões:",
+        e
+      );
+      pendingSuggestion = null;
+    }
+  }, getConfig("SUGGESTION_CHECK_DEBOUNCE") || 3000); // Fallback de 3s
+}
+
 browser.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === "install") {
     Logger.info(
@@ -205,6 +257,7 @@ function scheduleQueueProcessing() {
       tabsToProcess
     );
     await processTabQueue(tabsToProcess);
+    scheduleSuggestionCheck(); // NOVO: Verifica sugestões após processar a fila
   }, getConfig("QUEUE_DELAY"));
 }
 
@@ -326,6 +379,7 @@ function handleTabRemoved(tabId, removeInfo) {
   if (oldGroupId) {
     scheduleTitleUpdate(oldGroupId);
   }
+  scheduleSuggestionCheck(); // NOVO: Verifica sugestões após remover aba
 
   // Limpeza proativa de recursos relacionados à aba removida
   tabGroupMap.delete(tabId);
@@ -707,6 +761,14 @@ async function handleTabGroupCreated(group) {
         `Grupo manual ${group.id} removido antes de adicionar pino.`
       );
     }
+
+    // --- NOVO: Lógica de Aprendizagem na Criação ---
+    // Se o grupo manual já foi criado com um título, aprende com ele.
+    const cleanTitle = (group.title || "").replace(/📌\s*/, "").trim();
+    if (cleanTitle) {
+      learningEngine.learnFromGroup(cleanTitle, tabsInNewGroup);
+    }
+    // --- FIM NOVO ---
   }
 }
 
@@ -721,6 +783,40 @@ async function handleTabGroupUpdated(group) {
   const isManual = settings.manualGroupIds.includes(group.id);
   const title = group.title || "";
   const hasPin = title.startsWith("📌");
+
+  // --- NOVO: Lógica de Aprendizagem ---
+  // Aprende quando o título de um grupo manual é alterado pelo usuário.
+  // Usamos um debounce para não acionar o aprendizado em cada letra digitada,
+  // mas sim quando o usuário para de editar o título.
+  const learningDebounceKey = `learning-update-${group.id}`;
+  if (debouncedTitleUpdaters.has(learningDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(learningDebounceKey));
+  }
+
+  const timeoutId = setTimeout(async () => {
+    try {
+      const currentGroup = await browser.tabGroups.get(group.id);
+      const cleanTitle = (currentGroup.title || "").replace(/📌\s*/, "").trim();
+
+      // Só aprende se for um grupo manual e tiver um título significativo
+      if (isManual && cleanTitle) {
+        const tabsInGroup = await browser.tabs.query({ groupId: group.id });
+        if (tabsInGroup.length > 0) {
+          await learningEngine.learnFromGroup(cleanTitle, tabsInGroup);
+        }
+      }
+    } catch (e) {
+      Logger.warn(
+        "handleTabGroupUpdated",
+        `Não foi possível aprender com o grupo ${group.id}, pode ter sido removido.`,
+        e
+      );
+    } finally {
+      debouncedTitleUpdaters.delete(learningDebounceKey);
+    }
+  }, 2000); // Aguarda 2 segundos de inatividade antes de aprender
+  debouncedTitleUpdaters.set(learningDebounceKey, timeoutId);
+  // --- FIM NOVO ---
 
   if (isManual && !hasPin) {
     await browser.tabGroups.update(group.id, { title: `📌 ${title}` });
@@ -739,6 +835,7 @@ async function handleTabGroupUpdated(group) {
  */
 async function handleTabGroupRemoved(group) {
   Logger.info("handleTabGroupRemoved", `Grupo ${group.id} removido.`, group);
+  scheduleSuggestionCheck(); // NOVO: Verifica sugestões após remover grupo
 
   // Atualiza configurações se era um grupo manual
   if (settings.manualGroupIds.includes(group.id)) {
@@ -848,6 +945,46 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       switch (message.action) {
         case "getSettings":
           sendResponse(settings);
+          break;
+        case "getSuggestion": // NOVO
+          sendResponse(pendingSuggestion);
+          break;
+        case "clearSuggestion": // NOVO
+          pendingSuggestion = null;
+          sendResponse({ success: true });
+          break;
+        case "clearLearningHistory": // NOVO
+          await learningEngine.clearHistory();
+          sendResponse({ success: true });
+          break;
+        case "acceptSuggestion": // NOVO
+          if (message.suggestion && message.suggestion.tabIds) {
+            try {
+              const { tabIds, suggestedName } = message.suggestion;
+              const newGroupId = await browser.tabs.group({ tabIds });
+              await browser.tabGroups.update(newGroupId, {
+                title: suggestedName,
+              });
+
+              // Reforça o padrão após o sucesso
+              const tabsInGroup = await browser.tabs.query({
+                groupId: newGroupId,
+              });
+              learningEngine.learnFromGroup(suggestedName, tabsInGroup);
+
+              pendingSuggestion = null; // Limpa a sugestão
+              sendResponse({ success: true, groupId: newGroupId });
+            } catch (e) {
+              Logger.error(
+                "acceptSuggestion",
+                "Erro ao criar grupo a partir da sugestão:",
+                e
+              );
+              sendResponse({ success: false, error: e.message });
+            }
+          } else {
+            sendResponse({ success: false, error: "Sugestão inválida." });
+          }
           break;
         case "updateSettings":
           const { oldSettings, newSettings } = await updateSettings(
@@ -1069,6 +1206,9 @@ async function main() {
       // Carregamento de configurações é crítico
       await loadSettings();
       Logger.setLevel(settings.logLevel);
+
+      // NOVO: Inicializa o motor de aprendizado
+      await learningEngine.initialize();
 
       // Carrega configurações de performance
       loadConfigFromSettings(settings);

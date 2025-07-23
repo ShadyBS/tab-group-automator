@@ -53,6 +53,35 @@
         Opções
       </button>
 
+      <!-- NOVO: Seção de Sugestões -->
+      <div
+        id="suggestion-box"
+        class="mt-4 p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg shadow-sm hidden"
+      >
+        <h3 class="font-bold text-sm text-blue-800 dark:text-blue-200 mb-2">
+          Sugestão para Você
+        </h3>
+        <p class="text-xs text-gray-700 dark:text-gray-300 mb-3">
+          Criar um grupo chamado
+          <strong id="suggestion-name" class="font-bold"></strong>?
+        </p>
+        <div class="flex space-x-2">
+          <button
+            id="accept-suggestion"
+            class="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-2 rounded"
+          >
+            Criar
+          </button>
+          <button
+            id="reject-suggestion"
+            class="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-2 rounded"
+          >
+            Ignorar
+          </button>
+        </div>
+      </div>
+      <!-- FIM NOVO -->
+
       <!-- Elemento para mensagens de estado -->
       <div id="popup-status" class="text-xs text-center mt-2 h-4"></div>
     </div>

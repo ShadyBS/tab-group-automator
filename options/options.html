@@ -228,6 +228,57 @@
         </div>
       </section>
 
+      <!-- NOVO: Seção de Sugestões Inteligentes -->
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Sugestões Inteligentes
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="suggestionsEnabled" class="font-semibold"
+              >Ativar sugestões de grupo:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="suggestionsEnabled"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="checkbox"
+              id="suggestionsEnabled"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="clearLearningHistoryBtn" class="font-semibold"
+              >Histórico de aprendizado:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="clearLearningHistory"
+              >
+                ?
+              </button></label
+            >
+            <button
+              id="clearLearningHistoryBtn"
+              class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-200 text-sm"
+            >
+              Limpar Histórico
+            </button>
+          </div>
+        </div>
+      </section>
+      <!-- FIM NOVO -->
+
       <!-- NOVO: Seção de Renomeação Automática de Abas -->
       <section
         class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"

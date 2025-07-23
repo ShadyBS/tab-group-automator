@@ -165,6 +165,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ),
     cancelRenamingRuleBtn: document.getElementById("cancelRenamingRuleBtn"),
     saveRenamingRuleBtn: document.getElementById("saveRenamingRuleBtn"),
+    // NOVO: Elementos de Sugestões Inteligentes
+    suggestionsEnabled: document.getElementById("suggestionsEnabled"),
+    clearLearningHistoryBtn: document.getElementById("clearLearningHistoryBtn"),
   };
 
   let currentSettings = {};
@@ -690,6 +693,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderRulesList(); // Agrupamento
     // NOVO: Renomeação de Abas
     ui.tabRenamingEnabled.checked = settings.tabRenamingEnabled || false;
+    // NOVO: Sugestões
+    ui.suggestionsEnabled.checked =
+      settings.suggestionsEnabled === undefined
+        ? true
+        : settings.suggestionsEnabled;
     renderRenamingRulesList();
   }
 
@@ -724,6 +732,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // NOVO: Renomeação de Abas
       tabRenamingEnabled: ui.tabRenamingEnabled.checked,
       tabRenamingRules: currentSettings.tabRenamingRules || [],
+      // NOVO: Sugestões
+      suggestionsEnabled: ui.suggestionsEnabled.checked,
     };
   }
 
@@ -1702,6 +1712,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "domainSanitizationTlds",
       "titleSanitizationNoise",
       "tabRenamingEnabled", // NOVO
+      "suggestionsEnabled", // NOVO
     ];
     autoSaveFields.forEach((id) => {
       const el = ui[id];
@@ -2096,6 +2107,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (ui.resetPerformanceConfig) {
     ui.resetPerformanceConfig.addEventListener("click", resetPerformanceConfig);
+  }
+
+  // NOVO: Listener para limpar histórico de aprendizado
+  if (ui.clearLearningHistoryBtn) {
+    ui.clearLearningHistoryBtn.addEventListener("click", () => {
+      showConfirmModal(
+        "Tem a certeza que deseja apagar todo o histórico de aprendizado? A extensão deixará de oferecer sugestões personalizadas até aprender novamente com os seus hábitos.",
+        async () => {
+          try {
+            await browser.runtime.sendMessage({
+              action: "clearLearningHistory",
+            });
+            showNotification(
+              "Histórico de aprendizado limpo com sucesso.",
+              "success"
+            );
+          } catch (e) {
+            console.error("Erro ao limpar histórico:", e);
+            showNotification("Não foi possível limpar o histórico.", "error");
+          }
+        },
+        { confirmText: "Sim, Limpar" }
+      );
+    });
   }
 
   initialize();
