@@ -170,6 +170,11 @@ async function invalidateCacheForDomainChange(hostname, changeType) {
 
 // --- Lógica de Processamento e Gestão de Eventos ---
 
+/**
+ * Agenda o processamento da fila de abas.
+ * Usa um timeout para agrupar múltiplas adições de abas em um único processamento.
+ * Realiza uma verificação de memória de emergência antes de processar.
+ */
 function scheduleQueueProcessing() {
   Logger.debug(
     "scheduleQueueProcessing",
@@ -203,6 +208,14 @@ function scheduleQueueProcessing() {
   }, getConfig("QUEUE_DELAY"));
 }
 
+/**
+ * Lida com o evento de atualização de uma aba (onUpdated).
+ * Responsável por acionar o agrupamento, a renomeação de abas e a invalidação de cache
+ * com base em mudanças de status, título ou URL.
+ * @param {number} tabId - ID da aba que foi atualizada.
+ * @param {object} changeInfo - Objeto que descreve as mudanças na aba.
+ * @param {browser.tabs.Tab} tab - O estado atual da aba.
+ */
 // CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
 function handleTabUpdated(tabId, changeInfo, tab) {
   Logger.debug("handleTabUpdated", `Aba ${tabId} atualizada.`, {
@@ -300,6 +313,13 @@ function handleTabUpdated(tabId, changeInfo, tab) {
   // --- FIM NOVO ---
 }
 
+/**
+ * Lida com o evento de remoção de uma aba (onRemoved).
+ * Limpa os recursos associados à aba removida e agenda a atualização
+ * do título do grupo ao qual pertencia.
+ * @param {number} tabId - ID da aba que foi removida.
+ * @param {object} removeInfo - Informações sobre a remoção (ex: isWindowClosing).
+ */
 function handleTabRemoved(tabId, removeInfo) {
   Logger.debug("handleTabRemoved", `Aba ${tabId} removida.`, { removeInfo });
   const oldGroupId = tabGroupMap.get(tabId);
@@ -324,6 +344,11 @@ function handleTabRemoved(tabId, removeInfo) {
   }
 }
 
+/**
+ * Ativa ou desativa os listeners de eventos de abas (onUpdated, onRemoved).
+ * Inclui otimizações e fallbacks para garantir a compatibilidade entre navegadores.
+ * @param {boolean} enable - `true` para ativar os listeners, `false` para desativar.
+ */
 // CORRIGIDO: Adiciona "title" às propriedades que o listener de onUpdated observa.
 function toggleListeners(enable) {
   // Adiciona verificações de segurança para garantir que as APIs existem antes de usá-las.
@@ -377,6 +402,10 @@ function toggleListeners(enable) {
 
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
+/**
+ * Inicia ou para o temporizador que verifica e recolhe grupos de abas inativos.
+ * A configuração é baseada em `settings.autoCollapseTimeout`.
+ */
 function updateAutoCollapseTimer() {
   Logger.debug(
     "Timers",
@@ -433,6 +462,10 @@ function updateAutoCollapseTimer() {
   }
 }
 
+/**
+ * Verifica e desagrupa grupos que contêm apenas uma aba por um período de tempo configurado.
+ * Ignora grupos marcados como manuais.
+ */
 async function checkSingleTabGroups() {
   if (!settings.ungroupSingleTabs || settings.ungroupSingleTabsTimeout <= 0)
     return;
@@ -491,6 +524,10 @@ async function checkSingleTabGroups() {
   }
 }
 
+/**
+ * Inicia ou para o temporizador que verifica e desagrupa grupos com uma única aba.
+ * A configuração é baseada em `settings.ungroupSingleTabs`.
+ */
 function updateUngroupTimer() {
   Logger.debug(
     "Timers",
@@ -510,6 +547,13 @@ function updateUngroupTimer() {
   }
 }
 
+/**
+ * Lida com a ativação de uma aba.
+ * Se a configuração `uncollapseOnActivate` estiver ativa, expande o grupo
+ * da aba ativada e atualiza o seu tempo de atividade.
+ * @param {object} activeInfo - Informações sobre a aba ativada.
+ * @param {number} activeInfo.tabId - O ID da aba que foi ativada.
+ */
 async function handleTabActivated({ tabId }) {
   if (!settings.uncollapseOnActivate) return;
 
@@ -540,6 +584,12 @@ async function handleTabActivated({ tabId }) {
 
 // --- Lógica de Contagem e Títulos dos Grupos ---
 
+/**
+ * Atualiza o título de um grupo para incluir a contagem de abas.
+ * Ex: "Meu Grupo" -> "Meu Grupo (3)".
+ * Adiciona um pino (📌) para grupos manuais.
+ * @param {number} groupId - O ID do grupo a ser atualizado.
+ */
 async function updateGroupTitleWithCount(groupId) {
   if (
     !settings.showTabCount ||
@@ -581,6 +631,11 @@ async function updateGroupTitleWithCount(groupId) {
   }
 }
 
+/**
+ * Agenda uma atualização do título do grupo usando um debounce.
+ * Evita atualizações excessivas quando várias abas são movidas rapidamente.
+ * @param {number} groupId - O ID do grupo a ter o título atualizado.
+ */
 function scheduleTitleUpdate(groupId) {
   if (!groupId || groupId === browser.tabs.TAB_ID_NONE) return;
   // Usamos debouncedTitleUpdaters para debounce de títulos de grupo E invalidação de cache
@@ -599,7 +654,10 @@ function scheduleTitleUpdate(groupId) {
 // --- Lógica de Grupos Manuais e Edição de Regras ---
 
 /**
- * Lida com a criação de um novo grupo de abas.
+ * Lida com a criação de um novo grupo de abas (onCreated).
+ * Determina se o grupo foi criado manualmente pelo utilizador ou automaticamente pela extensão.
+ * Grupos manuais são rastreados para evitar que sejam processados automaticamente.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi criado.
  */
 async function handleTabGroupCreated(group) {
   const tabsInNewGroup = await browser.tabs.query({ groupId: group.id });
@@ -652,6 +710,12 @@ async function handleTabGroupCreated(group) {
   }
 }
 
+/**
+ * Lida com a atualização de um grupo de abas (onUpdated).
+ * Garante que o pino (📌) seja adicionado ou removido do título
+ * para refletir o estado manual do grupo.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi atualizado.
+ */
 async function handleTabGroupUpdated(group) {
   Logger.debug("handleTabGroupUpdated", `Grupo ${group.id} atualizado.`, group);
   const isManual = settings.manualGroupIds.includes(group.id);
@@ -667,6 +731,12 @@ async function handleTabGroupUpdated(group) {
   }
 }
 
+/**
+ * Lida com a remoção de um grupo de abas (onRemoved).
+ * Limpa o estado associado, como o ID do grupo manual,
+ * timers e entradas de mapa.
+ * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi removido.
+ */
 async function handleTabGroupRemoved(group) {
   Logger.info("handleTabGroupRemoved", `Grupo ${group.id} removido.`, group);
 
@@ -697,6 +767,13 @@ async function handleTabGroupRemoved(group) {
   }
 }
 
+/**
+ * Compara as regras antigas e novas para detetar edições (nome ou cor).
+ * Se uma regra foi alterada, atualiza os grupos de abas existentes
+ * que correspondem ao nome antigo da regra.
+ * @param {object} oldSettings - As configurações antigas.
+ * @param {object} newSettings - As novas configurações.
+ */
 async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
   const oldRules = oldSettings.customRules || [];
   const newRules = newSettings.customRules || [];
@@ -946,6 +1023,10 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Indica que a resposta será assíncrona.
 });
 
+/**
+ * Popula o mapa `tabGroupMap` com o estado atual de todas as abas e seus grupos.
+ * Essencial para ter uma visão correta do estado dos grupos no arranque da extensão.
+ */
 async function populateTabGroupMap() {
   tabGroupMap.clear();
   await handleCriticalOperation(
@@ -974,6 +1055,12 @@ async function populateTabGroupMap() {
   );
 }
 
+/**
+ * Função principal de inicialização da extensão.
+ * Carrega configurações, inicializa listeners, temporizadores e todos os
+ * subsistemas necessários para o funcionamento da extensão.
+ * Inclui tratamento de erros críticos para garantir um arranque robusto.
+ */
 async function main() {
   await handleCriticalOperation(
     async () => {

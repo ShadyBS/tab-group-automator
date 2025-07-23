@@ -56,6 +56,7 @@ export class TabRenamingEngine {
       failedExtractions: 0,
       cacheHits: 0,
       averageProcessingTime: 0,
+      totalProcessingTime: 0,
       ruleUsageStats: new Map(),
       lastCleanup: Date.now(),
     };
@@ -226,7 +227,7 @@ export class TabRenamingEngine {
     for (const rule of this.rules.values()) {
       if (!rule.enabled) continue; // Risco: Regras desabilitadas ainda podem ser processadas. Mitigação: Verifica `rule.enabled`.
 
-      if (this.matchesConditions(tab, rule.conditions)) {
+      if (this.matchesConditions(tab, rule)) {
         applicableRules.push(rule);
 
         // Atualiza estatísticas de uso da regra
@@ -242,92 +243,154 @@ export class TabRenamingEngine {
   }
 
   /**
-   * Verifica se uma aba atende às condições de uma regra
+   * Verifica se uma aba atende às condições de uma regra.
+   * Suporta o novo formato de array de condições.
    * @param {object} tab - Objeto da aba
-   * @param {object} conditions - Condições da regra
-   * @returns {boolean} True se atende às condições
+   * @param {object} rule - O objeto da regra contendo as condições e o operador.
+   * @returns {boolean} True se as condições da regra forem atendidas
    */
-  matchesConditions(tab, conditions) {
-    // Risco: Condições malformadas ou incompletas podem causar erros.
-    // Mitigação: Validação prévia das regras (validateTabRenamingRule) e tratamento de erros aqui.
-    if (!conditions) return false;
+  matchesConditions(tab, rule) {
+    const { conditions, conditionOperator = "AND" } = rule;
+
+    // Valida o novo formato de condições. O formato antigo é considerado inválido aqui.
+    if (!Array.isArray(conditions) || conditions.length === 0) {
+      // Não loga como erro, pois pode ser uma regra antiga ou malformada que será ignorada.
+      return false;
+    }
+
+    try {
+      const check = (condition) => this.evaluateCondition(tab, condition);
+
+      if (conditionOperator === "OR") {
+        // Lógica "OU": pelo menos uma condição deve ser verdadeira.
+        return conditions.some(check);
+      }
+      // Lógica "E" (padrão): todas as condições devem ser verdadeiras.
+      return conditions.every(check);
+    } catch (error) {
+      Logger.error(
+        "TabRenamingEngine",
+        `Erro inesperado ao avaliar condições para a aba ${tab.id}:`,
+        error
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Avalia uma única condição contra as propriedades da aba.
+   * @param {object} tab - Objeto da aba
+   * @param {object} condition - A condição a ser avaliada
+   * @returns {boolean} - True se a condição for satisfeita
+   */
+  evaluateCondition(tab, condition) {
+    // Validação básica da condição
+    if (
+      !condition ||
+      !condition.property ||
+      !condition.operator ||
+      condition.value === undefined
+    ) {
+      Logger.warn(
+        "TabRenamingEngine",
+        "Ignorando condição incompleta:",
+        condition
+      );
+      return false;
+    }
+
+    // Prepara as propriedades da aba para avaliação
+    const tabProperties = {
+      url: tab.url || "",
+      title: tab.title || "",
+      hostname: "",
+      url_path: "",
+    };
 
     try {
       const url = new URL(tab.url);
-      const hostname = url.hostname;
-      const pathname = url.pathname;
-      const title = tab.title || "";
+      tabProperties.hostname = url.hostname;
+      tabProperties.url_path = url.pathname;
+    } catch (e) {
+      // URL inválida, as propriedades de URL permanecerão vazias. A avaliação pode continuar.
+    }
 
-      // Verifica padrões de host
-      if (conditions.hostPatterns && conditions.hostPatterns.length > 0) {
-        const hostMatches = conditions.hostPatterns.some((pattern) => {
+    // Valida se a propriedade existe no nosso mapa
+    if (
+      !Object.prototype.hasOwnProperty.call(tabProperties, condition.property)
+    ) {
+      Logger.warn(
+        "TabRenamingEngine",
+        `Propriedade inválida na condição: ${condition.property}`
+      );
+      return false;
+    }
+
+    const propValue = String(tabProperties[condition.property] || "");
+    const condValue = String(condition.value || "").trim();
+
+    // Condições com valor vazio são ignoradas
+    if (condValue === "") {
+      return false;
+    }
+
+    try {
+      switch (condition.operator) {
+        case "contains":
+          return propValue.toLowerCase().includes(condValue.toLowerCase());
+        case "not_contains":
+          return !propValue.toLowerCase().includes(condValue.toLowerCase());
+        case "starts_with":
+          return propValue.toLowerCase().startsWith(condValue.toLowerCase());
+        case "ends_with":
+          return propValue.toLowerCase().endsWith(condValue.toLowerCase());
+        case "equals":
+          return propValue.toLowerCase() === condValue.toLowerCase();
+        case "regex":
           try {
-            const regex = this.convertWildcardToRegex(pattern);
-            return regex.test(hostname);
-          } catch (e) {
+            // Usa o valor original para a regex para preservar maiúsculas/minúsculas se necessário (controlado por flags)
+            return new RegExp(condition.value, "i").test(propValue);
+          } catch (regexError) {
             Logger.warn(
               "TabRenamingEngine",
-              `Padrão de host inválido: ${pattern}. Erro: ${e.message}`
+              `Regex inválida na condição: "${condition.value}"`,
+              regexError
             );
             return false;
           }
-        });
-        if (!hostMatches) return false;
-      }
-
-      // Verifica regex de host
-      if (conditions.hostRegex) {
-        try {
-          const hostRegex = new RegExp(conditions.hostRegex);
-          if (!hostRegex.test(tab.url)) return false;
-        } catch (e) {
+        case "wildcard":
+          try {
+            const wildcardRegex = new RegExp(
+              "^" +
+                condValue
+                  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                  .replace(/\\\*/g, ".*")
+                  .replace(/\\\?/g, ".") +
+                "$",
+              "i"
+            );
+            return wildcardRegex.test(propValue);
+          } catch (wildcardError) {
+            Logger.warn(
+              "TabRenamingEngine",
+              `Padrão wildcard inválido: "${condValue}"`,
+              wildcardError
+            );
+            return false;
+          }
+        default:
           Logger.warn(
             "TabRenamingEngine",
-            `Regex de host inválida: ${conditions.hostRegex}. Erro: ${e.message}`
+            `Operador desconhecido na condição: ${condition.operator}`
           );
           return false;
-        }
       }
-
-      // Verifica padrões de URL
-      if (conditions.urlPatterns && conditions.urlPatterns.length > 0) {
-        const urlMatches = conditions.urlPatterns.some((pattern) => {
-          try {
-            const regex = this.convertWildcardToRegex(pattern);
-            return regex.test(pathname);
-          } catch (e) {
-            Logger.warn(
-              "TabRenamingEngine",
-              `Padrão de URL inválido: ${pattern}. Erro: ${e.message}`
-            );
-            return false;
-          }
-        });
-        if (!urlMatches) return false;
-      }
-
-      // Verifica padrões de título
-      if (conditions.titlePatterns && conditions.titlePatterns.length > 0) {
-        const titleMatches = conditions.titlePatterns.some((pattern) => {
-          try {
-            const regex = this.convertWildcardToRegex(pattern);
-            return regex.test(title);
-          } catch (e) {
-            Logger.warn(
-              "TabRenamingEngine",
-              `Padrão de título inválido: ${pattern}. Erro: ${e.message}`
-            );
-            return false;
-          }
-        });
-        if (!titleMatches) return false;
-      }
-
-      return true;
     } catch (error) {
-      Logger.debug(
+      Logger.error(
         "TabRenamingEngine",
-        `Erro ao verificar condições: ${error.message}`
+        "Erro ao avaliar condição:",
+        error,
+        condition
       );
       return false;
     }
@@ -387,44 +450,53 @@ export class TabRenamingEngine {
     }
 
     for (const strategy of rule.renamingStrategies) {
+      let result = null;
       try {
-        const result = await this.executeStrategy(tab, strategy, rule.options);
-        if (result && result.trim()) {
-          return result.trim();
-        }
+        result = await this.executeStrategy(tab, strategy, rule.options);
       } catch (error) {
         Logger.debug(
           "TabRenamingEngine",
-          `Estratégia ${strategy.type} falhou: ${error.message}`
+          `Estratégia ${strategy.type} falhou com erro: ${error.message}`
         );
+        // O resultado permanece nulo, o que acionará o fallback.
+      }
 
-        // Tenta fallback se especificado
-        if (strategy.fallback) {
-          const fallbackStrategy = rule.renamingStrategies.find(
-            (s) => s.type === strategy.fallback
+      // Se a estratégia principal foi bem-sucedida, retorna o resultado.
+      if (result && result.trim()) {
+        return result.trim();
+      }
+
+      // Se a estratégia falhou (lançou erro ou retornou vazio), tenta o fallback.
+      if (strategy.fallback && typeof strategy.fallback === "object") {
+        Logger.debug(
+          "TabRenamingEngine",
+          `Estratégia ${strategy.type} falhou. Tentando fallback: ${strategy.fallback.type}`
+        );
+        try {
+          // O fallback agora é um objeto de estratégia completo.
+          const fallbackResult = await this.executeStrategy(
+            tab,
+            strategy.fallback,
+            rule.options
           );
-          if (fallbackStrategy) {
-            try {
-              const fallbackResult = await this.executeStrategy(
-                tab,
-                fallbackStrategy,
-                rule.options
-              );
-              if (fallbackResult && fallbackResult.trim()) {
-                return fallbackResult.trim();
-              }
-            } catch (fallbackError) {
-              Logger.debug(
-                "TabRenamingEngine",
-                `Fallback ${strategy.fallback} também falhou: ${fallbackError.message}`
-              );
-            }
+
+          if (fallbackResult && fallbackResult.trim()) {
+            Logger.debug(
+              "TabRenamingEngine",
+              `Fallback ${strategy.fallback.type} bem-sucedido.`
+            );
+            return fallbackResult.trim();
           }
+        } catch (fallbackError) {
+          Logger.debug(
+            "TabRenamingEngine",
+            `Fallback ${strategy.fallback.type} também falhou: ${fallbackError.message}`
+          );
         }
       }
     }
 
-    return null;
+    return null; // Retorna nulo se nenhuma estratégia (ou fallback) funcionar.
   }
 
   /**
@@ -672,11 +744,18 @@ export class TabRenamingEngine {
 
         Logger.debug(
           "TabRenamingEngine",
-          `Atualizando título da aba ${tabId} para: "${finalTitle}"`
+          `Atualizando título da aba ${tabId} para: "${finalTitle}" via injeção de script`
         );
 
-        // Usa o WrappedBrowserAPI para garantir rate limiting e tratamento de erros
-        await WrappedBrowserAPI.tabs.update(tabId, { title: finalTitle });
+        // Manifest V3 não permite alterar o título diretamente via tabs.update.
+        // A abordagem correta é injetar um script que altere document.title.
+        await browser.scripting.executeScript({
+          target: { tabId: tabId },
+          func: (title) => {
+            document.title = title;
+          },
+          args: [finalTitle],
+        });
 
         return true;
       },
@@ -687,29 +766,12 @@ export class TabRenamingEngine {
         fallback: () => {
           Logger.warn(
             "TabRenamingEngine",
-            `Falha ao atualizar título da aba ${tabId}.`
+            `Falha ao atualizar título da aba ${tabId} via injeção de script.`
           );
           return false;
         },
       }
     );
-  }
-
-  /**
-   * Converte padrão wildcard para regex
-   * @param {string} pattern - Padrão com wildcards
-   * @returns {RegExp} Expressão regular
-   */
-  convertWildcardToRegex(pattern) {
-    // Escapa caracteres especiais exceto * e ?
-    const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-
-    // Converte wildcards para regex
-    const regexPattern = escaped
-      .replace(/\\\*/g, ".*") // * vira .*
-      .replace(/\\\?/g, "."); // ? vira .
-
-    return new RegExp(`^${regexPattern}$`, "i");
   }
 
   /**
@@ -862,6 +924,7 @@ export class TabRenamingEngine {
       failedExtractions: 0,
       cacheHits: 0,
       averageProcessingTime: 0,
+      totalProcessingTime: 0,
       ruleUsageStats: new Map(),
       lastCleanup: Date.now(),
     };
@@ -875,6 +938,18 @@ export class TabRenamingEngine {
   clearCache() {
     this.cache.clear();
     Logger.info("TabRenamingEngine", "Cache limpo manualmente");
+  }
+
+  /**
+   * Atualiza o tempo médio de processamento.
+   * @param {number} processingTime - O tempo de processamento da última operação.
+   */
+  updateAverageProcessingTime(processingTime) {
+    this.metrics.totalProcessingTime += processingTime;
+    if (this.metrics.totalProcessed > 0) {
+      this.metrics.averageProcessingTime =
+        this.metrics.totalProcessingTime / this.metrics.totalProcessed;
+    }
   }
 }
 

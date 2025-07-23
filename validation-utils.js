@@ -3,6 +3,10 @@
  * @description Utilitários para validação de tipos e inputs, focado em type safety e robustez.
  */
 
+// Mensagem de depuração para confirmar o carregamento do módulo
+console.log("validation-utils.js loaded");
+
+// Importa o objeto Logger explicitamente
 import Logger from "./logger.js";
 
 /**
@@ -57,10 +61,18 @@ export const VALID_GROUP_COLORS = new Set([
 export function isNonEmptyString(value, fieldName = "value") {
   const isValid = typeof value === "string" && value.trim().length > 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Campo '${fieldName}' deve ser uma string não vazia. Recebido: ${typeof value}`
-    );
+    // Risco: Logger pode não estar totalmente inicializado ou ter um problema próprio.
+    // Mitigação: Adicionar um try-catch ao redor da chamada do Logger para evitar que o erro se propague.
+    try {
+      Logger.warn(
+        "Validation",
+        `Campo '${fieldName}' deve ser uma string não vazia. Recebido: ${typeof value}`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
   }
   return isValid;
 }
@@ -75,10 +87,16 @@ export function isPositiveNumber(value, fieldName = "value") {
   const isValid =
     typeof value === "number" && Number.isFinite(value) && value > 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Campo '${fieldName}' deve ser um número positivo. Recebido: ${value} (${typeof value})`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Campo '${fieldName}' deve ser um número positivo. Recebido: ${value} (${typeof value})`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
   }
   return isValid;
 }
@@ -93,10 +111,16 @@ export function isNonNegativeInteger(value, fieldName = "value") {
   const isValid =
     typeof value === "number" && Number.isInteger(value) && value >= 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Campo '${fieldName}' deve ser um número inteiro não negativo. Recebido: ${value} (${typeof value})`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Campo '${fieldName}' deve ser um número inteiro não negativo. Recebido: ${value} (${typeof value})`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
   }
   return isValid;
 }
@@ -110,10 +134,16 @@ export function isNonNegativeInteger(value, fieldName = "value") {
 export function isBoolean(value, fieldName = "value") {
   const isValid = typeof value === "boolean";
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Campo '${fieldName}' deve ser booleano. Recebido: ${value} (${typeof value})`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Campo '${fieldName}' deve ser booleano. Recebido: ${value} (${typeof value})`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
   }
   return isValid;
 }
@@ -127,12 +157,18 @@ export function isBoolean(value, fieldName = "value") {
 export function isNonEmptyArray(value, fieldName = "value") {
   const isValid = Array.isArray(value) && value.length > 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Campo '${fieldName}' deve ser um array não vazio. Recebido: ${
-        Array.isArray(value) ? "array vazio" : typeof value
-      }`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Campo '${fieldName}' deve ser um array não vazio. Recebido: ${
+          Array.isArray(value) ? "array vazio" : typeof value
+        }`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
   }
   return isValid;
 }
@@ -152,10 +188,16 @@ export function isValidRegex(pattern, fieldName = "regex") {
     new RegExp(pattern);
     return true;
   } catch (error) {
-    Logger.warn(
-      "Validation",
-      `Regex inválida no campo '${fieldName}': ${pattern}. Erro: ${error.message}`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Regex inválida no campo '${fieldName}': ${pattern}. Erro: ${error.message}`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação para '${fieldName}': ${logError.message}`
+      );
+    }
     return false;
   }
 }
@@ -210,7 +252,13 @@ export function validateCondition(condition) {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    Logger.warn("Validation", `Condição inválida: ${errors.join("; ")}`);
+    try {
+      Logger.warn("Validation", `Condição inválida: ${errors.join("; ")}`);
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação de condição: ${logError.message}`
+      );
+    }
   }
 
   return { isValid, errors };
@@ -264,10 +312,16 @@ export function validateConditionGroup(conditionGroup) {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Grupo de condições inválido: ${errors.join("; ")}`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Grupo de condições inválido: ${errors.join("; ")}`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação de grupo de condições: ${logError.message}`
+      );
+    }
   }
 
   return { isValid, errors };
@@ -321,10 +375,16 @@ export function validateCustomRule(rule) {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    Logger.warn(
-      "Validation",
-      `Regra personalizada inválida: ${errors.join("; ")}`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `Regra personalizada inválida: ${errors.join("; ")}`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação de regra personalizada: ${logError.message}`
+      );
+    }
   }
 
   return { isValid, errors };
@@ -378,7 +438,13 @@ export function validateTabObject(tab) {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    Logger.warn("Validation", `Objeto tab inválido: ${errors.join("; ")}`);
+    try {
+      Logger.warn("Validation", `Objeto tab inválido: ${errors.join("; ")}`);
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação de objeto tab: ${logError.message}`
+      );
+    }
   }
 
   return { isValid, errors };
@@ -530,7 +596,13 @@ export function validateSettings(settings) {
 
   const isValid = errors.length === 0;
   if (!isValid) {
-    Logger.warn("Validation", `Settings inválidas: ${errors.join("; ")}`);
+    try {
+      Logger.warn("Validation", `Settings inválidas: ${errors.join("; ")}`);
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar validação de settings: ${logError.message}`
+      );
+    }
   }
 
   return { isValid, errors };
@@ -544,10 +616,16 @@ export function validateSettings(settings) {
  */
 export function sanitizeString(input, maxLength = 500) {
   if (typeof input !== "string") {
-    Logger.warn(
-      "Validation",
-      `sanitizeString recebeu tipo inválido: ${typeof input}`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `sanitizeString recebeu tipo inválido: ${typeof input}`
+      );
+    } catch (logError) {
+      console.warn(
+        `Erro ao registrar sanitização de string: ${logError.message}`
+      );
+    }
     return "";
   }
 
@@ -567,10 +645,14 @@ export function sanitizeString(input, maxLength = 500) {
  */
 export function sanitizeUrl(input) {
   if (typeof input !== "string") {
-    Logger.warn(
-      "Validation",
-      `sanitizeUrl recebeu tipo inválido: ${typeof input}`
-    );
+    try {
+      Logger.warn(
+        "Validation",
+        `sanitizeUrl recebeu tipo inválido: ${typeof input}`
+      );
+    } catch (logError) {
+      console.warn(`Erro ao registrar sanitização de URL: ${logError.message}`);
+    }
     return null;
   }
 
@@ -578,17 +660,68 @@ export function sanitizeUrl(input) {
     const url = new URL(input);
     // Apenas permite protocolos HTTP/HTTPS
     if (!["http:", "https:"].includes(url.protocol)) {
-      Logger.warn(
-        "Validation",
-        `Protocolo de URL não permitido: ${url.protocol}`
-      );
+      try {
+        Logger.warn(
+          "Validation",
+          `Protocolo de URL não permitido: ${url.protocol}`
+        );
+      } catch (logError) {
+        console.warn(`Erro ao registrar protocolo de URL: ${logError.message}`);
+      }
       return null;
     }
     return url.href;
   } catch (error) {
-    Logger.warn("Validation", `URL inválida: ${input}. Erro: ${error.message}`);
+    try {
+      Logger.warn(
+        "Validation",
+        `URL inválida: ${input}. Erro: ${error.message}`
+      );
+    } catch (logError) {
+      console.warn(`Erro ao registrar URL inválida: ${logError.message}`);
+    }
     return null;
   }
+}
+
+/**
+ * Valida as opções de uma regra de renomeação
+ * @param {object} options - Opções a validar
+ * @returns {Array} Array de erros
+ */
+function validateRenamingOptions(options) {
+  const errors = [];
+
+  if (
+    options.waitForLoad !== undefined &&
+    !isBoolean(options.waitForLoad, "options.waitForLoad")
+  ) {
+    errors.push("Opção 'waitForLoad' deve ser booleana");
+  }
+
+  if (
+    options.cacheResult !== undefined &&
+    !isBoolean(options.cacheResult, "options.cacheResult")
+  ) {
+    errors.push("Opção 'cacheResult' deve ser booleana");
+  }
+
+  if (
+    options.respectManualChanges !== undefined &&
+    !isBoolean(options.respectManualChanges, "options.respectManualChanges")
+  ) {
+    errors.push("Opção 'respectManualChanges' deve ser booleana");
+  }
+
+  if (
+    options.retryAttempts !== undefined &&
+    (!isNonNegativeInteger(options.retryAttempts, "options.retryAttempts") ||
+      options.retryAttempts < 0 ||
+      options.retryAttempts > 5)
+  ) {
+    errors.push("Opção 'retryAttempts' deve ser um número inteiro entre 0 e 5");
+  }
+  return errors;
 }
 
 /**
@@ -638,11 +771,19 @@ export function validateTabRenamingRule(rule) {
   }
 
   // Validação das condições
-  if (!rule.conditions || typeof rule.conditions !== "object") {
-    errors.push("Condições são obrigatórias");
+  if (
+    !rule.conditions ||
+    !Array.isArray(rule.conditions) ||
+    rule.conditions.length === 0
+  ) {
+    errors.push("A regra deve ter pelo menos uma condição válida.");
   } else {
-    const conditionErrors = validateRenamingConditions(rule.conditions);
-    errors.push(...conditionErrors);
+    rule.conditions.forEach((condition, i) => {
+      const result = validateCondition(condition);
+      if (!result.isValid) {
+        errors.push(`Condição #${i + 1}: ${result.errors.join("; ")}`);
+      }
+    });
   }
 
   // Validação das estratégias de renomeação
@@ -677,85 +818,6 @@ export function validateTabRenamingRule(rule) {
 }
 
 /**
- * Valida condições de uma regra de renomeação
- * @param {object} conditions - Condições a validar
- * @returns {Array} Array de erros
- */
-function validateRenamingConditions(conditions) {
-  const errors = [];
-
-  // Deve ter pelo menos uma condição
-  const hasConditions =
-    (conditions.hostPatterns && conditions.hostPatterns.length > 0) ||
-    conditions.hostRegex ||
-    (conditions.urlPatterns && conditions.urlPatterns.length > 0) ||
-    (conditions.titlePatterns && conditions.titlePatterns.length > 0);
-
-  if (!hasConditions) {
-    errors.push("Pelo menos uma condição deve ser especificada");
-  }
-
-  // Validação de padrões de host
-  if (conditions.hostPatterns) {
-    if (!Array.isArray(conditions.hostPatterns)) {
-      errors.push("hostPatterns deve ser um array");
-    } else {
-      for (let i = 0; i < conditions.hostPatterns.length; i++) {
-        const pattern = conditions.hostPatterns[i];
-        if (typeof pattern !== "string" || pattern.trim().length === 0) {
-          errors.push(`Padrão de host ${i + 1} deve ser uma string não vazia`);
-        }
-      }
-    }
-  }
-
-  // Validação de regex de host
-  if (conditions.hostRegex) {
-    if (typeof conditions.hostRegex !== "string") {
-      errors.push("hostRegex deve ser uma string");
-    } else {
-      try {
-        new RegExp(conditions.hostRegex);
-      } catch (e) {
-        errors.push("hostRegex contém uma expressão regular inválida");
-      }
-    }
-  }
-
-  // Validação de padrões de URL
-  if (conditions.urlPatterns) {
-    if (!Array.isArray(conditions.urlPatterns)) {
-      errors.push("urlPatterns deve ser um array");
-    } else {
-      for (let i = 0; i < conditions.urlPatterns.length; i++) {
-        const pattern = conditions.urlPatterns[i];
-        if (typeof pattern !== "string" || pattern.trim().length === 0) {
-          errors.push(`Padrão de URL ${i + 1} deve ser uma string não vazia`);
-        }
-      }
-    }
-  }
-
-  // Validação de padrões de título
-  if (conditions.titlePatterns) {
-    if (!Array.isArray(conditions.titlePatterns)) {
-      errors.push("titlePatterns deve ser um array");
-    } else {
-      for (let i = 0; i < conditions.titlePatterns.length; i++) {
-        const pattern = conditions.titlePatterns[i];
-        if (typeof pattern !== "string" || pattern.trim().length === 0) {
-          errors.push(
-            `Padrão de título ${i + 1} deve ser uma string não vazia`
-          );
-        }
-      }
-    }
-  }
-
-  return errors;
-}
-
-/**
  * Valida uma estratégia de renomeação
  * @param {object} strategy - Estratégia a validar
  * @param {number} index - Índice da estratégia
@@ -770,7 +832,6 @@ function validateRenamingStrategy(strategy, index) {
     return errors;
   }
 
-  // Validação do tipo
   const validTypes = [
     "css_extract",
     "title_manipulation",
@@ -787,10 +848,6 @@ function validateRenamingStrategy(strategy, index) {
       if (!strategy.selector || typeof strategy.selector !== "string") {
         errors.push(`${prefix}: seletor CSS é obrigatório para extração CSS`);
       } else {
-        // Testa se o seletor CSS é válido (validação básica para evitar erros óbvios)
-        // Não é possível testar a validade completa de um seletor CSS sem um DOM
-        // mas podemos verificar caracteres inválidos.
-        // Regex para caracteres permitidos em seletores CSS (simplificado)
         const cssSelectorRegex =
           /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
         if (!cssSelectorRegex.test(strategy.selector)) {
@@ -825,7 +882,6 @@ function validateRenamingStrategy(strategy, index) {
       break;
   }
 
-  // Validação de fallback
   if (strategy.fallback && !validTypes.includes(strategy.fallback)) {
     errors.push(`${prefix}: fallback deve ser um tipo válido`);
   }
@@ -862,7 +918,6 @@ function validateTextOperation(operation, index, strategyPrefix) {
     return errors;
   }
 
-  // Validação específica por ação
   switch (operation.action) {
     case "replace":
     case "remove":
@@ -917,63 +972,8 @@ function validateTextOperation(operation, index, strategyPrefix) {
       break;
   }
 
-  // Validação de flags
   if (operation.flags && typeof operation.flags !== "string") {
     errors.push(`${prefix}: flags devem ser uma string`);
-  }
-
-  return errors;
-}
-
-/**
- * Valida opções de uma regra de renomeação
- * @param {object} options - Opções a validar
- * @returns {Array} Array de erros
- */
-function validateRenamingOptions(options) {
-  const errors = [];
-
-  if (
-    options.waitForLoad !== undefined &&
-    typeof options.waitForLoad !== "boolean"
-  ) {
-    errors.push("waitForLoad deve ser um boolean");
-  }
-
-  if (options.retryAttempts !== undefined) {
-    if (
-      typeof options.retryAttempts !== "number" ||
-      options.retryAttempts < 0 ||
-      options.retryAttempts > 10
-    ) {
-      errors.push("retryAttempts deve ser um número entre 0 e 10");
-    }
-  }
-
-  if (options.retryDelay !== undefined) {
-    if (typeof options.retryDelay !== "number" || options.retryDelay < 0) {
-      errors.push("retryDelay deve ser um número não negativo");
-    }
-  }
-
-  if (
-    options.cacheResult !== undefined &&
-    typeof options.cacheResult !== "boolean"
-  ) {
-    errors.push("cacheResult deve ser um boolean");
-  }
-
-  if (options.cacheTTL !== undefined) {
-    if (typeof options.cacheTTL !== "number" || options.cacheTTL < 0) {
-      errors.push("cacheTTL deve ser um número não negativo");
-    }
-  }
-
-  if (
-    options.respectManualChanges !== undefined &&
-    typeof options.respectManualChanges !== "boolean"
-  ) {
-    errors.push("respectManualChanges deve ser um boolean");
   }
 
   return errors;

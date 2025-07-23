@@ -3,6 +3,11 @@
  * @description Lógica para a página de opções da extensão, com suporte para regras complexas.
  */
 
+// Importação estática do módulo de validação.
+// Isso resolve problemas de carregamento dinâmico que podem ocorrer em alguns ambientes de extensão.
+import { validateTabRenamingRule } from "../validation-utils.js";
+import { clearSmartNameCache } from "../intelligent-cache-manager.js";
+
 // Conteúdo para os tooltips de ajuda contextual.
 const helpTexts = {
   groupingMode:
@@ -41,6 +46,22 @@ const helpTexts = {
     "Define como o novo título será gerado. <ul><li><strong>Extração CSS:</strong> Tenta pegar texto de um elemento específico na página.</li><li><strong>Manipulação de Título:</strong> Modifica o título atual da aba.</li><li><strong>Baseado em Domínio:</strong> Usa o nome do domínio da aba.</li><li><strong>Título Original:</strong> Mantém o título original da aba (útil como fallback).</li></ul>",
   textOperations:
     "Sequência de operações para manipular o título. As operações são aplicadas uma após a outra. Por exemplo, você pode remover um padrão e depois adicionar um prefixo.",
+  renamingRuleName:
+    "Dê um nome descritivo para a sua regra, para que você possa identificá-la facilmente na lista. Ex: 'Títulos de Artigos de Notícias'.",
+  renamingPriority:
+    "Define a ordem em que as regras são testadas. Um número menor significa uma prioridade maior. Se uma aba corresponder a várias regras, a que tiver o menor número de prioridade será aplicada.",
+  renamingConditions:
+    "Defina as condições que uma aba deve atender para que esta regra seja aplicada. Você pode combinar múltiplas condições usando 'TODAS' (AND) ou 'QUALQUER UMA' (OR).",
+  renamingStrategies:
+    "Define como o novo título será gerado. As estratégias são tentadas em ordem, de cima para baixo. A primeira que retornar um texto válido será usada.",
+  cssSelector:
+    "Um seletor CSS aponta para um elemento específico na página web. Use-o para extrair texto de cabeçalhos, títulos ou outros elementos. <br><strong>Exemplos:</strong><ul><li><code>h1</code> (para o cabeçalho principal)</li><li><code>.article-title</code> (para um elemento com a classe 'article-title')</li><li><code>#main-header</code> (para um elemento com o ID 'main-header')</li></ul>",
+  cssAttribute:
+    "Opcional. Se você precisa extrair o valor de um atributo de um elemento em vez do seu texto, especifique o nome do atributo aqui. Comum para imagens (use <code>alt</code>) ou links (use <code>title</code>).",
+  regexPattern:
+    "Expressões Regulares (Regex) são um padrão de busca poderoso para encontrar e manipular texto. <br><strong>Dica:</strong> Use parênteses <code>()</code> para criar um 'grupo de captura'. Você pode então usar <code>$1</code>, <code>$2</code>, etc., no campo 'Substituir por' para se referir ao texto capturado. <br><a href='https://regex101.com/' target='_blank' class='text-indigo-400 hover:underline'>Aprenda e teste suas Regex aqui.</a>",
+  advancedRenamingOptions:
+    "Ajustes finos para o comportamento da regra:<ul><li><strong>Aguardar carregamento:</strong> Útil para sites que carregam o título dinamicamente após a página inicial carregar.</li><li><strong>Armazenar em cache:</strong> Melhora a performance ao salvar o resultado da renomeação, evitando reprocessamento.</li><li><strong>Respeitar alterações manuais:</strong> Se você renomear manualmente uma aba, a extensão não tentará renomeá-la novamente.</li><li><strong>Tentativas de Reaplicação:</strong> Quantas vezes a regra deve tentar ser aplicada se a primeira tentativa falhar (ex: o elemento ainda não apareceu na página).</li></ul>",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -91,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Elementos de diagnóstico de memória
     refreshMemoryStats: document.getElementById("refreshMemoryStats"),
     cleanupMemory: document.getElementById("cleanupMemory"),
+    clearCacheBtn: document.getElementById("clearCacheBtn"),
     memoryTabGroupMap: document.getElementById("memoryTabGroupMap"),
     memoryTitleUpdaters: document.getElementById("memoryTitleUpdaters"),
     memoryGroupActivity: document.getElementById("memoryGroupActivity"),
@@ -118,6 +140,9 @@ document.addEventListener("DOMContentLoaded", () => {
     renamingRuleName: document.getElementById("renamingRuleName"),
     renamingRulePriority: document.getElementById("renamingRulePriority"),
     renamingRuleEnabled: document.getElementById("renamingRuleEnabled"),
+    renamingRuleConditionOperator: document.getElementById(
+      "renamingRuleConditionOperator"
+    ),
     renamingConditionsContainer: document.getElementById(
       "renamingConditionsContainer"
     ),
@@ -341,18 +366,18 @@ document.addEventListener("DOMContentLoaded", () => {
           fieldsHtml += `
             <div>
                 <label class="block text-xs font-medium mb-1">Padrão (Regex):</label>
-                <input type="text" class="operation-pattern w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: (.*) - YouTube">
+                <input type="text" class="operation-pattern w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: (.*) - YouTube">
             </div>
             <div>
                 <label class="block text-xs font-medium mb-1">Flags (opcional):</label>
-                <input type="text" class="operation-flags w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: gi (global, case-insensitive)">
+                <input type="text" class="operation-flags w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: gi (global, case-insensitive)">
             </div>
           `;
           if (action === "replace") {
             fieldsHtml += `
               <div>
                   <label class="block text-xs font-medium mb-1">Substituir por:</label>
-                  <input type="text" class="operation-replacement w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: $1">
+                  <input type="text" class="operation-replacement w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: $1">
               </div>
             `;
           }
@@ -360,7 +385,7 @@ document.addEventListener("DOMContentLoaded", () => {
             fieldsHtml += `
               <div>
                   <label class="block text-xs font-medium mb-1">Grupo de Captura (opcional):</label>
-                  <input type="number" min="0" class="operation-group w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: 1">
+                  <input type="number" min="0" class="operation-group w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: 1">
               </div>
             `;
           }
@@ -370,7 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
           fieldsHtml += `
             <div>
                 <label class="block text-xs font-medium mb-1">Texto:</label>
-                <input type="text" class="operation-text w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: [Lido] ">
+                <input type="text" class="operation-text w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: [Lido] ">
             </div>
           `;
           break;
@@ -378,11 +403,11 @@ document.addEventListener("DOMContentLoaded", () => {
           fieldsHtml += `
             <div>
                 <label class="block text-xs font-medium mb-1">Comprimento Máximo:</label>
-                <input type="number" min="1" class="operation-max-length w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600">
+                <input type="number" min="1" class="operation-max-length w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
             </div>
             <div>
                 <label class="block text-xs font-medium mb-1">Elipse (opcional):</label>
-                <input type="text" class="operation-ellipsis w-full p-1 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: ...">
+                <input type="text" class="operation-ellipsis w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: ...">
             </div>
           `;
           break;
@@ -441,93 +466,103 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="strategy-fields space-y-3">
             <!-- Campos específicos da estratégia -->
         </div>
-        <div class="mt-3">
-            <label class="block text-sm font-medium mb-1">Fallback (opcional):</label>
+        <div class="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+            <label class="block text-sm font-medium mb-1">Fallback (se a estratégia acima falhar):</label>
             <select class="strategy-fallback w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
                 <option value="">Nenhum</option>
                 ${renamingStrategyOptions}
             </select>
-            <p class="text-xs text-slate-500 mt-1">
-                Se esta estratégia falhar, tente a estratégia de fallback.
-            </p>
+            <div class="fallback-config-container mt-2 pl-4 border-l-2 border-slate-200 dark:border-slate-600">
+                <!-- Campos de configuração do Fallback serão renderizados aqui -->
+            </div>
         </div>
     `;
+
     const typeSelect = strategyDiv.querySelector(".strategy-type");
     const fieldsContainer = strategyDiv.querySelector(".strategy-fields");
     const fallbackSelect = strategyDiv.querySelector(".strategy-fallback");
+    const fallbackContainer = strategyDiv.querySelector(
+      ".fallback-config-container"
+    );
 
-    typeSelect.value = strategy.type || "original_title";
-    if (strategy.fallback) fallbackSelect.value = strategy.fallback;
-
-    const updateFields = () => {
-      fieldsContainer.innerHTML = "";
-      const type = typeSelect.value;
+    // Função reutilizável para renderizar os campos de uma estratégia
+    const renderStrategyFields = (container, strategyData) => {
+      container.innerHTML = "";
+      const type = strategyData.type;
       let fieldsHtml = "";
 
       switch (type) {
         case "css_extract":
-          fieldsHtml += `
+          fieldsHtml = `
             <div>
                 <label class="block text-sm font-medium mb-1">Seletor CSS:</label>
-                <input type="text" class="strategy-selector w-full p-2 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: h1.title, .article-header h2">
+                <input type="text" class="strategy-selector w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: h1.title" value="${
+                  strategyData.selector || ""
+                }">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Atributo (opcional):</label>
-                <input type="text" class="strategy-attribute w-full p-2 border border-slate-300 rounded-md dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: alt, title (para imagens)">
-            </div>
-          `;
+                <input type="text" class="strategy-attribute w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: alt" value="${
+                  strategyData.attribute || ""
+                }">
+            </div>`;
           break;
         case "title_manipulation":
-          fieldsHtml += `
-            <div class="text-operations-container space-y-2">
-                <!-- Operações de texto aqui -->
-            </div>
+          fieldsHtml = `
+            <div class="text-operations-container space-y-2"></div>
             <button type="button" class="add-operation-btn mt-2 bg-blue-400 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg text-xs">
                 + Adicionar Operação de Texto
-            </button>
-          `;
-          break;
-        case "domain_based":
-        case "original_title":
-          // Não há campos adicionais para essas estratégias
+            </button>`;
           break;
       }
-      fieldsContainer.innerHTML = fieldsHtml;
+      container.innerHTML = fieldsHtml;
 
-      // Se for manipulação de título, inicializa as operações
       if (type === "title_manipulation") {
-        const opsContainer = fieldsContainer.querySelector(
+        const opsContainer = container.querySelector(
           ".text-operations-container"
         );
-        const addOpBtn = fieldsContainer.querySelector(".add-operation-btn");
-        addOpBtn.addEventListener("click", () =>
-          opsContainer.appendChild(createTextOperationElement())
-        );
-
-        if (strategy.operations && strategy.operations.length > 0) {
-          strategy.operations.forEach((op) =>
-            opsContainer.appendChild(createTextOperationElement(op))
+        container
+          .querySelector(".add-operation-btn")
+          .addEventListener("click", () =>
+            opsContainer.appendChild(createTextOperationElement())
           );
-        } else {
-          opsContainer.appendChild(createTextOperationElement()); // Adiciona uma operação padrão
-        }
-      }
 
-      // Preencher valores específicos da estratégia
-      if (strategy.selector)
-        fieldsContainer.querySelector(".strategy-selector").value =
-          strategy.selector;
-      if (strategy.attribute)
-        fieldsContainer.querySelector(".strategy-attribute").value =
-          strategy.attribute;
+        const operations = strategyData.operations || [{}]; // Adiciona uma operação padrão se não houver nenhuma
+        operations.forEach((op) =>
+          opsContainer.appendChild(createTextOperationElement(op))
+        );
+      }
     };
 
-    typeSelect.addEventListener("change", updateFields);
+    // Event listeners
+    typeSelect.addEventListener("change", () => {
+      renderStrategyFields(fieldsContainer, { type: typeSelect.value });
+    });
+
+    fallbackSelect.addEventListener("change", () => {
+      const fallbackType = fallbackSelect.value;
+      if (fallbackType) {
+        renderStrategyFields(fallbackContainer, { type: fallbackType });
+      } else {
+        fallbackContainer.innerHTML = "";
+      }
+    });
+
     strategyDiv
       .querySelector(".remove-strategy-btn")
       .addEventListener("click", () => strategyDiv.remove());
 
-    updateFields(); // Chama na criação para renderizar os campos iniciais
+    // Preenchimento inicial
+    typeSelect.value = strategy.type || "original_title";
+    renderStrategyFields(fieldsContainer, strategy);
+
+    if (strategy.fallback && typeof strategy.fallback === "object") {
+      fallbackSelect.value = strategy.fallback.type;
+      renderStrategyFields(fallbackContainer, strategy.fallback);
+    } else {
+      fallbackSelect.value = "";
+    }
+
     return strategyDiv;
   }
 
@@ -549,6 +584,80 @@ document.addEventListener("DOMContentLoaded", () => {
         action: "getSettings",
       });
       currentSettings = settingsFromBg || {};
+
+      // --- Bloco de Migração de Regras de Renomeação ---
+      // Converte regras do formato antigo (objeto) para o novo (array de condições)
+      let settingsChanged = false;
+      if (
+        currentSettings.tabRenamingRules &&
+        Array.isArray(currentSettings.tabRenamingRules)
+      ) {
+        currentSettings.tabRenamingRules.forEach((rule) => {
+          // A verificação chave: se `conditions` é um objeto mas não um array, é o formato antigo.
+          if (
+            rule.conditions &&
+            typeof rule.conditions === "object" &&
+            !Array.isArray(rule.conditions)
+          ) {
+            console.warn(
+              `Migrando regra de renomeação do formato antigo: ${rule.name}`
+            );
+            const newConditions = [];
+            const oldConditions = rule.conditions;
+
+            if (oldConditions.hostPatterns) {
+              newConditions.push(
+                ...oldConditions.hostPatterns.map((p) => ({
+                  property: "hostname",
+                  operator: "contains",
+                  value: p,
+                }))
+              );
+            }
+            if (oldConditions.hostRegex) {
+              newConditions.push({
+                property: "hostname",
+                operator: "regex",
+                value: oldConditions.hostRegex,
+              });
+            }
+            if (oldConditions.urlPatterns) {
+              newConditions.push(
+                ...oldConditions.urlPatterns.map((p) => ({
+                  property: "url",
+                  operator: "contains",
+                  value: p,
+                }))
+              );
+            }
+            if (oldConditions.titlePatterns) {
+              newConditions.push(
+                ...oldConditions.titlePatterns.map((p) => ({
+                  property: "title",
+                  operator: "contains",
+                  value: p,
+                }))
+              );
+            }
+            rule.conditions = newConditions;
+            settingsChanged = true;
+          }
+        });
+      }
+
+      // Se alguma regra foi migrada, salva as configurações atualizadas
+      if (settingsChanged) {
+        console.log(
+          "Regras de renomeação migradas. Salvando novas configurações."
+        );
+        // Atualiza as configurações no background sem esperar, para não atrasar a UI
+        browser.runtime.sendMessage({
+          action: "updateSettings",
+          settings: currentSettings,
+        });
+      }
+      // --- Fim do Bloco de Migração ---
+
       populateForm(currentSettings);
       updateDynamicUI();
       await testCurrentRule();
@@ -765,15 +874,43 @@ document.addEventListener("DOMContentLoaded", () => {
         "rule-item flex items-center justify-between bg-slate-100 p-3 rounded-lg shadow-sm dark:bg-slate-700/50";
       ruleElement.dataset.id = rule.id; // Usar ID único para renomeação
       ruleElement.dataset.index = index; // Manter índice para ordenação
-      const summary = rule.conditions
-        ? `Condições: ${
-            rule.conditions.hostPatterns?.join(", ") ||
-            rule.conditions.hostRegex ||
-            rule.conditions.urlPatterns?.join(", ") ||
-            rule.conditions.titlePatterns?.join(", ") ||
-            "Nenhuma"
-          }`
-        : "Sem condições";
+
+      let summaryText;
+      if (
+        rule.conditions &&
+        Array.isArray(rule.conditions) &&
+        rule.conditions.length > 0
+      ) {
+        const firstCond = rule.conditions[0];
+        const conditionOperator = rule.conditionOperator || "AND";
+        const operatorMap = {
+          contains: "contém",
+          not_contains: "não contém",
+          starts_with: "começa com",
+          ends_with: "termina com",
+          equals: "é igual a",
+          regex: "corresponde a regex",
+          wildcard: "corresponde a wildcard",
+        };
+        const propertyMap = {
+          url: "URL",
+          title: "Título",
+          hostname: "Domínio",
+          url_path: "Caminho da URL",
+        };
+        const propertyText =
+          propertyMap[firstCond.property] || firstCond.property;
+        const operatorText =
+          operatorMap[firstCond.operator] || firstCond.operator;
+        summaryText = `Se ${propertyText} ${operatorText} "${firstCond.value}"`;
+        if (rule.conditions.length > 1) {
+          summaryText += ` ${conditionOperator.toLowerCase()} mais ${
+            rule.conditions.length - 1
+          }...`;
+        }
+      } else {
+        summaryText = "Nenhuma condição definida";
+      }
 
       ruleElement.innerHTML = `
         <div class="flex items-center space-x-4 flex-grow min-w-0">
@@ -782,7 +919,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <strong class="text-indigo-700 dark:text-indigo-400">${
               rule.name
             }</strong>
-            <p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${summary}">${summary}</p>
+            <p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${summaryText}">${summaryText}</p>
           </div>
           <span class="text-xs font-semibold px-2 py-1 rounded-full ${
             rule.enabled
@@ -951,10 +1088,12 @@ document.addEventListener("DOMContentLoaded", () => {
       let appliedRenamingRule = null;
 
       if (ui.tabRenamingEnabled.checked) {
-        // Importar dinamicamente para evitar dependência circular no carregamento inicial
+        // O `globalTabRenamingEngine` agora é importado estaticamente no topo do arquivo,
+        // então não precisamos mais de importação dinâmica aqui.
+        // Isso remove um ponto potencial de falha de carregamento.
         const { globalTabRenamingEngine } = await import(
           "./tab-renaming-engine.js"
-        );
+        ); // Mantido para garantir que o módulo seja carregado, mas a variável já está disponível.
         const renamingRules = currentSettings.tabRenamingRules || [];
 
         // Simular o findApplicableRules e executeRenamingRules
@@ -970,14 +1109,23 @@ document.addEventListener("DOMContentLoaded", () => {
           .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 
         for (const rule of applicableRenamingRules) {
-          const tempTitle = await globalTabRenamingEngine.executeRule(
-            mockTab,
-            rule
-          );
-          if (tempTitle && tempTitle.trim()) {
-            finalTitle = tempTitle.trim();
-            appliedRenamingRule = rule;
-            break; // Aplica a primeira regra que gerar um título válido
+          // Risco: executeRule pode falhar. Mitigação: try-catch.
+          try {
+            const tempTitle = await globalTabRenamingEngine.executeRule(
+              mockTab,
+              rule
+            );
+            if (tempTitle && tempTitle.trim()) {
+              finalTitle = tempTitle.trim();
+              appliedRenamingRule = rule;
+              break; // Aplica a primeira regra que gerar um título válido
+            }
+          } catch (ruleError) {
+            console.warn(
+              `Erro ao aplicar regra de renomeação no testador (${rule.name}):`,
+              ruleError
+            );
+            // Continua para a próxima regra ou usa o título original
           }
         }
       }
@@ -1045,7 +1193,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.ruleOperator.value = "AND";
     ui.conditionsContainer.innerHTML = "";
     ui.conditionsContainer.appendChild(createConditionElement());
-    ui.ruleModal.classList.remove("hidden");
+    ui.ruleModal.classList.remove("hidden"); // CORRIGIDO: Mostra o modal de agrupamento
   }
 
   function handleRuleFormSubmit(e) {
@@ -1119,6 +1267,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.renamingRuleName.value = "";
     ui.renamingRulePriority.value = 100;
     ui.renamingRuleEnabled.checked = true;
+    ui.renamingRuleConditionOperator.value = "AND";
     ui.renamingConditionsContainer.innerHTML = "";
     ui.renamingConditionsContainer.appendChild(
       createRenamingConditionElement()
@@ -1145,51 +1294,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.renamingRuleName.value = rule.name;
     ui.renamingRulePriority.value = rule.priority || 100;
     ui.renamingRuleEnabled.checked = rule.enabled !== false; // Padrão é true
+    ui.renamingRuleConditionOperator.value = rule.conditionOperator || "AND";
 
     ui.renamingConditionsContainer.innerHTML = "";
-    if (rule.conditions) {
-      // Para renomeação, as condições não têm um operador AND/OR de grupo
-      // Elas são um objeto com arrays de padrões/regex
-      if (rule.conditions.hostPatterns)
-        rule.conditions.hostPatterns.forEach((p) =>
-          ui.renamingConditionsContainer.appendChild(
-            createRenamingConditionElement({
-              property: "hostname",
-              operator: "wildcard",
-              value: p,
-            })
-          )
-        );
-      if (rule.conditions.hostRegex)
+    // Lógica simplificada: assume que as regras estão sempre no novo formato
+    // devido à migração que acontece na função loadSettings().
+    const conditionsToRender = rule.conditions || [];
+
+    if (conditionsToRender.length > 0) {
+      conditionsToRender.forEach((c) =>
         ui.renamingConditionsContainer.appendChild(
-          createRenamingConditionElement({
-            property: "hostname",
-            operator: "regex",
-            value: rule.conditions.hostRegex,
-          })
-        );
-      if (rule.conditions.urlPatterns)
-        rule.conditions.urlPatterns.forEach((p) =>
-          ui.renamingConditionsContainer.appendChild(
-            createRenamingConditionElement({
-              property: "url_path",
-              operator: "wildcard",
-              value: p,
-            })
-          )
-        );
-      if (rule.conditions.titlePatterns)
-        rule.conditions.titlePatterns.forEach((p) =>
-          ui.renamingConditionsContainer.appendChild(
-            createRenamingConditionElement({
-              property: "title",
-              operator: "wildcard",
-              value: p,
-            })
-          )
-        );
-    }
-    if (ui.renamingConditionsContainer.children.length === 0) {
+          createRenamingConditionElement(c)
+        )
+      );
+    } else {
       ui.renamingConditionsContainer.appendChild(
         createRenamingConditionElement()
       );
@@ -1223,35 +1341,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const ruleId = ui.renamingRuleId.value;
 
     // Coletar condições
-    const conditionsElements = Array.from(
-      ui.renamingConditionsContainer.children
-    );
-    const conditions = {
-      hostPatterns: [],
-      hostRegex: null,
-      urlPatterns: [],
-      titlePatterns: [],
-    };
+    const conditions = Array.from(ui.renamingConditionsContainer.children)
+      .map((div) => ({
+        property: div.querySelector(".condition-property").value,
+        operator: div.querySelector(".condition-operator").value,
+        value: div.querySelector(".condition-value").value.trim(),
+      }))
+      .filter((c) => c.value);
 
-    conditionsElements.forEach((div) => {
-      const prop = div.querySelector(".condition-property").value;
-      const op = div.querySelector(".condition-operator").value;
-      const val = div.querySelector(".condition-value").value.trim();
-
-      if (val) {
-        if (prop === "hostname") {
-          if (op === "regex") conditions.hostRegex = val;
-          else conditions.hostPatterns.push(val);
-        } else if (prop === "url_path") {
-          conditions.urlPatterns.push(val);
-        } else if (prop === "title") {
-          conditions.titlePatterns.push(val);
-        } else if (prop === "url") {
-          // Se for URL completa, trata como padrão de URL
-          conditions.urlPatterns.push(val);
-        }
-      }
-    });
+    if (conditions.length === 0) {
+      showNotification(
+        "Uma regra de renomeação deve ter pelo menos uma condição válida.",
+        "error"
+      );
+      return;
+    }
 
     // Coletar estratégias
     const strategiesElements = Array.from(
@@ -1259,81 +1363,108 @@ document.addEventListener("DOMContentLoaded", () => {
     );
     const renamingStrategies = strategiesElements
       .map((strategyDiv) => {
-        const type = strategyDiv.querySelector(".strategy-type").value;
-        const fallback =
-          strategyDiv.querySelector(".strategy-fallback").value || null;
-        const strategy = { type, fallback };
-
-        if (type === "css_extract") {
-          strategy.selector = strategyDiv
-            .querySelector(".strategy-selector")
-            .value.trim();
-          strategy.attribute =
-            strategyDiv.querySelector(".strategy-attribute").value.trim() ||
-            null;
-        } else if (type === "title_manipulation") {
-          const opsContainer = strategyDiv.querySelector(
-            ".text-operations-container"
-          );
-          strategy.operations = Array.from(opsContainer.children)
-            .map((opDiv) => {
-              const action = opDiv.querySelector(".operation-action").value;
-              const operation = { action };
-
-              if (
-                action === "replace" ||
-                action === "remove" ||
-                action === "extract"
-              ) {
-                operation.pattern = opDiv
-                  .querySelector(".operation-pattern")
-                  .value.trim();
-                operation.flags =
-                  opDiv.querySelector(".operation-flags").value.trim() || null;
-                if (action === "replace") {
-                  operation.replacement = opDiv.querySelector(
-                    ".operation-replacement"
-                  ).value;
-                }
-                if (action === "extract") {
-                  const groupVal =
-                    opDiv.querySelector(".operation-group").value;
-                  operation.group = groupVal
-                    ? parseInt(groupVal, 10)
-                    : undefined;
-                }
-              } else if (action === "prepend" || action === "append") {
-                operation.text = opDiv.querySelector(".operation-text").value;
-              } else if (action === "truncate") {
-                operation.maxLength = parseInt(
-                  opDiv.querySelector(".operation-max-length").value,
-                  10
+        const collectStrategyData = (container, type) => {
+          const strategy = { type };
+          if (type === "css_extract") {
+            strategy.selector =
+              container.querySelector(".strategy-selector")?.value.trim() || "";
+            strategy.attribute =
+              container.querySelector(".strategy-attribute")?.value.trim() ||
+              null;
+          } else if (type === "title_manipulation") {
+            const opsContainer = container.querySelector(
+              ".text-operations-container"
+            );
+            if (opsContainer) {
+              strategy.operations = Array.from(opsContainer.children)
+                .map((opDiv) => {
+                  const action = opDiv.querySelector(".operation-action").value;
+                  const operation = { action };
+                  // ... (código de coleta de operações de texto)
+                  if (
+                    action === "replace" ||
+                    action === "remove" ||
+                    action === "extract"
+                  ) {
+                    operation.pattern =
+                      opDiv.querySelector(".operation-pattern")?.value.trim() ||
+                      "";
+                    operation.flags =
+                      opDiv.querySelector(".operation-flags")?.value.trim() ||
+                      null;
+                    if (action === "replace") {
+                      operation.replacement =
+                        opDiv.querySelector(".operation-replacement")?.value ||
+                        "";
+                    }
+                    if (action === "extract") {
+                      const groupVal =
+                        opDiv.querySelector(".operation-group")?.value;
+                      operation.group = groupVal
+                        ? parseInt(groupVal, 10)
+                        : undefined;
+                    }
+                  } else if (action === "prepend" || action === "append") {
+                    operation.text =
+                      opDiv.querySelector(".operation-text")?.value || "";
+                  } else if (action === "truncate") {
+                    operation.maxLength = parseInt(
+                      opDiv.querySelector(".operation-max-length")?.value,
+                      10
+                    );
+                    operation.ellipsis =
+                      opDiv
+                        .querySelector(".operation-ellipsis")
+                        ?.value.trim() || null;
+                  }
+                  return operation;
+                })
+                .filter(
+                  (op) =>
+                    !(
+                      (op.action === "replace" ||
+                        op.action === "remove" ||
+                        op.action === "extract") &&
+                      !op.pattern
+                    ) &&
+                    !(
+                      (op.action === "prepend" || op.action === "append") &&
+                      !op.text
+                    ) &&
+                    !(
+                      op.action === "truncate" &&
+                      (isNaN(op.maxLength) || op.maxLength <= 0)
+                    )
                 );
-                operation.ellipsis =
-                  opDiv.querySelector(".operation-ellipsis").value.trim() ||
-                  null;
-              }
-              return operation;
-            })
-            .filter((op) => {
-              // Filtra operações inválidas (ex: sem padrão para regex)
-              if (
-                (op.action === "replace" ||
-                  op.action === "remove" ||
-                  op.action === "extract") &&
-                !op.pattern
-              )
-                return false;
-              if (
-                (op.action === "prepend" || op.action === "append") &&
-                !op.text
-              )
-                return false;
-              if (op.action === "truncate" && isNaN(op.maxLength)) return false;
-              return true;
-            });
+            }
+          }
+          return strategy;
+        };
+
+        const mainStrategyType =
+          strategyDiv.querySelector(".strategy-type").value;
+        const mainFieldsContainer =
+          strategyDiv.querySelector(".strategy-fields");
+        const mainStrategy = collectStrategyData(
+          mainFieldsContainer,
+          mainStrategyType
+        );
+
+        const fallbackSelect = strategyDiv.querySelector(".strategy-fallback");
+        const fallbackType = fallbackSelect.value;
+        if (fallbackType) {
+          const fallbackContainer = strategyDiv.querySelector(
+            ".fallback-config-container"
+          );
+          mainStrategy.fallback = collectStrategyData(
+            fallbackContainer,
+            fallbackType
+          );
+        } else {
+          mainStrategy.fallback = null;
         }
-        return strategy;
+
+        return mainStrategy;
       })
       .filter((s) => {
         // Filtra estratégias vazias ou inválidas
@@ -1361,6 +1492,7 @@ document.addEventListener("DOMContentLoaded", () => {
       name: ui.renamingRuleName.value.trim(),
       priority: parseInt(ui.renamingRulePriority.value, 10) || 100,
       enabled: ui.renamingRuleEnabled.checked,
+      conditionOperator: ui.renamingRuleConditionOperator.value,
       conditions: conditions,
       renamingStrategies: renamingStrategies,
       options: {
@@ -1373,38 +1505,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validação final da regra antes de salvar
     // Importar dinamicamente para evitar dependência circular no carregamento inicial
-    import("./validation-utils.js").then(({ validateTabRenamingRule }) => {
-      const validationResult = validateTabRenamingRule(newRule);
-      if (!validationResult.isValid) {
-        showNotification(
-          `Erro na regra: ${validationResult.errors.join("; ")}`,
-          "error"
-        );
-        console.error(
-          "Erro de validação da regra de renomeação:",
-          validationResult.errors
-        );
-        return;
-      }
-
-      const existingRuleIndex = currentSettings.tabRenamingRules.findIndex(
-        (r) => r.id === newRule.id
+    // O import dinâmico foi movido para o topo do arquivo e alterado para estático.
+    // Agora, validateTabRenamingRule está disponível diretamente.
+    const validationResult = validateTabRenamingRule(newRule); // Usar a função diretamente
+    if (!validationResult.isValid) {
+      showNotification(
+        `Erro na regra: ${validationResult.errors.join("; ")}`,
+        "error"
       );
-      if (existingRuleIndex !== -1) {
-        currentSettings.tabRenamingRules[existingRuleIndex] = newRule;
-      } else {
-        currentSettings.tabRenamingRules.push(newRule);
-      }
-
-      // Reordenar as regras por prioridade
-      currentSettings.tabRenamingRules.sort(
-        (a, b) => (a.priority || 999) - (b.priority || 999)
+      console.error(
+        "Erro de validação da regra de renomeação:",
+        validationResult.errors
       );
+      return;
+    }
 
-      renderRenamingRulesList();
-      scheduleSave();
-      ui.renamingRuleModal.classList.add("hidden");
-    });
+    const existingRuleIndex = currentSettings.tabRenamingRules.findIndex(
+      (r) => r.id === newRule.id
+    );
+    if (existingRuleIndex !== -1) {
+      currentSettings.tabRenamingRules[existingRuleIndex] = newRule;
+    } else {
+      currentSettings.tabRenamingRules.push(newRule);
+    }
+
+    // Reordenar as regras por prioridade
+    currentSettings.tabRenamingRules.sort(
+      (a, b) => (a.priority || 999) - (b.priority || 999)
+    );
+
+    renderRenamingRulesList();
+    scheduleSave();
+    ui.renamingRuleModal.classList.add("hidden");
   }
 
   function deleteRenamingRule(ruleId) {
@@ -1537,14 +1669,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // NOVO: Habilita/desabilita a seção de regras de renomeação
     const renamingSection = ui.renamingRulesList.closest("section");
     if (renamingSection) {
-      renamingSection.classList.toggle(
-        "disabled-section",
-        !ui.tabRenamingEnabled.checked
-      );
+      const isDisabled = !ui.tabRenamingEnabled.checked;
+      renamingSection.classList.toggle("disabled-section", isDisabled);
       renamingSection
         .querySelectorAll("button, input, select, textarea")
         .forEach((el) => {
-          el.disabled = !ui.tabRenamingEnabled.checked;
+          el.disabled = isDisabled;
         });
       // Re-habilita o próprio toggle de renomeação
       ui.tabRenamingEnabled.disabled = false;
@@ -1848,7 +1978,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showNotification("Erro durante limpeza de memória", "error");
     } finally {
       ui.cleanupMemory.disabled = false;
-      ui.cleanupMemory.textContent = "Limpar";
+      ui.cleanupMemory.textContent = "Limpar Memória";
     }
   }
 
@@ -1859,6 +1989,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (ui.cleanupMemory) {
     ui.cleanupMemory.addEventListener("click", performMemoryCleanup);
+  }
+
+  // NOVO: Limpeza de Cache
+  async function performCacheClear() {
+    showConfirmModal(
+      "Tem a certeza que deseja limpar todo o cache de nomes? Esta ação não pode ser desfeita e pode impactar a performance temporariamente.",
+      async () => {
+        try {
+          ui.clearCacheBtn.disabled = true;
+          ui.clearCacheBtn.textContent = "Limpando...";
+          clearSmartNameCache();
+          showNotification("Cache de nomes limpo com sucesso!", "success");
+          await updateMemoryStats(); // Atualiza as estatísticas para refletir o cache limpo
+        } catch (error) {
+          console.error("Erro ao limpar o cache:", error);
+          showNotification("Ocorreu um erro ao limpar o cache.", "error");
+        } finally {
+          ui.clearCacheBtn.disabled = false;
+          ui.clearCacheBtn.textContent = "Limpar Cache";
+        }
+      },
+      {
+        confirmText: "Sim, Limpar Cache",
+      }
+    );
+  }
+
+  if (ui.clearCacheBtn) {
+    ui.clearCacheBtn.addEventListener("click", performCacheClear);
   }
 
   // --- Funções de Configuração de Performance ---

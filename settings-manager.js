@@ -89,6 +89,11 @@ export let smartNameCache = new Map();
 
 let saveCacheTimeout = null;
 
+/**
+ * Obtém o objeto de armazenamento apropriado (local ou sync) com base na configuração.
+ * @param {boolean} useSync - Se `true`, retorna `browser.storage.sync`; caso contrário, `browser.storage.local`.
+ * @returns {browser.storage.StorageArea} O objeto de armazenamento.
+ */
 function getStorage(useSync) {
   return useSync ? browser.storage.sync : browser.storage.local;
 }
@@ -182,6 +187,11 @@ function migrateRuleToNewFormat(oldRule) {
   return newRule;
 }
 
+/**
+ * Carrega as configurações da extensão, priorizando `sync` sobre `local`, e aplicando sobre os padrões.
+ * Também executa scripts de migração para formatos de configurações antigos.
+ * @returns {Promise<{success: boolean, source: string, fallback?: boolean}>} Um objeto indicando o sucesso e a origem das configurações.
+ */
 export async function loadSettings() {
   return await handleCriticalOperation(
     async () => {
@@ -351,6 +361,13 @@ export async function loadSettings() {
   );
 }
 
+/**
+ * Atualiza e salva as configurações da extensão.
+ * Valida as novas configurações, mescla com as existentes e as salva no armazenamento apropriado.
+ * @param {object} newSettings - Um objeto contendo as configurações a serem atualizadas.
+ * @returns {Promise<{oldSettings: object, newSettings: object, rollback?: boolean}>} Um objeto com as configurações antigas e novas.
+ * @throws {Error} Se as novas configurações forem inválidas.
+ */
 export async function updateSettings(newSettings) {
   // Validação das novas configurações
   if (
@@ -434,6 +451,10 @@ export async function updateSettings(newSettings) {
   );
 }
 
+/**
+ * Salva o cache de nomes inteligentes no armazenamento local com um debounce.
+ * Agrupa múltiplas chamadas em uma única operação de escrita para otimizar o desempenho.
+ */
 export function saveSmartNameCache() {
   if (saveCacheTimeout) {
     clearTimeout(saveCacheTimeout);
@@ -468,6 +489,9 @@ export function saveSmartNameCache() {
   }, getConfig("CACHE_SAVE_DELAY"));
 }
 
+/**
+ * Limpa o cache de nomes inteligentes da memória e do armazenamento local.
+ */
 export function clearSmartNameCache() {
   smartNameCache.clear();
   if (saveCacheTimeout) {
@@ -571,9 +595,9 @@ export async function migrateLegacyCacheToIntelligent() {
 }
 
 /**
- * Obtém nome do cache (compatibilidade com sistema antigo)
- * @param {string} hostname - Hostname
- * @returns {string|null} Nome do cache ou null
+ * Obtém um nome inteligente do cache, priorizando o novo cache inteligente e usando o legado como fallback.
+ * @param {string} hostname - O hostname a ser procurado no cache.
+ * @returns {string|null} O nome do grupo encontrado no cache ou nulo.
  */
 export function getSmartNameFromLegacyCache(hostname) {
   // Primeiro tenta cache inteligente
@@ -587,10 +611,10 @@ export function getSmartNameFromLegacyCache(hostname) {
 }
 
 /**
- * Define nome no cache (compatibilidade com sistema antigo)
- * @param {string} hostname - Hostname
- * @param {string} name - Nome a armazenar
- * @param {object} options - Opções adicionais
+ * Define um nome inteligente no cache, escrevendo tanto no novo cache inteligente quanto no legado para compatibilidade.
+ * @param {string} hostname - O hostname a ser usado como chave.
+ * @param {string} name - O nome do grupo a ser armazenado.
+ * @param {object} [options={}] - Opções adicionais para o cache inteligente (ex: `source`, `confidence`).
  */
 export function setSmartNameInLegacyCache(hostname, name, options = {}) {
   // Define no cache inteligente
@@ -606,9 +630,10 @@ export function setSmartNameInLegacyCache(hostname, name, options = {}) {
 }
 
 /**
- * Invalida cache baseado em mudanças de domínio
- * @param {string} hostname - Hostname que mudou
- * @param {string} changeType - Tipo de mudança
+ * Invalida o cache para um domínio específico quando ocorrem mudanças (ex: conteúdo, URL).
+ * Afeta tanto o cache inteligente quanto o legado.
+ * @param {string} hostname - O hostname cujo cache deve ser invalidado.
+ * @param {string} [changeType="content"] - O tipo de mudança que acionou a invalidação.
  */
 export function invalidateCacheByDomainChange(
   hostname,
@@ -637,9 +662,9 @@ export function invalidateCacheByDomainChange(
 }
 
 /**
- * Invalida cache baseado em critérios específicos
- * @param {object} criteria - Critérios de invalidação
- * @returns {number} Número de entradas invalidadas
+ * Invalida entradas de cache com base em critérios como idade máxima ou um padrão de chave.
+ * @param {object} criteria - Um objeto com critérios de invalidação (ex: `{ maxAge: 86400000 }`).
+ * @returns {number} O número de entradas que foram invalidadas.
  */
 export function invalidateCacheByCriteria(criteria) {
   let invalidatedCount = 0;
@@ -669,7 +694,7 @@ export function invalidateCacheByCriteria(criteria) {
 }
 
 /**
- * Força limpeza completa de ambos os caches
+ * Limpa completamente todos os caches, tanto o inteligente quanto o legado.
  */
 export function clearAllCaches() {
   // Limpa cache inteligente
@@ -684,8 +709,8 @@ export function clearAllCaches() {
 }
 
 /**
- * Obtém estatísticas combinadas de ambos os caches
- * @returns {object} Estatísticas detalhadas
+ * Obtém estatísticas detalhadas sobre o uso do cache, combinando dados do cache inteligente e do legado.
+ * @returns {object} Um objeto com estatísticas detalhadas de ambos os caches.
  */
 export function getDetailedCacheStats() {
   const intelligentStats = globalIntelligentCache

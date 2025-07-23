@@ -1,25 +1,22 @@
 /* Styling is primarily handled by TailwindCSS */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
 
+/* Estilos para itens de lista de regras (agrupamento e renomeação) */
 #rulesList .rule-item,
-#renamingRulesList .rule-item /* NOVO */ {
+#renamingRulesList .rule-item {
   transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
   border: 1px solid transparent;
 }
 
 #rulesList .rule-item:hover,
-#renamingRulesList .rule-item:hover /* NOVO */ {
+#renamingRulesList .rule-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #e2e8f0;
+  border-color: #e2e8f0; /* slate-200 */
 }
 
 .dark #rulesList .rule-item:hover,
-.dark #renamingRulesList .rule-item:hover /* NOVO */ {
-  border-color: #374151;
+.dark #renamingRulesList .rule-item:hover {
+  border-color: #374151; /* slate-700 */
 }
 
 /* Estilos para o Tooltip de Ajuda */
@@ -97,13 +94,13 @@ body {
   opacity: 1;
 }
 
-/* NOVO: Estilos para desabilitar seções */
+/* Estilos para desabilitar seções */
 .disabled-section {
   opacity: 0.6;
   pointer-events: none;
 }
 
-/* NOVO: Estilos para operações de texto (dentro das estratégias de renomeação) */
+/* Estilos para operações de texto (dentro das estratégias de renomeação) */
 .text-operation-item {
   position: relative;
   padding: 1rem;
@@ -126,7 +123,7 @@ body {
   margin-top: 0.75rem;
 }
 
-/* NOVO: Estilos para estratégias de renomeação */
+/* Estilos para estratégias de renomeação */
 .renaming-strategy-item {
   position: relative;
   padding: 1rem;
@@ -149,4 +146,40 @@ body {
 
 .renaming-strategy-item .strategy-fields {
   margin-top: 0.75rem;
+}
+
+/* NOVO: Estilos para inputs e selects desabilitados */
+input[type="text"]:disabled,
+input[type="number"]:disabled,
+input[type="url"]:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: #e2e8f0; /* slate-200 */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.dark input[type="text"]:disabled,
+.dark input[type="number"]:disabled,
+.dark input[type="url"]:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background-color: #475569; /* slate-600 */
+}
+
+/* NOVO: Melhoria nos estilos de foco para inputs e selects */
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="url"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #4f46e5; /* indigo-600 */
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5); /* indigo-500 with opacity */
+}
+
+/* NOVO: Estilo para botões desabilitados */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

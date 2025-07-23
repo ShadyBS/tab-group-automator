@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="options.css" />
   </head>
   <body
-    class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
+    class="antialiased bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 transition-colors duration-300"
   >
     <div class="container mx-auto p-4 md:p-8 max-w-5xl">
       <header class="flex justify-between items-center mb-10 text-center">
@@ -284,7 +284,7 @@
           <div
             class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50"
           >
-            <span class="font-semibold">Status da Memória:</span>
+            <span class="font-semibold">Status da Memória e Cache:</span>
             <div class="flex gap-2">
               <button
                 id="refreshMemoryStats"
@@ -296,7 +296,13 @@
                 id="cleanupMemory"
                 class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
               >
-                Limpar
+                Limpar Memória
+              </button>
+              <button
+                id="clearCacheBtn"
+                class="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+              >
+                Limpar Cache
               </button>
             </div>
           </div>
@@ -814,7 +820,13 @@ youtube.com"
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label for="renamingRuleName" class="font-semibold block mb-1"
-                >Nome da Regra</label
+                >Nome da Regra<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingRuleName"
+                >
+                  ?
+                </button></label
               >
               <input
                 type="text"
@@ -826,7 +838,13 @@ youtube.com"
             </div>
             <div>
               <label for="renamingRulePriority" class="font-semibold block mb-1"
-                >Prioridade</label
+                >Prioridade<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingPriority"
+                >
+                  ?
+                </button></label
               >
               <input
                 type="number"
@@ -857,9 +875,27 @@ youtube.com"
 
           <!-- Condições da Regra de Renomeação -->
           <div>
-            <h4 class="text-lg font-semibold mb-3">
-              Aplicar esta regra SE as condições forem verdadeiras:
-            </h4>
+            <div class="flex items-center space-x-4 mb-4">
+              <h4 class="text-lg font-semibold">
+                Aplicar regra SE<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="renamingConditions"
+                >
+                  ?
+                </button>
+              </h4>
+              <select
+                id="renamingRuleConditionOperator"
+                class="p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-700 dark:border-slate-600"
+              >
+                <option value="AND">TODAS</option>
+                <option value="OR">QUALQUER UMA</option>
+              </select>
+              <h4 class="text-lg font-semibold">
+                das seguintes condições forem verdadeiras:
+              </h4>
+            </div>
             <div
               id="renamingConditionsContainer"
               class="space-y-3 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg"
@@ -880,7 +916,13 @@ youtube.com"
           <!-- Estratégias de Renomeação -->
           <div>
             <h4 class="text-lg font-semibold mb-3">
-              Estratégias de Renomeação (aplicadas em ordem):
+              Estratégias de Renomeação (aplicadas em ordem):<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="renamingStrategies"
+              >
+                ?
+              </button>
             </h4>
             <div
               id="renamingStrategiesContainer"
@@ -901,7 +943,15 @@ youtube.com"
 
           <!-- Opções Avançadas de Renomeação -->
           <div>
-            <h4 class="text-lg font-semibold mb-3">Opções Avançadas:</h4>
+            <h4 class="text-lg font-semibold mb-3">
+              Opções Avançadas:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="advancedRenamingOptions"
+              >
+                ?
+              </button>
+            </h4>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="flex items-center p-2">
                 <input
