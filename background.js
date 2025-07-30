@@ -940,7 +940,29 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
-    Logger.info("onMessage", `Ação '${message.action}' recebida.`, message);
+    // Importa validação de mensagens
+    const { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter } = await import("./validation-utils.js");
+    
+    // Rate limiting por aba
+    const tabId = sender.tab?.id || 0;
+    if (!messageRateLimiter.isAllowed(tabId)) {
+      Logger.warn("onMessage", `Rate limit excedido para aba ${tabId}`);
+      sendResponse({ error: "Rate limit excedido" });
+      return;
+    }
+
+    // Validação da mensagem
+    const validation = validateRuntimeMessage(message, sender);
+    if (!validation.isValid) {
+      Logger.warn("onMessage", `Mensagem inválida: ${validation.errors.join("; ")}`, { message, sender });
+      sendResponse({ error: `Mensagem inválida: ${validation.errors.join("; ")}` });
+      return;
+    }
+
+    // Sanitização dos dados
+    const sanitizedMessage = sanitizeMessageData(message);
+    
+    Logger.info("onMessage", `Ação '${sanitizedMessage.action}' recebida.`, { action: sanitizedMessage.action, tabId });
     try {
       switch (message.action) {
         case "getSettings":

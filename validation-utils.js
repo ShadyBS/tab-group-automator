@@ -980,6 +980,264 @@ function validateTextOperation(operation, index, strategyPrefix) {
 }
 
 /**
+ * Ações válidas para mensagens do runtime
+ */
+export const VALID_MESSAGE_ACTIONS = new Set([
+  "getSettings",
+  "getSuggestion",
+  "clearSuggestion",
+  "clearLearningHistory",
+  "acceptSuggestion",
+  "updateSettings",
+  "groupAllTabs",
+  "getMemoryStats",
+  "cleanupMemory",
+  "getAdaptiveMemoryStats",
+  "forceAdaptiveCleanup",
+  "emergencyAdaptiveCleanup",
+  "getErrorStats",
+  "resetErrorStats",
+  "setCustomErrorStrategy",
+  "setContextualErrorConfig",
+  "getCacheStats",
+  "getDetailedCacheStats",
+  "invalidateCacheByDomain",
+  "invalidateCacheByCriteria",
+  "clearAllCaches",
+  "migrateLegacyCache",
+  "getPerformanceConfig",
+  "updatePerformanceConfig",
+  "getAPIRateLimiterStats",
+  "clearAPIQueues",
+  "pauseAPICategory",
+  "resumeAPICategory",
+  "getRateLimiterDetailedStats",
+  "log",
+  "extractContent"
+]);
+
+/**
+ * Valida uma mensagem do runtime
+ * @param {any} message - Mensagem a validar
+ * @param {object} sender - Informações do remetente
+ * @returns {ValidationResult} - Resultado da validação
+ */
+export function validateRuntimeMessage(message, sender) {
+  const errors = [];
+
+  // Verifica se message é um objeto
+  if (!message || typeof message !== "object" || Array.isArray(message)) {
+    errors.push("Mensagem deve ser um objeto válido");
+    return { isValid: false, errors };
+  }
+
+  // Valida ação
+  if (!message.action || typeof message.action !== "string") {
+    errors.push("Ação da mensagem é obrigatória e deve ser uma string");
+  } else if (!VALID_MESSAGE_ACTIONS.has(message.action)) {
+    errors.push(`Ação '${message.action}' não é permitida`);
+  }
+
+  // Validações específicas por ação
+  switch (message.action) {
+    case "updateSettings":
+      if (!message.settings || typeof message.settings !== "object") {
+        errors.push("updateSettings requer um objeto settings válido");
+      }
+      break;
+
+    case "acceptSuggestion":
+      if (!message.suggestion || typeof message.suggestion !== "object") {
+        errors.push("acceptSuggestion requer um objeto suggestion válido");
+      } else {
+        if (!Array.isArray(message.suggestion.tabIds)) {
+          errors.push("suggestion.tabIds deve ser um array");
+        }
+        if (!message.suggestion.suggestedName || typeof message.suggestion.suggestedName !== "string") {
+          errors.push("suggestion.suggestedName deve ser uma string não vazia");
+        }
+      }
+      break;
+
+    case "extractContent":
+      if (!message.selector || typeof message.selector !== "string") {
+        errors.push("extractContent requer um seletor CSS válido");
+      } else {
+        // Validação básica de seletor CSS para prevenir injeção
+        const cssSelectorRegex = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
+        if (!cssSelectorRegex.test(message.selector)) {
+          errors.push("Seletor CSS contém caracteres não permitidos");
+        }
+      }
+      if (message.attribute && typeof message.attribute !== "string") {
+        errors.push("Atributo deve ser uma string");
+      }
+      break;
+
+    case "invalidateCacheByDomain":
+      if (!message.hostname || typeof message.hostname !== "string") {
+        errors.push("invalidateCacheByDomain requer hostname válido");
+      }
+      break;
+
+    case "log":
+      if (!message.level || !["debug", "info", "warn", "error"].includes(message.level)) {
+        errors.push("log requer level válido (debug, info, warn, error)");
+      }
+      if (!message.context || typeof message.context !== "string") {
+        errors.push("log requer context válido");
+      }
+      if (!message.message || typeof message.message !== "string") {
+        errors.push("log requer message válido");
+      }
+      break;
+  }
+
+  // Validação do sender para ações sensíveis
+  if (sender && message.action === "extractContent") {
+    if (!sender.tab || typeof sender.tab.id !== "number") {
+      errors.push("extractContent deve vir de uma aba válida");
+    }
+  }
+
+  const isValid = errors.length === 0;
+  if (!isValid) {
+    try {
+      Logger.warn("Validation", `Mensagem inválida: ${errors.join("; ")}`);
+    } catch (logError) {
+      console.warn(`Erro ao registrar validação de mensagem: ${logError.message}`);
+    }
+  }
+
+  return { isValid, errors };
+}
+
+/**
+ * Sanitiza dados de mensagem removendo propriedades perigosas
+ * @param {object} data - Dados a sanitizar
+ * @returns {object} - Dados sanitizados
+ */
+export function sanitizeMessageData(data) {
+  if (!data || typeof data !== "object") {
+    return {};
+  }
+
+  const sanitized = {};
+  
+  // Lista de propriedades permitidas
+  const allowedProps = [
+    "action", "settings", "suggestion", "selector", "attribute", 
+    "hostname", "changeType", "criteria", "config", "category",
+    "level", "context", "message", "details", "strategy", "errorType"
+  ];
+
+  for (const prop of allowedProps) {
+    if (data.hasOwnProperty(prop)) {
+      if (typeof data[prop] === "string") {
+        sanitized[prop] = sanitizeString(data[prop], 1000);
+      } else if (typeof data[prop] === "object" && data[prop] !== null) {
+        // Para objetos, fazemos uma sanitização recursiva limitada
+        sanitized[prop] = sanitizeObjectShallow(data[prop]);
+      } else {
+        sanitized[prop] = data[prop];
+      }
+    }
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitiza um objeto de forma superficial
+ * @param {object} obj - Objeto a sanitizar
+ * @returns {object} - Objeto sanitizado
+ */
+function sanitizeObjectShallow(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    return obj;
+  }
+
+  const sanitized = {};
+  const maxProps = 20; // Limite de propriedades para prevenir DoS
+  let propCount = 0;
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (propCount >= maxProps) break;
+    
+    if (typeof key === "string" && key.length <= 50) {
+      if (typeof value === "string") {
+        sanitized[key] = sanitizeString(value, 500);
+      } else if (typeof value === "number" || typeof value === "boolean") {
+        sanitized[key] = value;
+      }
+    }
+    propCount++;
+  }
+
+  return sanitized;
+}
+
+/**
+ * Implementa rate limiting simples para mensagens
+ */
+class MessageRateLimiter {
+  constructor() {
+    this.requests = new Map(); // tabId -> array de timestamps
+    this.maxRequests = 10; // máximo de requests por janela
+    this.windowMs = 1000; // janela de 1 segundo
+  }
+
+  /**
+   * Verifica se uma requisição deve ser permitida
+   * @param {number} tabId - ID da aba
+   * @returns {boolean} - Se a requisição é permitida
+   */
+  isAllowed(tabId) {
+    const now = Date.now();
+    const tabRequests = this.requests.get(tabId) || [];
+    
+    // Remove requests antigas
+    const validRequests = tabRequests.filter(timestamp => 
+      now - timestamp < this.windowMs
+    );
+    
+    if (validRequests.length >= this.maxRequests) {
+      return false;
+    }
+    
+    validRequests.push(now);
+    this.requests.set(tabId, validRequests);
+    
+    // Limpeza periódica
+    if (this.requests.size > 100) {
+      this.cleanup();
+    }
+    
+    return true;
+  }
+
+  /**
+   * Limpa entradas antigas
+   */
+  cleanup() {
+    const now = Date.now();
+    for (const [tabId, requests] of this.requests.entries()) {
+      const validRequests = requests.filter(timestamp => 
+        now - timestamp < this.windowMs
+      );
+      
+      if (validRequests.length === 0) {
+        this.requests.delete(tabId);
+      } else {
+        this.requests.set(tabId, validRequests);
+      }
+    }
+  }
+}
+
+export const messageRateLimiter = new MessageRateLimiter();
+
+/**
  * Resultado de validação
  * @typedef {Object} ValidationResult
  * @property {boolean} isValid - Se a validação passou

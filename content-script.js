@@ -126,24 +126,78 @@
 
   // --- NOVO: Listener para extração de conteúdo via CSS ---
   // Este listener permite que o background script solicite a extração de conteúdo
-  // da página usando um seletor CSS.
+  // da página usando um seletor CSS com validação de segurança.
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === "extractContent") {
       try {
-        const element = document.querySelector(message.selector);
-        let extractedContent = null;
-
-        if (element) {
-          if (message.attribute) {
-            extractedContent = element.getAttribute(message.attribute);
-          } else {
-            extractedContent = element.textContent;
-          }
+        // Validação básica de segurança do seletor CSS
+        if (!message.selector || typeof message.selector !== "string") {
+          throw new Error("Seletor CSS inválido");
         }
-        // Retorna o conteúdo extraído (ou null)
-        return Promise.resolve(
-          extractedContent ? extractedContent.trim() : null
+
+        // Lista de seletores permitidos (whitelist)
+        const allowedSelectors = [
+          'meta[name="application-name"]',
+          'meta[property="og:site_name"]',
+          'meta[property="og:title"]',
+          'meta[name="apple-mobile-web-app-title"]',
+          'meta[name="twitter:site"]',
+          'meta[name="twitter:app:name:iphone"]',
+          'meta[name="twitter:app:name:googleplay"]',
+          'meta[name="DC.publisher"]',
+          'script[type="application/ld+json"]',
+          'link[rel="manifest"]',
+          'h1',
+          'title',
+          'header a img[alt]',
+          'a[href="/"] img[alt]',
+          '[class*="logo"] img[alt]'
+        ];
+
+        // Verifica se o seletor está na whitelist ou é um seletor básico seguro
+        const isAllowedSelector = allowedSelectors.some(allowed => 
+          message.selector === allowed || 
+          message.selector.startsWith(allowed)
         );
+
+        // Validação adicional com regex para seletores básicos
+        const basicSelectorRegex = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
+        
+        if (!isAllowedSelector && !basicSelectorRegex.test(message.selector)) {
+          throw new Error("Seletor CSS não permitido por motivos de segurança");
+        }
+
+        // Limita o comprimento do seletor
+        if (message.selector.length > 200) {
+          throw new Error("Seletor CSS muito longo");
+        }
+
+        // Timeout para prevenir operações que demorem muito
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("Timeout na extração de conteúdo")), 3000);
+        });
+
+        const extractionPromise = new Promise((resolve) => {
+          const element = document.querySelector(message.selector);
+          let extractedContent = null;
+
+          if (element) {
+            if (message.attribute && typeof message.attribute === "string") {
+              // Validação do atributo
+              const allowedAttributes = ["content", "alt", "title", "href", "src"];
+              if (allowedAttributes.includes(message.attribute)) {
+                extractedContent = element.getAttribute(message.attribute);
+              }
+            } else {
+              extractedContent = element.textContent;
+            }
+          }
+
+          resolve(extractedContent ? extractedContent.trim().slice(0, 500) : null);
+        });
+
+        return Promise.race([extractionPromise, timeoutPromise]);
+
       } catch (error) {
         // Registra o erro e retorna null para o background script
         browser.runtime

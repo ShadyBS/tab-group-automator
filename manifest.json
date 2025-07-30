@@ -21,16 +21,18 @@
 
   "permissions": [
     "tabs",
-    "tabGroups",
+    "tabGroups", 
     "storage",
     "menus",
     "contextMenus",
-    "scripting",
-    "downloads",
-    "alarms"
+    "scripting"
   ],
 
   "host_permissions": ["<all_urls>"],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self';"
+  },
 
   "background": {
     "scripts": ["background.js"],
