@@ -81,6 +81,8 @@ export const DEFAULT_SETTINGS = {
   titleDelimiters: "|–—:·»«-",
   tabRenamingEnabled: false, // NOVO: Habilita/desabilita a renomeação automática de abas
   tabRenamingRules: [], // NOVO: Array para armazenar as regras de renomeação
+  learningEnabled: true, // NOVO: Controla se o aprendizado está ativo
+  learningDataRetentionDays: 30, // NOVO: Dias para manter dados
 };
 
 // Objetos em memória

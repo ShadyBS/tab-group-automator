@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "browser-extension-dev": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-browser-extension"],
+      "env": {
+        "PROJECT_TYPE": "webextension",
+        "TARGET_BROWSERS": "chrome,firefox"
+      }
+    },
+    "javascript-advanced": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-javascript"],
+      "env": {
+        "TYPESCRIPT_SUPPORT": "true",
+        "ES_VERSION": "2022",
+        "MODULE_SYSTEM": "esm"
+      }
+    },
+    "web-apis": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-web-apis"],
+      "env": {
+        "DOM_APIS": "true",
+        "BROWSER_APIS": "chrome.tabs,browser.tabs,chrome.storage"
+      }
+    },
+    "css-framework": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-css"],
+      "env": {
+        "FRAMEWORK": "tailwindcss",
+        "POSTCSS_SUPPORT": "true",
+        "THEME_SUPPORT": "dark,light"
+      }
+    },
+    "testing-qa": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-testing"],
+      "env": {
+        "TEST_FRAMEWORKS": "jest,mocha",
+        "LINT_TOOLS": "eslint,prettier",
+        "BROWSER_TESTING": "true"
+      }
+    },
+    "build-automation": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-build"],
+      "env": {
+        "BUILD_TOOLS": "npm,webpack,rollup",
+        "TARGET_FORMATS": "zip,crx",
+        "MULTI_BROWSER": "true"
+      }
+    },
+    "security-privacy": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-security"],
+      "env": {
+        "CSP_VALIDATION": "true",
+        "PERMISSION_AUDIT": "true",
+        "PRIVACY_COMPLIANCE": "gdpr,ccpa"
+      }
+    },
+    "documentation": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-docs"],
+      "env": {
+        "DOC_FORMATS": "markdown,jsdoc",
+        "CHANGELOG_SUPPORT": "true",
+        "I18N_SUPPORT": "true"
+      }
+    }
+  }
+}

@@ -62,6 +62,14 @@ const helpTexts = {
     "Expressões Regulares (Regex) são um padrão de busca poderoso para encontrar e manipular texto. <br><strong>Dica:</strong> Use parênteses <code>()</code> para criar um 'grupo de captura'. Você pode então usar <code>$1</code>, <code>$2</code>, etc., no campo 'Substituir por' para se referir ao texto capturado. <br><a href='https://regex101.com/' target='_blank' class='text-indigo-400 hover:underline'>Aprenda e teste suas Regex aqui.</a>",
   advancedRenamingOptions:
     "Ajustes finos para o comportamento da regra:<ul><li><strong>Aguardar carregamento:</strong> Útil para sites que carregam o título dinamicamente após a página inicial carregar.</li><li><strong>Armazenar em cache:</strong> Melhora a performance ao salvar o resultado da renomeação, evitando reprocessamento.</li><li><strong>Respeitar alterações manuais:</strong> Se você renomear manualmente uma aba, a extensão não tentará renomeá-la novamente.</li><li><strong>Tentativas de Reaplicação:</strong> Quantas vezes a regra deve tentar ser aplicada se a primeira tentativa falhar (ex: o elemento ainda não apareceu na página).</li></ul>",
+  suggestionsEnabled:
+    "Ativa ou desativa as sugestões inteligentes de agrupamento. Quando ativado, a extensão analisará seus padrões de uso e sugerirá novos grupos baseados em abas similares que você tem abertas.",
+  clearLearningHistory:
+    "Remove todos os dados de aprendizado armazenados pela extensão. Isso inclui padrões de agrupamento que foram aprendidos com base nos seus grupos manuais. Use com cuidado, pois esta ação não pode ser desfeita.",
+  showLearningData:
+    "Mostra uma visão detalhada de todos os dados que a extensão aprendeu sobre seus padrões de agrupamento. Inclui informações sobre domínios, nomes de grupos e datas de expiração dos dados.",
+  learningEnabled:
+    "Controla se a extensão deve aprender automaticamente com os grupos que você cria manualmente. Quando ativado, a extensão observará seus padrões e melhorará as sugestões futuras. Todos os dados são armazenados localmente e respeitam sua privacidade.",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -168,6 +176,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // NOVO: Elementos de Sugestões Inteligentes
     suggestionsEnabled: document.getElementById("suggestionsEnabled"),
     clearLearningHistoryBtn: document.getElementById("clearLearningHistoryBtn"),
+    showLearningDataBtn: document.getElementById("showLearningDataBtn"),
+    learningEnabled: document.getElementById("learningEnabled"),
+    learningDataModal: document.getElementById("learningDataModal"),
+    learningDataContent: document.getElementById("learningDataContent"),
+    closeLearningDataBtn: document.getElementById("closeLearningDataBtn"),
   };
 
   let currentSettings = {};
@@ -1658,6 +1671,73 @@ document.addEventListener("DOMContentLoaded", () => {
       n.addEventListener("transitionend", () => n.remove());
     }, 4000);
   }
+
+  // NOVO: Função para mostrar modal de dados de aprendizado
+  function showLearningDataModal(report) {
+    if (!report) {
+      showNotification("Erro ao carregar dados de aprendizado.", "error");
+      return;
+    }
+
+    let contentHtml = `
+      <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
+          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${report.totalPatterns || 0}</div>
+          <div class="text-sm text-slate-600 dark:text-slate-400">Padrões Aprendidos</div>
+        </div>
+        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
+          <div class="text-2xl font-bold text-green-600 dark:text-green-400">${report.uniqueDomains || 0}</div>
+          <div class="text-sm text-slate-600 dark:text-slate-400">Domínios Únicos</div>
+        </div>
+        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
+          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${report.daysUntilExpiration || 'N/A'}</div>
+          <div class="text-sm text-slate-600 dark:text-slate-400">Dias até Expiração</div>
+        </div>
+      </div>
+    `;
+
+    if (report.patterns && report.patterns.length > 0) {
+      contentHtml += `
+        <div class="mb-4">
+          <h4 class="font-semibold mb-2">Padrões de Agrupamento:</h4>
+          <div class="max-h-64 overflow-y-auto space-y-2">
+      `;
+      
+      report.patterns.forEach(pattern => {
+        const expirationDate = new Date(pattern.expiresAt).toLocaleDateString('pt-BR');
+        contentHtml += `
+          <div class="bg-slate-50 dark:bg-slate-700 p-3 rounded border">
+            <div class="flex justify-between items-start">
+              <div>
+                <div class="font-medium">${pattern.groupName}</div>
+                <div class="text-sm text-slate-600 dark:text-slate-400">
+                  Domínios: ${pattern.domains.join(', ')}
+                </div>
+              </div>
+              <div class="text-xs text-slate-500 dark:text-slate-400">
+                Expira: ${expirationDate}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      contentHtml += `
+          </div>
+        </div>
+      `;
+    } else {
+      contentHtml += `
+        <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+          <p>Nenhum padrão de aprendizado encontrado.</p>
+          <p class="text-sm mt-2">Use a extensão para criar grupos manuais e os padrões serão aprendidos automaticamente.</p>
+        </div>
+      `;
+    }
+
+    ui.learningDataContent.innerHTML = contentHtml;
+    ui.learningDataModal.classList.remove("hidden");
+  }
   function applyTheme(theme) {
     if (
       theme === "dark" ||
@@ -2133,8 +2213,106 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // NOVO: Listener para mostrar dados de aprendizado
+  if (ui.showLearningDataBtn) {
+    ui.showLearningDataBtn.addEventListener("click", async () => {
+      try {
+        const report = await browser.runtime.sendMessage({
+          action: "getLearningReport",
+        });
+        showLearningDataModal(report);
+      } catch (error) {
+        console.error("Erro ao obter dados de aprendizado:", error);
+        showNotification("Erro ao carregar dados de aprendizado.", "error");
+      }
+    });
+  }
+
+  // NOVO: Listener para toggle de aprendizado
+  if (ui.learningEnabled) {
+    ui.learningEnabled.addEventListener("change", async (e) => {
+      try {
+        await browser.runtime.sendMessage({
+          action: "setLearningEnabled",
+          enabled: e.target.checked,
+        });
+        showNotification(
+          `Aprendizado automático ${e.target.checked ? "ativado" : "desativado"}!`,
+          "success"
+        );
+      } catch (error) {
+        console.error("Erro ao alterar configuração de aprendizado:", error);
+        showNotification("Erro ao alterar configuração de aprendizado.", "error");
+        // Reverte o checkbox em caso de erro
+        e.target.checked = !e.target.checked;
+      }
+    });
+  }
+
+  // NOVO: Listener para fechar modal de dados de aprendizado
+  if (ui.closeLearningDataBtn) {
+    ui.closeLearningDataBtn.addEventListener("click", () => {
+      ui.learningDataModal.classList.add("hidden");
+    });
+  }
+
   initialize();
   initializeHelpTooltips();
+
+  // NOVO: Event listeners para funcionalidades de aprendizado
+  if (ui.clearLearningHistoryBtn) {
+    ui.clearLearningHistoryBtn.addEventListener("click", async () => {
+      showConfirmModal(
+        "Tem certeza que deseja limpar todos os dados de aprendizado? Esta ação não pode ser desfeita.",
+        async () => {
+          try {
+            await browser.runtime.sendMessage({
+              action: "cleanupExpiredLearning",
+            });
+            showNotification(
+              "Dados de aprendizado limpos com sucesso.",
+              "success"
+            );
+          } catch (error) {
+            console.error("Erro ao limpar dados de aprendizado:", error);
+            showNotification(
+              "Erro ao limpar dados de aprendizado.",
+              "error"
+            );
+          }
+        }
+      );
+    });
+  }
+
+  if (ui.showLearningDataBtn) {
+    ui.showLearningDataBtn.addEventListener("click", async () => {
+      try {
+        const report = await browser.runtime.sendMessage({
+          action: "getLearningReport",
+        });
+        showLearningDataModal(report);
+      } catch (error) {
+        console.error("Erro ao carregar dados de aprendizado:", error);
+        showNotification("Erro ao carregar dados de aprendizado.", "error");
+      }
+    });
+  }
+
+  if (ui.closeLearningDataBtn) {
+    ui.closeLearningDataBtn.addEventListener("click", () => {
+      ui.learningDataModal.classList.add("hidden");
+    });
+  }
+
+  // Fechar modal ao clicar fora dele
+  if (ui.learningDataModal) {
+    ui.learningDataModal.addEventListener("click", (e) => {
+      if (e.target === ui.learningDataModal) {
+        ui.learningDataModal.classList.add("hidden");
+      }
+    });
+  }
 
   // Carrega configurações iniciais
   setTimeout(updateMemoryStats, 1000);

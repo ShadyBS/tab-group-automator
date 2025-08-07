@@ -275,6 +275,44 @@
               Limpar Histórico
             </button>
           </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="showLearningDataBtn" class="font-semibold"
+              >Dados de aprendizado:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="showLearningData"
+              >
+                ?
+              </button></label
+            >
+            <button
+              id="showLearningDataBtn"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition duration-200 text-sm"
+            >
+              Ver Dados Armazenados
+            </button>
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="learningEnabled" class="font-semibold"
+              >Aprendizado automático:<button
+                type="button"
+                class="help-tooltip"
+                data-help-key="learningEnabled"
+              >
+                ?
+              </button></label
+            >
+            <input
+              type="checkbox"
+              id="learningEnabled"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+              checked
+            />
+          </div>
         </div>
       </section>
       <!-- FIM NOVO -->
@@ -1080,6 +1118,37 @@ youtube.com"
       </div>
     </div>
     <!-- FIM NOVO: Modal de Regras de Renomeação -->
+
+    <!-- Modal para mostrar dados de aprendizado -->
+    <div
+      id="learningDataModal"
+      class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex justify-center items-start pt-10 overflow-y-auto"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-4xl m-4 dark:bg-slate-800"
+      >
+        <h3 class="text-2xl font-bold mb-6">Dados de Aprendizado Armazenados</h3>
+        
+        <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <p class="text-sm text-blue-700 dark:text-blue-300">
+            <strong>Privacidade:</strong> Apenas nomes de domínio (ex: "github.com") são armazenados, nunca URLs completas ou dados pessoais.
+          </p>
+        </div>
+        
+        <div id="learningDataContent" class="max-h-96 overflow-y-auto">
+          <!-- Conteúdo será preenchido via JavaScript -->
+        </div>
+        
+        <div class="flex justify-end space-x-4 mt-6">
+          <button
+            id="closeLearningDataBtn"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg dark:bg-slate-600 dark:text-slate-200 dark:hover:bg-slate-500"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div
       id="confirmModal"

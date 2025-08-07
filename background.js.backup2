@@ -1156,34 +1156,6 @@ async function processMessageAction(message, sender) {
       }
       return { success: true };
       
-    case "extractContent":
-      // Validação adicional no background para extração de conteúdo
-      const { validateCSSSelector, ALLOWED_HTML_ATTRIBUTES } = await import("./validation-utils.js");
-      
-      const selectorValidation = validateCSSSelector(message.selector);
-      if (!selectorValidation.isValid) {
-        throw new Error(`Seletor inválido: ${selectorValidation.errors.join("; ")}`);
-      }
-      
-      if (message.attribute && !ALLOWED_HTML_ATTRIBUTES.has(message.attribute)) {
-        throw new Error("Atributo não permitido para extração");
-      }
-      
-      // Verifica se o sender é uma aba válida
-      if (!sender.tab || typeof sender.tab.id !== "number") {
-        throw new Error("Extração de conteúdo deve vir de uma aba válida");
-      }
-      
-      // Log da operação para auditoria
-      Logger.info("extractContent", `Solicitação de extração validada`, {
-        selector: message.selector,
-        attribute: message.attribute,
-        tabId: sender.tab.id,
-        url: sender.tab.url
-      });
-      
-      return { success: true, validated: true };
-      
     default:
       Logger.warn("processMessageAction", `Ação desconhecida: ${message.action}`);
       throw new Error(`Ação desconhecida: ${message.action}`);

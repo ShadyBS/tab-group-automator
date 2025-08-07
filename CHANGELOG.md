@@ -5,6 +5,35 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [3.7.2] - 2024-12-19
+
+### Security
+- **CRÍTICO:** Implementada validação robusta de mensagens no background script
+- Adicionada validação de sender para ações sensíveis
+- Implementado timeout de 5 segundos para operações longas
+- Melhorada sanitização de dados de entrada
+
+### Fixed
+- Corrigida vulnerabilidade de dados corrompidos em tab operations
+- Prevenção de crashes por mensagens malformadas
+- Melhorada validação de sender.tab para ações que requerem contexto de aba
+
+### Technical
+- **`validation-utils.js`**: Adicionada função `validateSender` para validação de remetente
+- **`background.js`**: Refatorado message handler com validação completa e timeout
+- **Message Processing**: Extraída lógica de processamento para função `processMessageAction`
+- **Timeout Implementation**: Implementado timeout de 5 segundos para operações longas
+- **Enhanced Validation**: Validação de sender antes do processamento de mensagens
+
+### Benefits
+- **Zero vulnerabilidades** de dados corrompidos em operações de tab
+- **Prevenção de crashes** por mensagens malformadas ou inválidas
+- **Melhor segurança** com validação de sender para ações sensíveis
+- **Performance protegida** com timeout para operações longas
+- **Código mais limpo** com separação de responsabilidades
+
+---
+
 ## [3.7.1] - 2024-12-19
 
 ### Corrigido

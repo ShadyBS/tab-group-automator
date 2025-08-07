@@ -126,93 +126,200 @@
 
   // --- NOVO: Listener para extração de conteúdo via CSS ---
   // Este listener permite que o background script solicite a extração de conteúdo
-  // da página usando um seletor CSS com validação de segurança.
+  // da página usando um seletor CSS com validação de segurança robusta.
+
+  // CONSTANTES DE SEGURANÇA
+  const ALLOWED_SELECTORS = [
+    // Meta tags essenciais
+    'meta[name="application-name"]',
+    'meta[property="og:site_name"]',
+    'meta[property="og:title"]',
+    'meta[name="apple-mobile-web-app-title"]',
+    'meta[name="twitter:site"]',
+    'meta[name="twitter:app:name:iphone"]',
+    'meta[name="twitter:app:name:googleplay"]',
+    'meta[name="DC.publisher"]',
+    
+    // Elementos estruturais
+    'title',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'body', 'main', 'article', 'section', 'header', 'footer', 'nav',
+    
+    // Links e recursos
+    'link[rel="manifest"]',
+    'script[type="application/ld+json"]',
+    
+    // Imagens e logos
+    'header img[alt]',
+    'a[href="/"] img[alt]',
+    '[class*="logo"] img[alt]',
+    'img[alt*="logo"]',
+    'header a img[alt]'
+  ];
+
+  const ALLOWED_ATTRIBUTES = [
+    'content', 'alt', 'title', 'href', 'src', 'name', 'property', 'rel', 'type'
+  ];
+
+  const SAFE_CSS_SELECTOR_REGEX = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|_]+$/;
+
+  const DANGEROUS_PATTERNS = [
+    /javascript:/i,
+    /expression\(/i,
+    /url\(/i,
+    /@import/i,
+    /behavior:/i,
+    /binding:/i,
+    /vbscript:/i,
+    /data:/i
+  ];
+
+  // Rate Limiter para Content Script
+  class ContentScriptRateLimiter {
+    constructor() {
+      this.requests = [];
+      this.maxRequests = 5;
+      this.windowMs = 1000;
+    }
+    
+    isAllowed() {
+      const now = Date.now();
+      this.requests = this.requests.filter(time => now - time < this.windowMs);
+      
+      if (this.requests.length >= this.maxRequests) {
+        return false;
+      }
+      
+      this.requests.push(now);
+      return true;
+    }
+  }
+
+  const rateLimiter = new ContentScriptRateLimiter();
+
+  // Função de validação melhorada
+  function validateCSSSelector(selector) {
+    // 1. Verificações básicas
+    if (!selector || typeof selector !== 'string') {
+      return { valid: false, reason: 'Seletor deve ser uma string não vazia' };
+    }
+    
+    // 2. Limite de tamanho
+    if (selector.length > 200) {
+      return { valid: false, reason: 'Seletor muito longo' };
+    }
+    
+    // 3. Verificar padrões perigosos
+    for (const pattern of DANGEROUS_PATTERNS) {
+      if (pattern.test(selector)) {
+        return { valid: false, reason: 'Seletor contém padrão perigoso' };
+      }
+    }
+    
+    // 4. Verificar whitelist
+    const isInWhitelist = ALLOWED_SELECTORS.some(allowed => 
+      selector === allowed || selector.startsWith(allowed)
+    );
+    
+    // 5. Verificar regex básica se não estiver na whitelist
+    if (!isInWhitelist && !SAFE_CSS_SELECTOR_REGEX.test(selector)) {
+      return { valid: false, reason: 'Seletor contém caracteres não permitidos' };
+    }
+    
+    // 6. Verificação adicional para seletores script perigosos
+    if (selector.toLowerCase().includes('script') && selector !== 'script[type="application/ld+json"]') {
+      return { valid: false, reason: 'Seletor script não permitido' };
+    }
+    
+    return { valid: true };
+  }
+
+  // Função de sanitização melhorada
+  function sanitizeExtractedContent(content) {
+    if (!content || typeof content !== 'string') {
+      return null;
+    }
+    
+    const sanitized = content
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove caracteres de controle
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+      .replace(/javascript:/gi, '') // Remove javascript:
+      .replace(/on\w+\s*=\s*[^,\s]*/gi, '') // Remove event handlers (melhorado)
+      .replace(/data:[^,\s]*/gi, '') // Remove data URLs (melhorado)
+      .trim()
+      .slice(0, 500); // Limita tamanho
+      
+    return sanitized.length > 0 ? sanitized : null;
+  }
+
   browser.runtime.onMessage.addListener((message) => {
     if (message.action === "extractContent") {
       try {
-        // Validação básica de segurança do seletor CSS
-        if (!message.selector || typeof message.selector !== "string") {
-          throw new Error("Seletor CSS inválido");
+        // 1. Rate limiting
+        if (!rateLimiter.isAllowed()) {
+          throw new Error("Rate limit excedido para extração de conteúdo");
         }
-
-        // Lista de seletores permitidos (whitelist)
-        const allowedSelectors = [
-          'meta[name="application-name"]',
-          'meta[property="og:site_name"]',
-          'meta[property="og:title"]',
-          'meta[name="apple-mobile-web-app-title"]',
-          'meta[name="twitter:site"]',
-          'meta[name="twitter:app:name:iphone"]',
-          'meta[name="twitter:app:name:googleplay"]',
-          'meta[name="DC.publisher"]',
-          'script[type="application/ld+json"]',
-          'link[rel="manifest"]',
-          'h1',
-          'title',
-          'header a img[alt]',
-          'a[href="/"] img[alt]',
-          '[class*="logo"] img[alt]'
-        ];
-
-        // Verifica se o seletor está na whitelist ou é um seletor básico seguro
-        const isAllowedSelector = allowedSelectors.some(allowed => 
-          message.selector === allowed || 
-          message.selector.startsWith(allowed)
-        );
-
-        // Validação adicional com regex para seletores básicos
-        const basicSelectorRegex = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
         
-        if (!isAllowedSelector && !basicSelectorRegex.test(message.selector)) {
-          throw new Error("Seletor CSS não permitido por motivos de segurança");
+        // 2. Validação do seletor
+        const validation = validateCSSSelector(message.selector);
+        if (!validation.valid) {
+          throw new Error(`Seletor inválido: ${validation.reason}`);
         }
-
-        // Limita o comprimento do seletor
-        if (message.selector.length > 200) {
-          throw new Error("Seletor CSS muito longo");
+        
+        // 3. Validação do atributo
+        if (message.attribute && !ALLOWED_ATTRIBUTES.includes(message.attribute)) {
+          throw new Error("Atributo não permitido");
         }
-
-        // Timeout para prevenir operações que demorem muito
+        
+        // 4. Timeout para operação (reduzido para 2 segundos)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout na extração de conteúdo")), 3000);
+          setTimeout(() => reject(new Error("Timeout na extração de conteúdo")), 2000);
         });
-
+        
+        // 5. Extração com sanitização
         const extractionPromise = new Promise((resolve) => {
-          const element = document.querySelector(message.selector);
-          let extractedContent = null;
-
-          if (element) {
-            if (message.attribute && typeof message.attribute === "string") {
-              // Validação do atributo
-              const allowedAttributes = ["content", "alt", "title", "href", "src"];
-              if (allowedAttributes.includes(message.attribute)) {
+          try {
+            const element = document.querySelector(message.selector);
+            let extractedContent = null;
+            
+            if (element) {
+              if (message.attribute) {
                 extractedContent = element.getAttribute(message.attribute);
+              } else {
+                extractedContent = element.textContent;
               }
-            } else {
-              extractedContent = element.textContent;
             }
+            
+            // Sanitiza o conteúdo extraído
+            const sanitizedContent = sanitizeExtractedContent(extractedContent);
+            resolve(sanitizedContent);
+          } catch (error) {
+            resolve(null);
           }
-
-          resolve(extractedContent ? extractedContent.trim().slice(0, 500) : null);
         });
-
+        
         return Promise.race([extractionPromise, timeoutPromise]);
-
+        
       } catch (error) {
-        // Registra o erro e retorna null para o background script
+        // Log detalhado do erro
         browser.runtime
           .sendMessage({
             action: "log",
             level: "error",
-            context: `ContentScript:extractContent`,
-            message: `Erro ao extrair conteúdo com seletor "${message.selector}": ${error.message}`,
-            details: [error],
+            context: `ContentScript:extractContent:${window.location.hostname}`,
+            message: `Erro na validação: ${error.message}`,
+            details: [{ 
+              selector: message.selector, 
+              attribute: message.attribute,
+              url: window.location.href 
+            }],
           })
           .catch(() => {});
+        
         return Promise.resolve(null);
       }
     }
-    // Para outras mensagens, o comportamento padrão continua
+    
     return false;
   });
   // --- FIM NOVO ---
