@@ -1238,6 +1238,33 @@ class MessageRateLimiter {
 export const messageRateLimiter = new MessageRateLimiter();
 
 /**
+ * Valida o sender de uma mensagem
+ * @param {object} sender - Objeto sender
+ * @param {string} action - Ação sendo executada
+ * @returns {boolean} - Se o sender é válido
+ */
+export function validateSender(sender, action) {
+  // Ações que requerem sender.tab válido
+  const tabRequiredActions = new Set([
+    "extractContent",
+    "log"
+  ]);
+
+  if (tabRequiredActions.has(action)) {
+    if (!sender || !sender.tab || typeof sender.tab.id !== "number") {
+      try {
+        Logger.warn("validateSender", `Ação '${action}' requer sender.tab válido`, { sender });
+      } catch (logError) {
+        console.warn(`Erro ao registrar validação de sender: ${logError.message}`);
+      }
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Resultado de validação
  * @typedef {Object} ValidationResult
  * @property {boolean} isValid - Se a validação passou

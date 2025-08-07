@@ -938,12 +938,243 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
 
 // --- Gestor de Mensagens e Inicialização ---
 
+/**
+ * Processa uma ação de mensagem validada
+ * @param {object} message - Mensagem sanitizada
+ * @param {object} sender - Sender validado
+ * @returns {Promise<object>} - Resultado da operação
+ */
+async function processMessageAction(message, sender) {
+  Logger.info("processMessageAction", `Processando ação '${message.action}'`, { action: message.action });
+  
+  switch (message.action) {
+    case "getSettings":
+      return settings;
+      
+    case "getSuggestion": // NOVO
+      return pendingSuggestion;
+      
+    case "clearSuggestion": // NOVO
+      pendingSuggestion = null;
+      return { success: true };
+      
+    case "clearLearningHistory": // NOVO
+      await learningEngine.clearHistory();
+      return { success: true };
+
+    case "getLearningReport": // NOVO
+      const report = await learningEngine.getPrivacyReport();
+      return report;
+
+    case "setLearningEnabled": // NOVO
+      await updateSettings({ learningEnabled: message.enabled });
+      return { success: true };
+
+    case "cleanupExpiredLearning": // NOVO
+      const removed = await learningEngine.cleanupExpiredPatterns();
+      return { removed };
+      
+    case "acceptSuggestion": // NOVO
+      if (message.suggestion && message.suggestion.tabIds) {
+        try {
+          const { tabIds, suggestedName } = message.suggestion;
+          const newGroupId = await browser.tabs.group({ tabIds });
+          await browser.tabGroups.update(newGroupId, {
+            title: suggestedName,
+          });
+
+          // Reforça o padrão após o sucesso
+          const tabsInGroup = await browser.tabs.query({
+            groupId: newGroupId,
+          });
+          learningEngine.learnFromGroup(suggestedName, tabsInGroup);
+
+          pendingSuggestion = null; // Limpa a sugestão
+          return { success: true, groupId: newGroupId };
+        } catch (e) {
+          Logger.error(
+            "acceptSuggestion",
+            "Erro ao criar grupo a partir da sugestão:",
+            e
+          );
+          return { success: false, error: e.message };
+        }
+      } else {
+        return { success: false, error: "Sugestão inválida." };
+      }
+      
+    case "updateSettings":
+      const { oldSettings, newSettings } = await updateSettings(
+        message.settings
+      );
+      Logger.setLevel(newSettings.logLevel);
+
+      await checkForRenamedOrEditedRules(oldSettings, newSettings);
+      // NOVO: Recarrega as regras de renomeação no motor
+      globalTabRenamingEngine.loadRules(newSettings.tabRenamingRules || []);
+
+      toggleListeners(
+        newSettings.autoGroupingEnabled ||
+          newSettings.showTabCount ||
+          newSettings.tabRenamingEnabled
+      ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
+      updateAutoCollapseTimer();
+      updateUngroupTimer();
+      await updateContextMenus();
+
+      // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
+      browser.runtime
+        .sendMessage({ action: "settingsUpdated" })
+        .catch(() => {});
+      return newSettings;
+      
+    case "groupAllTabs":
+      const allTabs = await browser.tabs.query({
+        currentWindow: true,
+        pinned: false,
+      });
+      await processTabQueue(allTabs.map((t) => t.id));
+      return { status: "ok" };
+      
+    case "getMemoryStats":
+      return getMemoryStats(memoryMaps);
+      
+    case "cleanupMemory":
+      const cleanupStats = await performMemoryCleanup(memoryMaps);
+      return cleanupStats;
+      
+    case "getAdaptiveMemoryStats":
+      return globalAdaptiveMemoryManager.getDetailedStats(memoryMaps);
+      
+    case "forceAdaptiveCleanup":
+      const adaptiveCleanupStats =
+        await globalAdaptiveMemoryManager.performAdaptiveCleanup(
+          memoryMaps,
+          message.strategy
+        );
+      return adaptiveCleanupStats;
+      
+    case "emergencyAdaptiveCleanup":
+      const emergencyStats =
+        await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
+      return emergencyStats;
+      
+    case "getErrorStats":
+      return globalAdaptiveErrorHandler.getErrorStats();
+      
+    case "resetErrorStats":
+      globalAdaptiveErrorHandler.resetStats();
+      return { success: true };
+      
+    case "setCustomErrorStrategy":
+      globalAdaptiveErrorHandler.setCustomStrategy(
+        message.errorType,
+        message.config
+      );
+      return { success: true };
+      
+    case "setContextualErrorConfig":
+      globalAdaptiveErrorHandler.setContextualConfig(
+        message.context,
+        message.config
+      );
+      return { success: true };
+      
+    case "getCacheStats":
+      const { getCacheStats } = await import("./settings-manager.js");
+      return getCacheStats();
+      
+    case "getDetailedCacheStats":
+      const { getDetailedCacheStats } = await import(
+        "./settings-manager.js"
+      );
+      return getDetailedCacheStats();
+      
+    case "invalidateCacheByDomain":
+      const { invalidateCacheByDomainChange } = await import(
+        "./settings-manager.js"
+      );
+      invalidateCacheByDomainChange(message.hostname, message.changeType);
+      return { success: true };
+      
+    case "invalidateCacheByCriteria":
+      const { invalidateCacheByCriteria } = await import(
+        "./settings-manager.js"
+      );
+      const invalidatedCount = invalidateCacheByCriteria(message.criteria);
+      return { success: true, invalidated: invalidatedCount };
+      
+    case "clearAllCaches":
+      const { clearAllCaches } = await import("./settings-manager.js");
+      clearAllCaches();
+      return { success: true };
+      
+    case "migrateLegacyCache":
+      const { migrateLegacyCacheToIntelligent } = await import(
+        "./settings-manager.js"
+      );
+      const migrationResult = await migrateLegacyCacheToIntelligent();
+      return migrationResult;
+      
+    case "getPerformanceConfig":
+      return getAllConfig();
+      
+    case "updatePerformanceConfig":
+      updateConfig(message.config);
+      return { success: true };
+      
+    case "getAPIRateLimiterStats":
+      return getAPIWrapperStats();
+      
+    case "clearAPIQueues":
+      const clearedCount = clearAPIQueues();
+      return { success: true, cleared: clearedCount };
+      
+    case "pauseAPICategory":
+      pauseAPICategory(message.category);
+      return { success: true };
+      
+    case "resumeAPICategory":
+      resumeAPICategory(message.category);
+      return { success: true };
+      
+    case "getRateLimiterDetailedStats":
+      return globalAPIRateLimiter.getDetailedStats();
+      
+    case "log":
+      if (
+        sender.tab &&
+        message.level &&
+        message.context &&
+        message.message
+      ) {
+        Logger[message.level](
+          `ContentScript: ${message.context}`,
+          message.message,
+          ...(message.details || [])
+        );
+      }
+      return { success: true };
+      
+    default:
+      Logger.warn("processMessageAction", `Ação desconhecida: ${message.action}`);
+      throw new Error(`Ação desconhecida: ${message.action}`);
+  }
+}
+
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     // Importa validação de mensagens
-    const { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter } = await import("./validation-utils.js");
+    const { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } = await import("./validation-utils.js");
     
-    // Rate limiting por aba
+    // 1. VALIDAÇÃO DE SENDER (NOVO)
+    if (!validateSender(sender, message?.action)) {
+      Logger.warn("onMessage", `Sender inválido para ação ${message?.action}`, { sender });
+      sendResponse({ error: "Sender inválido" });
+      return;
+    }
+
+    // 2. RATE LIMITING (JÁ EXISTE - MANTER)
     const tabId = sender.tab?.id || 0;
     if (!messageRateLimiter.isAllowed(tabId)) {
       Logger.warn("onMessage", `Rate limit excedido para aba ${tabId}`);
@@ -951,7 +1182,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
-    // Validação da mensagem
+    // 3. VALIDAÇÃO DE MENSAGEM (JÁ EXISTE - MELHORAR)
     const validation = validateRuntimeMessage(message, sender);
     if (!validation.isValid) {
       Logger.warn("onMessage", `Mensagem inválida: ${validation.errors.join("; ")}`, { message, sender });
@@ -959,223 +1190,22 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
-    // Sanitização dos dados
+    // 4. SANITIZAÇÃO (JÁ EXISTE - MANTER)
     const sanitizedMessage = sanitizeMessageData(message);
     
+    // 5. TIMEOUT PARA OPERAÇÕES LONGAS (NOVO)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout da operação")), 5000);
+    });
+
     Logger.info("onMessage", `Ação '${sanitizedMessage.action}' recebida.`, { action: sanitizedMessage.action, tabId });
+    
     try {
-      switch (message.action) {
-        case "getSettings":
-          sendResponse(settings);
-          break;
-        case "getSuggestion": // NOVO
-          sendResponse(pendingSuggestion);
-          break;
-        case "clearSuggestion": // NOVO
-          pendingSuggestion = null;
-          sendResponse({ success: true });
-          break;
-        case "clearLearningHistory": // NOVO
-          await learningEngine.clearHistory();
-          sendResponse({ success: true });
-          break;
-        case "acceptSuggestion": // NOVO
-          if (message.suggestion && message.suggestion.tabIds) {
-            try {
-              const { tabIds, suggestedName } = message.suggestion;
-              const newGroupId = await browser.tabs.group({ tabIds });
-              await browser.tabGroups.update(newGroupId, {
-                title: suggestedName,
-              });
-
-              // Reforça o padrão após o sucesso
-              const tabsInGroup = await browser.tabs.query({
-                groupId: newGroupId,
-              });
-              learningEngine.learnFromGroup(suggestedName, tabsInGroup);
-
-              pendingSuggestion = null; // Limpa a sugestão
-              sendResponse({ success: true, groupId: newGroupId });
-            } catch (e) {
-              Logger.error(
-                "acceptSuggestion",
-                "Erro ao criar grupo a partir da sugestão:",
-                e
-              );
-              sendResponse({ success: false, error: e.message });
-            }
-          } else {
-            sendResponse({ success: false, error: "Sugestão inválida." });
-          }
-          break;
-        case "updateSettings":
-          const { oldSettings, newSettings } = await updateSettings(
-            message.settings
-          );
-          Logger.setLevel(newSettings.logLevel);
-
-          await checkForRenamedOrEditedRules(oldSettings, newSettings);
-          // NOVO: Recarrega as regras de renomeação no motor
-          globalTabRenamingEngine.loadRules(newSettings.tabRenamingRules || []);
-
-          toggleListeners(
-            newSettings.autoGroupingEnabled ||
-              newSettings.showTabCount ||
-              newSettings.tabRenamingEnabled
-          ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
-          updateAutoCollapseTimer();
-          updateUngroupTimer();
-          await updateContextMenus();
-
-          // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
-          browser.runtime
-            .sendMessage({ action: "settingsUpdated" })
-            .catch(() => {});
-          sendResponse(newSettings);
-          break;
-        case "groupAllTabs":
-          const allTabs = await browser.tabs.query({
-            currentWindow: true,
-            pinned: false,
-          });
-          await processTabQueue(allTabs.map((t) => t.id));
-          sendResponse({ status: "ok" });
-          break;
-        case "getMemoryStats":
-          sendResponse(getMemoryStats(memoryMaps));
-          break;
-        case "cleanupMemory":
-          const cleanupStats = await performMemoryCleanup(memoryMaps);
-          sendResponse(cleanupStats);
-          break;
-        case "getAdaptiveMemoryStats":
-          sendResponse(
-            globalAdaptiveMemoryManager.getDetailedStats(memoryMaps)
-          );
-          break;
-        case "forceAdaptiveCleanup":
-          const adaptiveCleanupStats =
-            await globalAdaptiveMemoryManager.performAdaptiveCleanup(
-              memoryMaps,
-              message.strategy
-            );
-          sendResponse(adaptiveCleanupStats);
-          break;
-        case "emergencyAdaptiveCleanup":
-          const emergencyStats =
-            await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
-          sendResponse(emergencyStats);
-          break;
-        case "getErrorStats":
-          sendResponse(globalAdaptiveErrorHandler.getErrorStats());
-          break;
-        case "resetErrorStats":
-          globalAdaptiveErrorHandler.resetStats();
-          sendResponse({ success: true });
-          break;
-        case "setCustomErrorStrategy":
-          globalAdaptiveErrorHandler.setCustomStrategy(
-            message.errorType,
-            message.config
-          );
-          sendResponse({ success: true });
-          break;
-        case "setContextualErrorConfig":
-          globalAdaptiveErrorHandler.setContextualConfig(
-            message.context,
-            message.config
-          );
-          sendResponse({ success: true });
-          break;
-        case "getCacheStats":
-          const { getCacheStats } = await import("./settings-manager.js");
-          sendResponse(getCacheStats());
-          break;
-        case "getDetailedCacheStats":
-          const { getDetailedCacheStats } = await import(
-            "./settings-manager.js"
-          );
-          sendResponse(getDetailedCacheStats());
-          break;
-        case "invalidateCacheByDomain":
-          const { invalidateCacheByDomainChange } = await import(
-            "./settings-manager.js"
-          );
-          invalidateCacheByDomainChange(message.hostname, message.changeType);
-          sendResponse({ success: true });
-          break;
-        case "invalidateCacheByCriteria":
-          const { invalidateCacheByCriteria } = await import(
-            "./settings-manager.js"
-          );
-          const invalidatedCount = invalidateCacheByCriteria(message.criteria);
-          sendResponse({ success: true, invalidated: invalidatedCount });
-          break;
-        case "clearAllCaches":
-          const { clearAllCaches } = await import("./settings-manager.js");
-          clearAllCaches();
-          sendResponse({ success: true });
-          break;
-        case "migrateLegacyCache":
-          const { migrateLegacyCacheToIntelligent } = await import(
-            "./settings-manager.js"
-          );
-          const migrationResult = await migrateLegacyCacheToIntelligent();
-          sendResponse(migrationResult);
-          break;
-        case "getPerformanceConfig":
-          sendResponse(getAllConfig());
-          break;
-        case "updatePerformanceConfig":
-          updateConfig(message.config);
-          sendResponse({ success: true });
-          break;
-        case "getAPIRateLimiterStats":
-          sendResponse(getAPIWrapperStats());
-          break;
-        case "clearAPIQueues":
-          const clearedCount = clearAPIQueues();
-          sendResponse({ success: true, cleared: clearedCount });
-          break;
-        case "pauseAPICategory":
-          pauseAPICategory(message.category);
-          sendResponse({ success: true });
-          break;
-        case "resumeAPICategory":
-          resumeAPICategory(message.category);
-          sendResponse({ success: true });
-          break;
-        case "getRateLimiterDetailedStats":
-          sendResponse(globalAPIRateLimiter.getDetailedStats());
-          break;
-        case "log":
-          if (
-            sender.tab &&
-            message.level &&
-            message.context &&
-            message.message
-          ) {
-            Logger[message.level](
-              `ContentScript: ${message.context}`,
-              message.message,
-              ...(message.details || [])
-            );
-          }
-          break;
-        default:
-          Logger.warn(
-            "onMessage",
-            `Ação desconhecida recebida: ${message.action}`
-          );
-          sendResponse({ error: `Ação desconhecida: ${message.action}` });
-          break;
-      }
+      const operationPromise = processMessageAction(sanitizedMessage, sender);
+      const result = await Promise.race([operationPromise, timeoutPromise]);
+      sendResponse(result);
     } catch (error) {
-      Logger.error(
-        "onMessage",
-        `Erro ao processar a ação "${message.action}":`,
-        error
-      );
+      Logger.error("onMessage", `Erro ao processar ação "${sanitizedMessage.action}":`, error);
       sendResponse({ error: error.message });
     }
   })();
