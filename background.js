@@ -61,6 +61,9 @@ import { learningEngine } from "./learning-engine.js"; // NOVO: Importa o motor 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
 
+// NOVO: Limite máximo para o debouncedTitleUpdaters Map
+const MAX_DEBOUNCED_ENTRIES = 500;
+
 let tabProcessingQueue = new Set();
 let queueTimeout = null;
 let tabGroupMap = new Map();
@@ -96,6 +99,149 @@ const memoryMaps = {
     return pendingAutomaticGroups;
   },
 };
+
+// --- NOVO: Limpeza Periódica de Memory Leaks ---
+
+/**
+ * Verifica se é seguro adicionar uma nova entrada ao debouncedTitleUpdaters
+ * Remove entradas antigas se necessário para manter o limite
+ * @param {string} key - Chave que será adicionada
+ * @returns {boolean} - true se é seguro adicionar
+ */
+function checkMemoryLimitBeforeAdd(key) {
+  const currentSize = debouncedTitleUpdaters.size;
+  
+  if (currentSize >= MAX_DEBOUNCED_ENTRIES) {
+    Logger.warn("checkMemoryLimitBeforeAdd", `Limite de ${MAX_DEBOUNCED_ENTRIES} entradas atingido. Tamanho atual: ${currentSize}`);
+    
+    // Remove as 10 entradas mais antigas para fazer espaço
+    const entriesToRemove = Math.min(10, currentSize - MAX_DEBOUNCED_ENTRIES + 10);
+    const oldestEntries = Array.from(debouncedTitleUpdaters.entries()).slice(0, entriesToRemove);
+    
+    let removedCount = 0;
+    for (const [oldKey, timeoutId] of oldestEntries) {
+      clearTimeout(timeoutId);
+      debouncedTitleUpdaters.delete(oldKey);
+      removedCount++;
+    }
+    
+    Logger.info("checkMemoryLimitBeforeAdd", `Removidas ${removedCount} entradas antigas. Novo tamanho: ${debouncedTitleUpdaters.size}`);
+  }
+  
+  return true; // Sempre permite adicionar após limpeza
+}
+
+/**
+ * Executa limpeza periódica de timeouts órfãos no debouncedTitleUpdaters
+ * Remove entradas para abas/grupos que não existem mais
+ */
+async function performPeriodicCleanup() {
+  Logger.info("performPeriodicCleanup", "Iniciando limpeza periódica de timeouts órfãos");
+  
+  let cleanedCount = 0;
+  const keysToRemove = [];
+  
+  // Itera sobre todas as entradas do debouncedTitleUpdaters
+  for (const [key, timeoutId] of debouncedTitleUpdaters.entries()) {
+    let shouldRemove = false;
+    
+    try {
+      // Verifica diferentes tipos de chaves
+      if (key.startsWith('renaming-')) {
+        // Chave de renomeação de aba: renaming-{tabId}
+        const tabId = parseInt(key.replace('renaming-', ''));
+        if (!isNaN(tabId)) {
+          try {
+            await browser.tabs.get(tabId);
+            // Aba ainda existe, mantém a entrada
+          } catch (e) {
+            // Aba não existe mais, marca para remoção
+            shouldRemove = true;
+          }
+        }
+      } else if (key.startsWith('group-title-')) {
+        // Chave de título de grupo: group-title-{groupId}
+        const groupId = parseInt(key.replace('group-title-', ''));
+        if (!isNaN(groupId)) {
+          try {
+            await browser.tabGroups.get(groupId);
+            // Grupo ainda existe, mantém a entrada
+          } catch (e) {
+            // Grupo não existe mais, marca para remoção
+            shouldRemove = true;
+          }
+        }
+      } else if (key.startsWith('learning-update-')) {
+        // Chave de aprendizagem: learning-update-{groupId}
+        const groupId = parseInt(key.replace('learning-update-', ''));
+        if (!isNaN(groupId)) {
+          try {
+            await browser.tabGroups.get(groupId);
+            // Grupo ainda existe, mantém a entrada
+          } catch (e) {
+            // Grupo não existe mais, marca para remoção
+            shouldRemove = true;
+          }
+        }
+      } else if (key.startsWith('cache-invalidate-')) {
+        // Chaves de cache são baseadas em hostname, não precisam verificação específica
+        // Elas se auto-limpam quando o timeout executa
+        continue;
+      }
+      
+      if (shouldRemove) {
+        keysToRemove.push(key);
+        clearTimeout(timeoutId);
+        cleanedCount++;
+      }
+    } catch (e) {
+      Logger.warn("performPeriodicCleanup", `Erro ao verificar chave ${key}:`, e);
+      // Em caso de erro, remove a entrada para evitar acumulação
+      keysToRemove.push(key);
+      clearTimeout(timeoutId);
+      cleanedCount++;
+    }
+  }
+  
+  // Remove as chaves marcadas
+  keysToRemove.forEach(key => debouncedTitleUpdaters.delete(key));
+  
+  const currentSize = debouncedTitleUpdaters.size;
+  Logger.info("performPeriodicCleanup", `Limpeza concluída. Removidas: ${cleanedCount}, Tamanho atual: ${currentSize}`);
+  
+  return { cleaned: cleanedCount, currentSize };
+}
+
+/**
+ * Configura o alarme periódico para limpeza de memory leaks
+ */
+function setupPeriodicCleanup() {
+  // Cria alarme que executa a cada 3 minutos
+  if (browser.alarms) {
+    browser.alarms.create('memoryLeakCleanup', { periodInMinutes: 3 });
+    
+    // Adiciona listener para o alarme
+    if (!browser.alarms.onAlarm.hasListener(handlePeriodicAlarm)) {
+      browser.alarms.onAlarm.addListener(handlePeriodicAlarm);
+    }
+    
+    Logger.info("setupPeriodicCleanup", "Alarme de limpeza periódica configurado (3 minutos)");
+  } else {
+    Logger.warn("setupPeriodicCleanup", "API de alarmes não disponível, usando fallback com setInterval");
+    // Fallback usando setInterval se alarms API não estiver disponível
+    setInterval(performPeriodicCleanup, 3 * 60 * 1000); // 3 minutos
+  }
+}
+
+/**
+ * Manipula alarmes periódicos
+ * @param {chrome.alarms.Alarm} alarm - Objeto do alarme
+ */
+async function handlePeriodicAlarm(alarm) {
+  if (alarm.name === 'memoryLeakCleanup') {
+    await performPeriodicCleanup();
+  }
+}
 
 // --- Lógica de Onboarding ---
 
@@ -304,11 +450,14 @@ function handleTabUpdated(tabId, changeInfo, tab) {
           // Debounce cache invalidation to avoid excessive calls
           const cacheKey = `cache-invalidate-${hostname}`;
           if (!debouncedTitleUpdaters.has(cacheKey)) {
-            const timeoutId = setTimeout(() => {
-              invalidateCacheForDomainChange(hostname, "title_change");
-              debouncedTitleUpdaters.delete(cacheKey);
-            }, 2000); // 2 second debounce
-            debouncedTitleUpdaters.set(cacheKey, timeoutId);
+            // NOVO: Verifica limite antes de adicionar
+            if (checkMemoryLimitBeforeAdd(cacheKey)) {
+              const timeoutId = setTimeout(() => {
+                invalidateCacheForDomainChange(hostname, "title_change");
+                debouncedTitleUpdaters.delete(cacheKey);
+              }, 2000); // 2 second debounce
+              debouncedTitleUpdaters.set(cacheKey, timeoutId);
+            }
           }
         }
       }
@@ -353,15 +502,18 @@ function handleTabUpdated(tabId, changeInfo, tab) {
     tab.url.startsWith("http") &&
     (changeInfo.status === "complete" || changeInfo.title || changeInfo.url)
   ) {
-    const timeoutId = setTimeout(async () => {
-      Logger.debug(
-        "handleTabUpdated",
-        `Acionando motor de renomeação para aba ${tabId}.`
-      );
-      await globalTabRenamingEngine.processTab(tabId, tab);
-      debouncedTitleUpdaters.delete(renamingDebounceKey);
-    }, getConfig("TAB_RENAMING_DELAY")); // Usa um delay configurável para renomeação
-    debouncedTitleUpdaters.set(renamingDebounceKey, timeoutId);
+    // NOVO: Verifica limite antes de adicionar
+    if (checkMemoryLimitBeforeAdd(renamingDebounceKey)) {
+      const timeoutId = setTimeout(async () => {
+        Logger.debug(
+          "handleTabUpdated",
+          `Acionando motor de renomeação para aba ${tabId}.`
+        );
+        await globalTabRenamingEngine.processTab(tabId, tab);
+        debouncedTitleUpdaters.delete(renamingDebounceKey);
+      }, getConfig("TAB_RENAMING_DELAY")); // Usa um delay configurável para renomeação
+      debouncedTitleUpdaters.set(renamingDebounceKey, timeoutId);
+    }
   }
   // --- FIM NOVO ---
 }
@@ -390,11 +542,34 @@ function handleTabRemoved(tabId, removeInfo) {
     pendingAutomaticGroups.delete(tabId);
   }
 
-  // Limpa qualquer debounce de renomeação pendente para esta aba
+  // MELHORADO: Limpeza completa de todos os timeouts relacionados à aba removida
   const renamingDebounceKey = `renaming-${tabId}`;
   if (debouncedTitleUpdaters.has(renamingDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(renamingDebounceKey));
     debouncedTitleUpdaters.delete(renamingDebounceKey);
+    Logger.debug("handleTabRemoved", `Timeout de renomeação limpo para aba ${tabId}`);
+  }
+
+  // NOVO: Limpa timeouts órfãos relacionados à aba (por hostname se disponível)
+  try {
+    // Tenta obter informações da aba antes da remoção (pode falhar se já foi removida)
+    browser.tabs.get(tabId).then(tab => {
+      if (tab && tab.url) {
+        const hostname = getHostnameFromUrl(tab.url);
+        if (hostname) {
+          const cacheKey = `cache-invalidate-${hostname}`;
+          if (debouncedTitleUpdaters.has(cacheKey)) {
+            clearTimeout(debouncedTitleUpdaters.get(cacheKey));
+            debouncedTitleUpdaters.delete(cacheKey);
+            Logger.debug("handleTabRemoved", `Timeout de cache limpo para hostname ${hostname}`);
+          }
+        }
+      }
+    }).catch(() => {
+      // Aba já foi removida, não há problema
+    });
+  } catch (e) {
+    // Ignora erros, aba já foi removida
   }
 }
 
@@ -698,11 +873,15 @@ function scheduleTitleUpdate(groupId) {
   if (debouncedTitleUpdaters.has(groupTitleDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(groupTitleDebounceKey));
   }
-  const timeoutId = setTimeout(() => {
-    updateGroupTitleWithCount(groupId);
-    debouncedTitleUpdaters.delete(groupTitleDebounceKey);
-  }, getConfig("TITLE_UPDATE_DEBOUNCE"));
-  debouncedTitleUpdaters.set(groupTitleDebounceKey, timeoutId);
+  
+  // NOVO: Verifica limite antes de adicionar
+  if (checkMemoryLimitBeforeAdd(groupTitleDebounceKey)) {
+    const timeoutId = setTimeout(() => {
+      updateGroupTitleWithCount(groupId);
+      debouncedTitleUpdaters.delete(groupTitleDebounceKey);
+    }, getConfig("TITLE_UPDATE_DEBOUNCE"));
+    debouncedTitleUpdaters.set(groupTitleDebounceKey, timeoutId);
+  }
 }
 
 // --- Lógica de Grupos Manuais e Edição de Regras ---
@@ -793,29 +972,32 @@ async function handleTabGroupUpdated(group) {
     clearTimeout(debouncedTitleUpdaters.get(learningDebounceKey));
   }
 
-  const timeoutId = setTimeout(async () => {
-    try {
-      const currentGroup = await browser.tabGroups.get(group.id);
-      const cleanTitle = (currentGroup.title || "").replace(/📌\s*/, "").trim();
+  // NOVO: Verifica limite antes de adicionar
+  if (checkMemoryLimitBeforeAdd(learningDebounceKey)) {
+    const timeoutId = setTimeout(async () => {
+      try {
+        const currentGroup = await browser.tabGroups.get(group.id);
+        const cleanTitle = (currentGroup.title || "").replace(/📌\s*/, "").trim();
 
-      // Só aprende se for um grupo manual e tiver um título significativo
-      if (isManual && cleanTitle) {
-        const tabsInGroup = await browser.tabs.query({ groupId: group.id });
-        if (tabsInGroup.length > 0) {
-          await learningEngine.learnFromGroup(cleanTitle, tabsInGroup);
+        // Só aprende se for um grupo manual e tiver um título significativo
+        if (isManual && cleanTitle) {
+          const tabsInGroup = await browser.tabs.query({ groupId: group.id });
+          if (tabsInGroup.length > 0) {
+            await learningEngine.learnFromGroup(cleanTitle, tabsInGroup);
+          }
         }
+      } catch (e) {
+        Logger.warn(
+          "handleTabGroupUpdated",
+          `Não foi possível aprender com o grupo ${group.id}, pode ter sido removido.`,
+          e
+        );
+      } finally {
+        debouncedTitleUpdaters.delete(learningDebounceKey);
       }
-    } catch (e) {
-      Logger.warn(
-        "handleTabGroupUpdated",
-        `Não foi possível aprender com o grupo ${group.id}, pode ter sido removido.`,
-        e
-      );
-    } finally {
-      debouncedTitleUpdaters.delete(learningDebounceKey);
-    }
-  }, 2000); // Aguarda 2 segundos de inatividade antes de aprender
-  debouncedTitleUpdaters.set(learningDebounceKey, timeoutId);
+    }, 2000); // Aguarda 2 segundos de inatividade antes de aprender
+    debouncedTitleUpdaters.set(learningDebounceKey, timeoutId);
+  }
   // --- FIM NOVO ---
 
   if (isManual && !hasPin) {
@@ -849,11 +1031,20 @@ async function handleTabGroupRemoved(group) {
   groupActivity.delete(group.id);
   singleTabGroupTimestamps.delete(group.id);
 
-  // Cancela qualquer updater de título pendente para este grupo
+  // MELHORADO: Limpeza completa de todos os timeouts relacionados ao grupo removido
   const groupTitleDebounceKey = `group-title-${group.id}`;
   if (debouncedTitleUpdaters.has(groupTitleDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(groupTitleDebounceKey));
     debouncedTitleUpdaters.delete(groupTitleDebounceKey);
+    Logger.debug("handleTabGroupRemoved", `Timeout de título limpo para grupo ${group.id}`);
+  }
+
+  // NOVO: Limpa timeout de aprendizagem relacionado ao grupo
+  const learningDebounceKey = `learning-update-${group.id}`;
+  if (debouncedTitleUpdaters.has(learningDebounceKey)) {
+    clearTimeout(debouncedTitleUpdaters.get(learningDebounceKey));
+    debouncedTitleUpdaters.delete(learningDebounceKey);
+    Logger.debug("handleTabGroupRemoved", `Timeout de aprendizagem limpo para grupo ${group.id}`);
   }
 
   // Remove abas órfãs do mapa tab-grupo
@@ -1368,6 +1559,9 @@ async function main() {
 
       // Inicia o gerenciamento automático de memória
       startMemoryCleanup(memoryMaps);
+
+      // NOVO: Configura limpeza periódica de memory leaks
+      setupPeriodicCleanup();
 
       // Executa uma limpeza inicial após inicialização
       setTimeout(async () => {

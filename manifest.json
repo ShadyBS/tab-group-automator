@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Auto Tab Grouper",
-  "version": "3.7.1",
+  "version": "3.7.3",
   "description": "Organize automaticamente as suas abas em grupos inteligentes.",
   "homepage_url": "https://github.com/ShadyBS/tab-group-automator",
 
@@ -31,7 +31,7 @@
   "host_permissions": ["<all_urls>"],
 
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self';"
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'self';"
   },
 
   "background": {

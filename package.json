@@ -1,6 +1,6 @@
 {
   "name": "tab-group-automator",
-  "version": "3.7.1",
+  "version": "3.7.3",
   "description": "Extensão WebExtension que organiza automaticamente as abas do navegador em grupos inteligentes baseados em domínio, subdomínio ou regras personalizadas. Mantém sua sessão de navegação organizada e limpa sem esforço manual.",
   "main": "background.js",
   "directories": {

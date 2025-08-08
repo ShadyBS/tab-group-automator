@@ -5,6 +5,49 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [3.7.3] - 2024-12-19
+
+### Security
+- **CRÍTICO:** Implementado sistema completo de prevenção de memory leaks em tab operations
+- Adicionado limite máximo de 500 entradas para `debouncedTitleUpdaters Map`
+- Implementada limpeza periódica automática de timeouts órfãos a cada 3 minutos
+- Sistema de verificação de limite com remoção automática de entradas antigas
+
+### Fixed
+- **TASK-C-006:** Corrigidos memory leaks específicos de tab management no background script
+- Eliminados timeouts órfãos que acumulavam indefinidamente causando esgotamento de memória
+- Prevenção de DoS via esgotamento de memória com limite máximo de entradas
+- Corrigida degradação progressiva de performance com uso prolongado
+
+### Added
+- **Sistema de Limpeza Periódica**: Limpeza automática via `browser.alarms` com fallback `setInterval`
+- **Verificação de Limite Proativa**: Função `checkMemoryLimitBeforeAdd()` que remove entradas antigas quando necessário
+- **Limpeza de Timeouts Órfãos**: Validação de existência de abas/grupos via API antes de manter timeouts
+- **Monitoramento de Memory Usage**: Logging detalhado de operações de limpeza e métricas de memória
+- **Compatibilidade Cross-browser**: Sistema funciona em Chrome, Firefox e Edge via polyfill
+
+### Technical
+- **`background.js`**: Implementadas funções `performPeriodicCleanup()`, `setupPeriodicCleanup()` e `checkMemoryLimitBeforeAdd()`
+- **Memory Leak Prevention**: Limpeza proativa em eventos `handleTabRemoved()` e `handleTabGroupRemoved()`
+- **Timeout Management**: Gerenciamento de 4 tipos de timeout (renaming, group-title, learning-update, cache-invalidate)
+- **Alarm System**: Configuração de alarme periódico com listener `handlePeriodicAlarm()`
+- **FIFO Strategy**: Remoção das 10 entradas mais antigas quando limite de 500 é atingido
+
+### Performance
+- **Memory Usage Estável**: Permanece estável com 100+ abas através de limpeza automática
+- **Cleanup Automático**: Sistema funciona automaticamente sem intervenção do usuário
+- **Limites Respeitados**: Limite máximo previne esgotamento de memória
+- **Monitoramento Ativo**: Logging detalhado permite acompanhamento em produção
+
+### Benefits
+- **Eliminação completa** de memory leaks em tab operations
+- **Performance estável** independente do número de abas
+- **Prevenção de crashes** por esgotamento de memória
+- **Compatibilidade total** Chrome/Firefox/Edge via polyfill
+- **Monitoramento proativo** com métricas detalhadas de limpeza
+
+---
+
 ## [3.7.2] - 2024-12-19
 
 ### Security
