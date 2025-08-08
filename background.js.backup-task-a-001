@@ -1,13 +1,11 @@
 /**
  * @file background.js
- * @description Service Worker otimizado com lazy loading, cache de inicialização e operações assíncronas
- * Implementa startup time < 500ms e zero operações síncronas bloqueantes
+ * @description Ponto de entrada principal da extensão, gere eventos e a fila de processamento.
  */
 
 // Importa o polyfill para garantir que o namespace `browser` esteja disponível em todos os navegadores.
 import "./vendor/browser-polyfill.js";
 
-// Importações críticas (carregamento imediato)
 import Logger from "./logger.js";
 import {
   settings,
@@ -16,6 +14,28 @@ import {
   DEFAULT_SETTINGS,
   smartNameCache,
 } from "./settings-manager.js";
+import { processTabQueue } from "./grouping-logic.js";
+import {
+  initializeContextMenus,
+  updateContextMenus,
+} from "./context-menu-manager.js";
+import { pendingAutomaticGroups, injectionFailureMap } from "./app-state.js";
+import {
+  handleTabOperation,
+  handleGroupOperation,
+  handleCriticalOperation,
+  withErrorHandling,
+  globalAdaptiveErrorHandler,
+} from "./adaptive-error-handler.js";
+import {
+  startMemoryCleanup,
+  stopMemoryCleanup,
+  performMemoryCleanup,
+  isMemoryLimitExceeded,
+  emergencyCleanup,
+  getMemoryStats,
+  globalAdaptiveMemoryManager,
+} from "./adaptive-memory-manager.js";
 import {
   getConfig,
   loadConfigFromSettings,
@@ -24,42 +44,19 @@ import {
   getAllConfig,
   updateConfig,
 } from "./performance-config.js";
-import { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } from "./validation-utils.js";
-
-// Sistemas de otimização de performance
-import moduleLoader from "./module-loader.js";
-import initializationCache from "./initialization-cache.js";
-import cacheWarmer from "./cache-warmer.js";
-import workerManager from "./worker-manager.js";
-import performanceMonitor from "./performance-monitor.js";
-
-// Importações lazy (carregamento sob demanda)
-let processTabQueue = null;
-let initializeContextMenus = null;
-let updateContextMenus = null;
-let pendingAutomaticGroups = null;
-let injectionFailureMap = null;
-let handleTabOperation = null;
-let handleGroupOperation = null;
-let handleCriticalOperation = null;
-let withErrorHandling = null;
-let globalAdaptiveErrorHandler = null;
-let startMemoryCleanup = null;
-let stopMemoryCleanup = null;
-let performMemoryCleanup = null;
-let isMemoryLimitExceeded = null;
-let emergencyCleanup = null;
-let getMemoryStats = null;
-let globalAdaptiveMemoryManager = null;
-let globalTabParallelProcessor = null;
-let globalWindowDataProcessor = null;
-let getAPIWrapperStats = null;
-let clearAPIQueues = null;
-let pauseAPICategory = null;
-let resumeAPICategory = null;
-let globalAPIRateLimiter = null;
-let globalTabRenamingEngine = null;
-let learningEngine = null;
+import {
+  globalTabParallelProcessor,
+  globalWindowDataProcessor,
+} from "./parallel-batch-processor.js";
+import {
+  getAPIWrapperStats,
+  clearAPIQueues,
+  pauseAPICategory,
+  resumeAPICategory,
+} from "./browser-api-wrapper.js";
+import { globalAPIRateLimiter } from "./api-rate-limiter.js";
+import { globalTabRenamingEngine } from "./tab-renaming-engine.js"; // Importa o motor de renomeação de abas
+import { learningEngine } from "./learning-engine.js"; // NOVO: Importa o motor de aprendizado
 
 // --- Constantes e Variáveis de Estado ---
 // (Agora obtidas dinamicamente via getConfig)
@@ -369,166 +366,6 @@ async function invalidateCacheForDomainChange(hostname, changeType) {
   }
 }
 
-// --- NOVO: Sistema de Lazy Loading ---
-
-/**
- * Carrega módulos sob demanda com cache e métricas
- * @param {string} moduleName - Nome do módulo para carregar
- * @returns {Promise<object>} - Módulo carregado
- */
-async function loadModuleOnDemand(moduleName) {
-  const startTime = performance.now();
-  
-  try {
-    const module = await moduleLoader.loadModule(moduleName);
-    const loadTime = performance.now() - startTime;
-    
-    // Registra métrica de performance
-    performanceMonitor.recordMetric(`moduleLoad_${moduleName}`, loadTime, 'ms', {
-      moduleName,
-      cached: moduleLoader.isModuleLoaded(moduleName)
-    });
-    
-    // Registra uso para cache warmer
-    await cacheWarmer.recordModuleUsage(moduleName);
-    
-    return module;
-  } catch (error) {
-    const loadTime = performance.now() - startTime;
-    performanceMonitor.recordMetric(`moduleLoad_${moduleName}_error`, loadTime, 'ms', {
-      moduleName,
-      error: error.message
-    });
-    throw error;
-  }
-}
-
-/**
- * Carrega módulo de processamento de abas sob demanda
- */
-async function ensureGroupingLogicLoaded() {
-  if (!processTabQueue) {
-    const module = await loadModuleOnDemand('grouping-logic.js');
-    processTabQueue = module.processTabQueue;
-  }
-  return processTabQueue;
-}
-
-/**
- * Carrega módulos de context menu sob demanda
- */
-async function ensureContextMenuLoaded() {
-  if (!initializeContextMenus || !updateContextMenus) {
-    const module = await loadModuleOnDemand('context-menu-manager.js');
-    initializeContextMenus = module.initializeContextMenus;
-    updateContextMenus = module.updateContextMenus;
-  }
-  return { initializeContextMenus, updateContextMenus };
-}
-
-/**
- * Carrega módulos de estado da aplicação sob demanda
- */
-async function ensureAppStateLoaded() {
-  if (!pendingAutomaticGroups || !injectionFailureMap) {
-    const module = await loadModuleOnDemand('app-state.js');
-    pendingAutomaticGroups = module.pendingAutomaticGroups;
-    injectionFailureMap = module.injectionFailureMap;
-  }
-  return { pendingAutomaticGroups, injectionFailureMap };
-}
-
-/**
- * Carrega módulos de tratamento de erro sob demanda
- */
-async function ensureErrorHandlingLoaded() {
-  if (!handleTabOperation || !handleGroupOperation || !handleCriticalOperation || !withErrorHandling || !globalAdaptiveErrorHandler) {
-    const module = await loadModuleOnDemand('adaptive-error-handler.js');
-    handleTabOperation = module.handleTabOperation;
-    handleGroupOperation = module.handleGroupOperation;
-    handleCriticalOperation = module.handleCriticalOperation;
-    withErrorHandling = module.withErrorHandling;
-    globalAdaptiveErrorHandler = module.globalAdaptiveErrorHandler;
-  }
-  return { handleTabOperation, handleGroupOperation, handleCriticalOperation, withErrorHandling, globalAdaptiveErrorHandler };
-}
-
-/**
- * Carrega módulos de gerenciamento de memória sob demanda
- */
-async function ensureMemoryManagementLoaded() {
-  if (!startMemoryCleanup || !stopMemoryCleanup || !performMemoryCleanup || !isMemoryLimitExceeded || !emergencyCleanup || !getMemoryStats || !globalAdaptiveMemoryManager) {
-    const module = await loadModuleOnDemand('adaptive-memory-manager.js');
-    startMemoryCleanup = module.startMemoryCleanup;
-    stopMemoryCleanup = module.stopMemoryCleanup;
-    performMemoryCleanup = module.performMemoryCleanup;
-    isMemoryLimitExceeded = module.isMemoryLimitExceeded;
-    emergencyCleanup = module.emergencyCleanup;
-    getMemoryStats = module.getMemoryStats;
-    globalAdaptiveMemoryManager = module.globalAdaptiveMemoryManager;
-  }
-  return { startMemoryCleanup, stopMemoryCleanup, performMemoryCleanup, isMemoryLimitExceeded, emergencyCleanup, getMemoryStats, globalAdaptiveMemoryManager };
-}
-
-/**
- * Carrega módulos de processamento paralelo sob demanda
- */
-async function ensureParallelProcessingLoaded() {
-  if (!globalTabParallelProcessor || !globalWindowDataProcessor) {
-    const module = await loadModuleOnDemand('parallel-batch-processor.js');
-    globalTabParallelProcessor = module.globalTabParallelProcessor;
-    globalWindowDataProcessor = module.globalWindowDataProcessor;
-  }
-  return { globalTabParallelProcessor, globalWindowDataProcessor };
-}
-
-/**
- * Carrega módulos de API wrapper sob demanda
- */
-async function ensureAPIWrapperLoaded() {
-  if (!getAPIWrapperStats || !clearAPIQueues || !pauseAPICategory || !resumeAPICategory) {
-    const module = await loadModuleOnDemand('browser-api-wrapper.js');
-    getAPIWrapperStats = module.getAPIWrapperStats;
-    clearAPIQueues = module.clearAPIQueues;
-    pauseAPICategory = module.pauseAPICategory;
-    resumeAPICategory = module.resumeAPICategory;
-  }
-  return { getAPIWrapperStats, clearAPIQueues, pauseAPICategory, resumeAPICategory };
-}
-
-/**
- * Carrega módulos de rate limiting sob demanda
- */
-async function ensureRateLimiterLoaded() {
-  if (!globalAPIRateLimiter) {
-    const module = await loadModuleOnDemand('api-rate-limiter.js');
-    globalAPIRateLimiter = module.globalAPIRateLimiter;
-  }
-  return globalAPIRateLimiter;
-}
-
-/**
- * Carrega motor de renomeação de abas sob demanda
- */
-async function ensureTabRenamingLoaded() {
-  if (!globalTabRenamingEngine) {
-    const module = await loadModuleOnDemand('tab-renaming-engine.js');
-    globalTabRenamingEngine = module.globalTabRenamingEngine;
-  }
-  return globalTabRenamingEngine;
-}
-
-/**
- * Carrega motor de aprendizado sob demanda
- */
-async function ensureLearningEngineLoaded() {
-  if (!learningEngine) {
-    const module = await loadModuleOnDemand('learning-engine.js');
-    learningEngine = module.learningEngine;
-  }
-  return learningEngine;
-}
-
 // --- Lógica de Processamento e Gestão de Eventos ---
 
 /**
@@ -536,15 +373,11 @@ async function ensureLearningEngineLoaded() {
  * Usa um timeout para agrupar múltiplas adições de abas em um único processamento.
  * Realiza uma verificação de memória de emergência antes de processar.
  */
-async function scheduleQueueProcessing() {
+function scheduleQueueProcessing() {
   Logger.debug(
     "scheduleQueueProcessing",
     "Agendamento de processamento da fila."
   );
-
-  // Carrega módulos necessários sob demanda
-  await ensureMemoryManagementLoaded();
-  await ensureGroupingLogicLoaded();
 
   // Verifica se precisa de limpeza de emergência antes de processar
   if (isMemoryLimitExceeded(memoryMaps)) {
@@ -650,17 +483,9 @@ function handleTabUpdated(tabId, changeInfo, tab) {
       "handleTabUpdated",
       `Aba ${tabId} marcada para processamento de agrupamento devido a mudança de status ou título.`
     );
-    // Carrega estado da aplicação sob demanda (não bloqueia)
-    ensureAppStateLoaded().then(() => {
-      injectionFailureMap.delete(tabId);
-      tabProcessingQueue.add(tabId);
-      scheduleQueueProcessing();
-    }).catch(error => {
-      Logger.warn("handleTabUpdated", "Erro ao carregar estado da aplicação:", error);
-      // Continua mesmo com erro
-      tabProcessingQueue.add(tabId);
-      scheduleQueueProcessing();
-    });
+    injectionFailureMap.delete(tabId);
+    tabProcessingQueue.add(tabId);
+    scheduleQueueProcessing();
   }
 
   // --- NOVO: Acionamento da Renomeação de Abas ---
@@ -684,8 +509,6 @@ function handleTabUpdated(tabId, changeInfo, tab) {
           "handleTabUpdated",
           `Acionando motor de renomeação para aba ${tabId}.`
         );
-        // Carrega motor de renomeação sob demanda
-        await ensureTabRenamingLoaded();
         await globalTabRenamingEngine.processTab(tabId, tab);
         debouncedTitleUpdaters.delete(renamingDebounceKey);
       }, getConfig("TAB_RENAMING_DELAY")); // Usa um delay configurável para renomeação
@@ -712,20 +535,12 @@ function handleTabRemoved(tabId, removeInfo) {
 
   // Limpeza proativa de recursos relacionados à aba removida
   tabGroupMap.delete(tabId);
-  
-  // Carrega estado da aplicação se necessário para limpeza
-  ensureAppStateLoaded().then(() => {
-    if (injectionFailureMap) {
-      injectionFailureMap.delete(tabId);
-    }
-    
-    // Remove entrada de grupos pendentes se a aba era a chave
-    if (pendingAutomaticGroups && pendingAutomaticGroups.has(tabId)) {
-      pendingAutomaticGroups.delete(tabId);
-    }
-  }).catch(error => {
-    Logger.warn("handleTabRemoved", "Erro ao carregar estado para limpeza:", error);
-  });
+  injectionFailureMap.delete(tabId);
+
+  // Remove entrada de grupos pendentes se a aba era a chave
+  if (pendingAutomaticGroups.has(tabId)) {
+    pendingAutomaticGroups.delete(tabId);
+  }
 
   // MELHORADO: Limpeza completa de todos os timeouts relacionados à aba removida
   const renamingDebounceKey = `renaming-${tabId}`;
@@ -1335,12 +1150,10 @@ async function processMessageAction(message, sender) {
       return { success: true };
       
     case "clearLearningHistory": // NOVO
-      await ensureLearningEngineLoaded();
       await learningEngine.clearHistory();
       return { success: true };
 
     case "getLearningReport": // NOVO
-      await ensureLearningEngineLoaded();
       const report = await learningEngine.getPrivacyReport();
       return report;
 
@@ -1349,7 +1162,6 @@ async function processMessageAction(message, sender) {
       return { success: true };
 
     case "cleanupExpiredLearning": // NOVO
-      await ensureLearningEngineLoaded();
       const removed = await learningEngine.cleanupExpiredPatterns();
       return { removed };
       
@@ -1389,12 +1201,8 @@ async function processMessageAction(message, sender) {
       Logger.setLevel(newSettings.logLevel);
 
       await checkForRenamedOrEditedRules(oldSettings, newSettings);
-      
-      // NOVO: Recarrega as regras de renomeação no motor (com lazy loading)
-      if (newSettings.tabRenamingEnabled) {
-        await ensureTabRenamingLoaded();
-        globalTabRenamingEngine.loadRules(newSettings.tabRenamingRules || []);
-      }
+      // NOVO: Recarrega as regras de renomeação no motor
+      globalTabRenamingEngine.loadRules(newSettings.tabRenamingRules || []);
 
       toggleListeners(
         newSettings.autoGroupingEnabled ||
@@ -1403,9 +1211,6 @@ async function processMessageAction(message, sender) {
       ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
       updateAutoCollapseTimer();
       updateUngroupTimer();
-      
-      // Carrega context menu sob demanda
-      await ensureContextMenuLoaded();
       await updateContextMenus();
 
       // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
@@ -1423,20 +1228,16 @@ async function processMessageAction(message, sender) {
       return { status: "ok" };
       
     case "getMemoryStats":
-      await ensureMemoryManagementLoaded();
       return getMemoryStats(memoryMaps);
       
     case "cleanupMemory":
-      await ensureMemoryManagementLoaded();
       const cleanupStats = await performMemoryCleanup(memoryMaps);
       return cleanupStats;
       
     case "getAdaptiveMemoryStats":
-      await ensureMemoryManagementLoaded();
       return globalAdaptiveMemoryManager.getDetailedStats(memoryMaps);
       
     case "forceAdaptiveCleanup":
-      await ensureMemoryManagementLoaded();
       const adaptiveCleanupStats =
         await globalAdaptiveMemoryManager.performAdaptiveCleanup(
           memoryMaps,
@@ -1445,22 +1246,18 @@ async function processMessageAction(message, sender) {
       return adaptiveCleanupStats;
       
     case "emergencyAdaptiveCleanup":
-      await ensureMemoryManagementLoaded();
       const emergencyStats =
         await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
       return emergencyStats;
       
     case "getErrorStats":
-      await ensureErrorHandlingLoaded();
       return globalAdaptiveErrorHandler.getErrorStats();
       
     case "resetErrorStats":
-      await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.resetStats();
       return { success: true };
       
     case "setCustomErrorStrategy":
-      await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.setCustomStrategy(
         message.errorType,
         message.config
@@ -1468,7 +1265,6 @@ async function processMessageAction(message, sender) {
       return { success: true };
       
     case "setContextualErrorConfig":
-      await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.setContextualConfig(
         message.context,
         message.config
@@ -1519,26 +1315,21 @@ async function processMessageAction(message, sender) {
       return { success: true };
       
     case "getAPIRateLimiterStats":
-      await ensureAPIWrapperLoaded();
       return getAPIWrapperStats();
       
     case "clearAPIQueues":
-      await ensureAPIWrapperLoaded();
       const clearedCount = clearAPIQueues();
       return { success: true, cleared: clearedCount };
       
     case "pauseAPICategory":
-      await ensureAPIWrapperLoaded();
       pauseAPICategory(message.category);
       return { success: true };
       
     case "resumeAPICategory":
-      await ensureAPIWrapperLoaded();
       resumeAPICategory(message.category);
       return { success: true };
       
     case "getRateLimiterDetailedStats":
-      await ensureRateLimiterLoaded();
       return globalAPIRateLimiter.getDetailedStats();
       
     case "log":
@@ -1672,400 +1463,133 @@ async function populateTabGroupMap() {
   );
 }
 
-// --- NOVO: Service Worker Manager Otimizado ---
-
 /**
- * Gerenciador otimizado do Service Worker com cache de inicialização
- * Implementa startup time < 500ms e lazy loading inteligente
- */
-class OptimizedServiceWorker {
-  constructor() {
-    this.initialized = false;
-    this.initializationStartTime = performance.now();
-    this.criticalModulesLoaded = false;
-    this.performanceMetrics = new Map();
-  }
-
-  /**
-   * Inicialização principal otimizada
-   * @returns {Promise<object>} - Resultado da inicialização
-   */
-  async initialize() {
-    const startTime = performance.now();
-    
-    try {
-      Logger.info("OptimizedServiceWorker", "🚀 Iniciando inicialização otimizada...");
-      
-      // Registra início da inicialização
-      performanceMonitor.recordMetric('startupTime_start', startTime, 'ms');
-      
-      // Tenta usar cache de inicialização primeiro
-      const cachedInit = await initializationCache.getCachedInitialization();
-      
-      if (cachedInit) {
-        await this.initializeFromCache(cachedInit);
-        Logger.info("OptimizedServiceWorker", "✅ Inicializado a partir do cache");
-      } else {
-        await this.initializeFromScratch();
-        Logger.info("OptimizedServiceWorker", "✅ Inicializado do zero");
-      }
-      
-      // Inicia cache warming em background (não bloqueia)
-      this.startBackgroundOptimizations();
-      
-      const initTime = performance.now() - startTime;
-      this.recordPerformanceMetric('initialization_time', initTime);
-      performanceMonitor.recordMetric('startupTime', initTime, 'ms');
-      
-      this.initialized = true;
-      
-      Logger.info("OptimizedServiceWorker", `🎯 Inicialização concluída em ${initTime.toFixed(2)}ms`);
-      
-      return {
-        success: true,
-        initTime,
-        fromCache: !!cachedInit,
-        target: 500 // ms
-      };
-      
-    } catch (error) {
-      const initTime = performance.now() - startTime;
-      Logger.error("OptimizedServiceWorker", "❌ Falha na inicialização otimizada:", error);
-      performanceMonitor.recordMetric('startupTime_error', initTime, 'ms', { error: error.message });
-      
-      // Fallback para inicialização tradicional
-      return await this.fallbackInitialization();
-    }
-  }
-
-  /**
-   * Inicializa a partir do cache
-   * @param {object} cachedData - Dados do cache
-   */
-  async initializeFromCache(cachedData) {
-    const startTime = performance.now();
-    
-    try {
-      // Carrega apenas módulos críticos essenciais
-      await this.loadCriticalModulesMinimal();
-      
-      // Restaura estado básico do cache
-      await this.restoreBasicState(cachedData);
-      
-      // Setup listeners essenciais
-      await this.setupEssentialListeners();
-      
-      const cacheTime = performance.now() - startTime;
-      this.recordPerformanceMetric('cache_initialization_time', cacheTime);
-      
-      Logger.debug("OptimizedServiceWorker", `Cache initialization: ${cacheTime.toFixed(2)}ms`);
-      
-    } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Falha na inicialização por cache, usando fallback:", error);
-      throw error; // Re-throw para acionar fallback
-    }
-  }
-
-  /**
-   * Inicializa do zero com otimizações
-   */
-  async initializeFromScratch() {
-    const startTime = performance.now();
-    
-    try {
-      // Carrega configurações (já feito no main)
-      await loadSettings();
-      Logger.setLevel(settings.logLevel);
-      
-      // Carrega configurações de performance
-      loadConfigFromSettings(settings);
-      
-      // Carrega apenas módulos críticos
-      await this.loadCriticalModulesMinimal();
-      
-      // Setup básico
-      await this.setupBasicInitialization();
-      
-      // Cache o estado para próximas inicializações
-      await this.cacheInitializationState();
-      
-      const scratchTime = performance.now() - startTime;
-      this.recordPerformanceMetric('scratch_initialization_time', scratchTime);
-      
-      Logger.debug("OptimizedServiceWorker", `Scratch initialization: ${scratchTime.toFixed(2)}ms`);
-      
-    } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Falha na inicialização do zero:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Carrega apenas módulos críticos mínimos
-   */
-  async loadCriticalModulesMinimal() {
-    const startTime = performance.now();
-    
-    try {
-      // Carrega apenas módulos absolutamente essenciais
-      await ensureErrorHandlingLoaded();
-      
-      // Marca como carregado
-      this.criticalModulesLoaded = true;
-      
-      const loadTime = performance.now() - startTime;
-      this.recordPerformanceMetric('critical_modules_load_time', loadTime);
-      
-      Logger.debug("OptimizedServiceWorker", `Critical modules loaded: ${loadTime.toFixed(2)}ms`);
-      
-    } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Falha ao carregar módulos críticos:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Restaura estado básico do cache
-   * @param {object} cachedData - Dados do cache
-   */
-  async restoreBasicState(cachedData) {
-    try {
-      // Restaura apenas estado essencial
-      if (cachedData.settings) {
-        // Aplica configurações básicas do cache
-        Object.assign(settings, cachedData.settings);
-      }
-      
-      if (cachedData.tabGroupMap) {
-        // Restaura mapa de grupos de abas
-        tabGroupMap.clear();
-        for (const [tabId, groupId] of Object.entries(cachedData.tabGroupMap)) {
-          tabGroupMap.set(parseInt(tabId), groupId);
-        }
-      }
-      
-      Logger.debug("OptimizedServiceWorker", "Estado básico restaurado do cache");
-      
-    } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao restaurar estado do cache:", error);
-    }
-  }
-
-  /**
-   * Setup de listeners essenciais
-   */
-  async setupEssentialListeners() {
-    try {
-      // Apenas listeners críticos para funcionalidade básica
-      if (browser.tabs && browser.tabs.onActivated) {
-        browser.tabs.onActivated.addListener(handleTabActivated);
-      }
-      
-      // Listeners de abas com lazy loading
-      toggleListeners(
-        settings.autoGroupingEnabled ||
-        settings.showTabCount ||
-        settings.tabRenamingEnabled
-      );
-      
-      Logger.debug("OptimizedServiceWorker", "Listeners essenciais configurados");
-      
-    } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Erro ao configurar listeners:", error);
-    }
-  }
-
-  /**
-   * Setup básico de inicialização
-   */
-  async setupBasicInitialization() {
-    try {
-      // Popula mapa de grupos de abas
-      await populateTabGroupMap();
-      
-      // Setup de timers básicos
-      updateAutoCollapseTimer();
-      updateUngroupTimer();
-      
-      // Configura limpeza periódica
-      setupPeriodicCleanup();
-      
-      Logger.debug("OptimizedServiceWorker", "Inicialização básica concluída");
-      
-    } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Erro na inicialização básica:", error);
-    }
-  }
-
-  /**
-   * Cache do estado de inicialização
-   */
-  async cacheInitializationState() {
-    try {
-      const cacheData = {
-        settings: { ...settings },
-        tabGroupMap: Object.fromEntries(tabGroupMap),
-        timestamp: Date.now(),
-        version: '1.0.0'
-      };
-      
-      await initializationCache.setCachedInitialization(cacheData);
-      Logger.debug("OptimizedServiceWorker", "Estado de inicialização cacheado");
-      
-    } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao cachear estado:", error);
-    }
-  }
-
-  /**
-   * Inicia otimizações em background
-   */
-  startBackgroundOptimizations() {
-    // Não bloqueia a inicialização
-    setTimeout(async () => {
-      try {
-        // Cache warming
-        await cacheWarmer.warmCache();
-        
-        // Carrega módulos não críticos em background
-        await this.loadNonCriticalModules();
-        
-        // Inicia monitoramento de performance
-        performanceMonitor.startAutoReporting();
-        
-        Logger.info("OptimizedServiceWorker", "🔧 Otimizações em background concluídas");
-        
-      } catch (error) {
-        Logger.warn("OptimizedServiceWorker", "Erro nas otimizações em background:", error);
-      }
-    }, 100); // Delay mínimo para não bloquear
-  }
-
-  /**
-   * Carrega módulos não críticos em background
-   */
-  async loadNonCriticalModules() {
-    try {
-      // Carrega módulos sob demanda conforme necessário
-      const backgroundModules = [
-        'adaptive-memory-manager.js',
-        'parallel-batch-processor.js',
-        'intelligent-cache-manager.js'
-      ];
-      
-      // Carrega em paralelo mas com limite
-      const results = await moduleLoader.preloadModules(backgroundModules);
-      
-      Logger.debug("OptimizedServiceWorker", `Módulos não críticos carregados: ${results.successful}/${results.total}`);
-      
-    } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao carregar módulos não críticos:", error);
-    }
-  }
-
-  /**
-   * Fallback para inicialização tradicional
-   */
-  async fallbackInitialization() {
-    Logger.warn("OptimizedServiceWorker", "🔄 Usando inicialização de fallback...");
-    
-    try {
-      // Inicialização mínima garantida
-      await loadSettings();
-      Logger.setLevel(settings.logLevel || "ERROR");
-      
-      // Setup básico sem otimizações
-      await this.setupBasicInitialization();
-      
-      this.initialized = true;
-      
-      return {
-        success: true,
-        fallback: true,
-        initTime: performance.now() - this.initializationStartTime
-      };
-      
-    } catch (error) {
-      Logger.error("OptimizedServiceWorker", "❌ Falha crítica na inicialização:", error);
-      return {
-        success: false,
-        error: error.message,
-        initTime: performance.now() - this.initializationStartTime
-      };
-    }
-  }
-
-  /**
-   * Registra métrica de performance
-   * @param {string} metric - Nome da métrica
-   * @param {number} value - Valor da métrica
-   */
-  recordPerformanceMetric(metric, value) {
-    this.performanceMetrics.set(metric, {
-      value,
-      timestamp: Date.now()
-    });
-    
-    performanceMonitor.recordMetric(metric, value, 'ms');
-  }
-
-  /**
-   * Obtém métricas de performance
-   * @returns {object} - Métricas coletadas
-   */
-  getPerformanceMetrics() {
-    return Object.fromEntries(this.performanceMetrics);
-  }
-
-  /**
-   * Verifica se está inicializado
-   * @returns {boolean} - Status de inicialização
-   */
-  isInitialized() {
-    return this.initialized;
-  }
-}
-
-/**
- * Função principal de inicialização otimizada
+ * Função principal de inicialização da extensão.
+ * Carrega configurações, inicializa listeners, temporizadores e todos os
+ * subsistemas necessários para o funcionamento da extensão.
+ * Inclui tratamento de erros críticos para garantir um arranque robusto.
  */
 async function main() {
-  const optimizedServiceWorker = new OptimizedServiceWorker();
-  
-  // Carrega módulos de tratamento de erro primeiro
-  await ensureErrorHandlingLoaded();
-  
-  const result = await handleCriticalOperation(
+  await handleCriticalOperation(
     async () => {
-      return await optimizedServiceWorker.initialize();
+      Logger.info("Main", "Extensão a inicializar...");
+
+      // Carregamento de configurações é crítico
+      await loadSettings();
+      Logger.setLevel(settings.logLevel);
+
+      // NOVO: Inicializa o motor de aprendizado
+      await learningEngine.initialize();
+
+      // Carrega configurações de performance
+      loadConfigFromSettings(settings);
+
+      Logger.info("Main", "Configurações iniciais carregadas:", settings);
+
+      // --- ADIÇÃO DE LISTENERS COM VERIFICAÇÃO DE SEGURANÇA ---
+      // Cada 'addListener' é agora verificado para garantir que a API existe antes de ser usada.
+      // Isto previne a falha crítica 'Cannot read properties of undefined (reading 'addListener')'.
+
+      if (browser.tabs && browser.tabs.onActivated) {
+        browser.tabs.onActivated.addListener(handleTabActivated);
+      } else {
+        Logger.warn("Main", "API 'tabs.onActivated' não disponível.");
+      }
+
+      if (browser.tabGroups) {
+        await populateTabGroupMap();
+
+        if (settings.showTabCount && browser.tabGroups.query) {
+          await withErrorHandling(
+            async () => {
+              const allGroups = await browser.tabGroups.query({});
+              const titleUpdatePromises = allGroups.map((group) =>
+                updateGroupTitleWithCount(group.id)
+              );
+              await Promise.allSettled(titleUpdatePromises);
+              return { success: true, groupCount: allGroups.length };
+            },
+            {
+              context: "initial-title-updates",
+              maxRetries: 2,
+              criticalOperation: false,
+            }
+          );
+        }
+
+        // Verifica cada evento individualmente antes de adicionar o listener.
+        if (browser.tabGroups.onCreated)
+          browser.tabGroups.onCreated.addListener(handleTabGroupCreated);
+        if (browser.tabGroups.onUpdated)
+          browser.tabGroups.onUpdated.addListener(handleTabGroupUpdated);
+        if (browser.tabGroups.onRemoved)
+          browser.tabGroups.onRemoved.addListener(handleTabGroupRemoved);
+      } else {
+        Logger.warn(
+          "Main",
+          "A API 'tabGroups' não é suportada ou está indisponível. Funcionalidades de grupo desativadas."
+        );
+      }
+
+      // Inicialização de componentes opcionais com tratamento de erro individual
+      await withErrorHandling(
+        async () => {
+          initializeContextMenus();
+          await updateContextMenus();
+        },
+        {
+          context: "context-menus-init",
+          maxRetries: 1,
+          criticalOperation: false,
+        }
+      );
+
+      // NOVO: Carrega as regras de renomeação no motor
+      globalTabRenamingEngine.loadRules(settings.tabRenamingRules || []);
+      // NOVO: Inicia a limpeza do cache de renomeação
+      globalTabRenamingEngine.startCacheCleanup();
+
+      toggleListeners(
+        settings.autoGroupingEnabled ||
+          settings.showTabCount ||
+          settings.tabRenamingEnabled
+      );
+      updateAutoCollapseTimer();
+      updateUngroupTimer();
+
+      // Inicia o gerenciamento automático de memória
+      startMemoryCleanup(memoryMaps);
+
+      // NOVO: Configura limpeza periódica de memory leaks
+      setupPeriodicCleanup();
+
+      // Executa uma limpeza inicial após inicialização
+      setTimeout(async () => {
+        const initialCleanup = await performMemoryCleanup(memoryMaps);
+        Logger.info(
+          "Main",
+          "Limpeza inicial de memória concluída:",
+          initialCleanup
+        );
+      }, getConfig("INITIAL_CLEANUP_DELAY"));
+
+      Logger.info("Main", "Auto Tab Grouper inicializado com sucesso.", {
+        settings,
+      });
+      return { success: true };
     },
-    "optimized-service-worker-initialization",
+    "main-initialization",
     async () => {
-      // Fallback crítico
-      Logger.error("Main", "🆘 Fallback crítico ativado");
-      return await optimizedServiceWorker.fallbackInitialization();
+      // Fallback para inicialização mínima
+      Logger.error(
+        "Main",
+        "Iniciando em modo de recuperação com configurações mínimas."
+      );
+      settings = { ...DEFAULT_SETTINGS };
+      Logger.setLevel("ERROR");
+      return { success: false, fallback: true };
     }
   );
-  
-  if (result && result.success) {
-    Logger.info("Main", "🎉 Service Worker otimizado inicializado com sucesso!", {
-      initTime: `${result.initTime?.toFixed(2)}ms`,
-      fromCache: result.fromCache,
-      fallback: result.fallback
-    });
-    
-    // Registra sucesso da inicialização
-    performanceMonitor.recordMetric('initialization_success', 1, 'count');
-    
-  } else {
-    Logger.error("Main", "💥 Falha crítica na inicialização do Service Worker", result);
-    performanceMonitor.recordMetric('initialization_failure', 1, 'count');
-  }
-  
-  return result;
 }
 
-// Inicialização global otimizada
-main().catch(error => {
-  Logger.error("Main", "💥 Erro não tratado na inicialização:", error);
-});
+main();

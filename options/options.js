@@ -8,6 +8,10 @@
 import { validateTabRenamingRule } from "../validation-utils.js";
 import { clearSmartNameCache } from "../intelligent-cache-manager.js";
 
+// Importar utilitários DOM seguros para CSP rigorosa
+import { createElement, replaceContent, createSelect, createInputWithLabel } from "../src/dom-utils.js";
+import { safeInnerHTML } from "../src/html-sanitizer.js";
+
 // Conteúdo para os tooltips de ajuda contextual.
 const helpTexts = {
   groupingMode:
@@ -196,9 +200,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const text = helpTexts[helpKey];
 
       if (text) {
-        const tooltipContent = document.createElement("div");
-        tooltipContent.className = "tooltip-content";
-        tooltipContent.innerHTML = text; // Usamos innerHTML para permitir formatação com <ul>, <a> etc.
+        const tooltipContent = createElement("div", { className: "tooltip-content" });
+        // Usar sanitização segura para HTML dos tooltips
+        safeInnerHTML(tooltipContent, text, ['ul', 'li', 'a', 'strong', 'code', 'br']);
         button.appendChild(tooltipContent);
       }
     });
@@ -225,53 +229,91 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   function createConditionElement(condition = {}) {
-    const conditionDiv = document.createElement("div");
-    conditionDiv.className =
-      "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600";
+    const conditionDiv = createElement("div", {
+      className: "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600"
+    });
 
     // Layout em grid responsivo para melhor distribuição do espaço
-    conditionDiv.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            <div class="md:col-span-3">
-                <select class="condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
-                    ${propertyOptions}
-                </select>
-            </div>
-            <div class="md:col-span-3">
-                <select class="condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
-                    ${operatorOptions.string}
-                </select>
-            </div>
-            <div class="md:col-span-5">
-                <input type="text" class="condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Digite o valor aqui...">
-            </div>
-            <div class="md:col-span-1 flex justify-center">
-                <button type="button" class="remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `;
+    const gridContainer = createElement("div", {
+      className: "grid grid-cols-1 md:grid-cols-12 gap-3 items-center"
+    });
+
+    // Coluna 1: Select de propriedade
+    const propertyDiv = createElement("div", { className: "md:col-span-3" });
+    const propertySelect = createSelect([
+      { value: "url", text: "URL Completa" },
+      { value: "hostname", text: "Domínio (ex: google.com)" },
+      { value: "url_path", text: "Caminho da URL (ex: /noticias)" },
+      { value: "title", text: "Título da Aba" }
+    ], {
+      className: "condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600"
+    });
+    propertyDiv.appendChild(propertySelect);
+
+    // Coluna 2: Select de operador
+    const operatorDiv = createElement("div", { className: "md:col-span-3" });
+    const operatorSelect = createSelect([
+      { value: "contains", text: "contém" },
+      { value: "not_contains", text: "não contém" },
+      { value: "starts_with", text: "começa com" },
+      { value: "ends_with", text: "termina com" },
+      { value: "equals", text: "é igual a" },
+      { value: "regex", text: "corresponde à Regex" }
+    ], {
+      className: "condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600"
+    });
+    operatorDiv.appendChild(operatorSelect);
+
+    // Coluna 3: Input de valor
+    const valueDiv = createElement("div", { className: "md:col-span-5" });
+    const valueInput = createElement("input", {
+      type: "text",
+      className: "condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600",
+      placeholder: "Digite o valor aqui..."
+    });
+    valueDiv.appendChild(valueInput);
+
+    // Coluna 4: Botão de remover
+    const buttonDiv = createElement("div", { className: "md:col-span-1 flex justify-center" });
+    const removeButton = createElement("button", {
+      type: "button",
+      className: "remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+    });
+
+    // Criar ícone SVG de forma segura
+    const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgIcon.setAttribute("width", "20");
+    svgIcon.setAttribute("height", "20");
+    svgIcon.setAttribute("fill", "currentColor");
+    svgIcon.setAttribute("viewBox", "0 0 16 16");
+
+    const path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path1.setAttribute("d", "M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z");
+
+    const path2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path2.setAttribute("d", "M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z");
+
+    svgIcon.appendChild(path1);
+    svgIcon.appendChild(path2);
+    removeButton.appendChild(svgIcon);
+    buttonDiv.appendChild(removeButton);
+
+    // Montar grid
+    gridContainer.appendChild(propertyDiv);
+    gridContainer.appendChild(operatorDiv);
+    gridContainer.appendChild(valueDiv);
+    gridContainer.appendChild(buttonDiv);
+    conditionDiv.appendChild(gridContainer);
 
     // Preencher valores se fornecidos
-    if (condition.property)
-      conditionDiv.querySelector(".condition-property").value =
-        condition.property;
-    if (condition.operator)
-      conditionDiv.querySelector(".condition-operator").value =
-        condition.operator;
-    if (condition.value)
-      conditionDiv.querySelector(".condition-value").value = condition.value;
+    if (condition.property) propertySelect.value = condition.property;
+    if (condition.operator) operatorSelect.value = condition.operator;
+    if (condition.value) valueInput.value = condition.value;
 
     // Event listener para remover condição
-    conditionDiv
-      .querySelector(".remove-condition-btn")
-      .addEventListener("click", () => {
-        conditionDiv.remove();
-      });
+    removeButton.addEventListener("click", () => {
+      conditionDiv.remove();
+    });
 
     return conditionDiv;
   }
@@ -299,48 +341,92 @@ document.addEventListener("DOMContentLoaded", () => {
   `;
 
   function createRenamingConditionElement(condition = {}) {
-    const conditionDiv = document.createElement("div");
-    conditionDiv.className =
-      "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600";
-    conditionDiv.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            <div class="md:col-span-3">
-                <select class="condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
-                    ${propertyOptions}
-                </select>
-            </div>
-            <div class="md:col-span-3">
-                <select class="condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
-                    ${operatorOptions.string}
-                </select>
-            </div>
-            <div class="md:col-span-5">
-                <input type="text" class="condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Digite o valor aqui...">
-            </div>
-            <div class="md:col-span-1 flex justify-center">
-                <button type="button" class="remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `;
-    if (condition.property)
-      conditionDiv.querySelector(".condition-property").value =
-        condition.property;
-    if (condition.operator)
-      conditionDiv.querySelector(".condition-operator").value =
-        condition.operator;
-    if (condition.value)
-      conditionDiv.querySelector(".condition-value").value = condition.value;
+    const conditionDiv = createElement("div", {
+      className: "condition-item bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-600"
+    });
 
-    conditionDiv
-      .querySelector(".remove-condition-btn")
-      .addEventListener("click", () => {
-        conditionDiv.remove();
-      });
+    // Layout em grid responsivo para melhor distribuição do espaço
+    const gridContainer = createElement("div", {
+      className: "grid grid-cols-1 md:grid-cols-12 gap-3 items-center"
+    });
+
+    // Coluna 1: Select de propriedade
+    const propertyDiv = createElement("div", { className: "md:col-span-3" });
+    const propertySelect = createSelect([
+      { value: "url", text: "URL Completa" },
+      { value: "hostname", text: "Domínio (ex: google.com)" },
+      { value: "url_path", text: "Caminho da URL (ex: /noticias)" },
+      { value: "title", text: "Título da Aba" }
+    ], {
+      className: "condition-property w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600"
+    });
+    propertyDiv.appendChild(propertySelect);
+
+    // Coluna 2: Select de operador
+    const operatorDiv = createElement("div", { className: "md:col-span-3" });
+    const operatorSelect = createSelect([
+      { value: "contains", text: "contém" },
+      { value: "not_contains", text: "não contém" },
+      { value: "starts_with", text: "começa com" },
+      { value: "ends_with", text: "termina com" },
+      { value: "equals", text: "é igual a" },
+      { value: "regex", text: "corresponde à Regex" }
+    ], {
+      className: "condition-operator w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600"
+    });
+    operatorDiv.appendChild(operatorSelect);
+
+    // Coluna 3: Input de valor
+    const valueDiv = createElement("div", { className: "md:col-span-5" });
+    const valueInput = createElement("input", {
+      type: "text",
+      className: "condition-value w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600",
+      placeholder: "Digite o valor aqui..."
+    });
+    valueDiv.appendChild(valueInput);
+
+    // Coluna 4: Botão de remover
+    const buttonDiv = createElement("div", { className: "md:col-span-1 flex justify-center" });
+    const removeButton = createElement("button", {
+      type: "button",
+      className: "remove-condition-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+    });
+
+    // Criar ícone SVG de forma segura
+    const svgIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svgIcon.setAttribute("width", "20");
+    svgIcon.setAttribute("height", "20");
+    svgIcon.setAttribute("fill", "currentColor");
+    svgIcon.setAttribute("viewBox", "0 0 16 16");
+
+    const path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path1.setAttribute("d", "M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z");
+
+    const path2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path2.setAttribute("d", "M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z");
+
+    svgIcon.appendChild(path1);
+    svgIcon.appendChild(path2);
+    removeButton.appendChild(svgIcon);
+    buttonDiv.appendChild(removeButton);
+
+    // Montar grid
+    gridContainer.appendChild(propertyDiv);
+    gridContainer.appendChild(operatorDiv);
+    gridContainer.appendChild(valueDiv);
+    gridContainer.appendChild(buttonDiv);
+    conditionDiv.appendChild(gridContainer);
+
+    // Preencher valores se fornecidos
+    if (condition.property) propertySelect.value = condition.property;
+    if (condition.operator) operatorSelect.value = condition.operator;
+    if (condition.value) valueInput.value = condition.value;
+
+    // Event listener para remover condição
+    removeButton.addEventListener("click", () => {
+      conditionDiv.remove();
+    });
+
     return conditionDiv;
   }
 
@@ -797,11 +883,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // CORRIGIDO: Tornar a função mais robusta para evitar erros com regras malformadas.
   function renderRulesList() {
-    ui.rulesList.innerHTML = "";
+    replaceContent(ui.rulesList, []);
     const rules = currentSettings.customRules || [];
     if (rules.length === 0) {
-      ui.rulesList.innerHTML =
-        '<p class="text-slate-500 italic text-center p-4 dark:text-slate-400">Nenhuma regra personalizada ainda.</p>';
+      const emptyMessage = createElement('p', {
+        className: 'text-slate-500 italic text-center p-4 dark:text-slate-400'
+      }, 'Nenhuma regra personalizada ainda.');
+      ui.rulesList.appendChild(emptyMessage);
       return;
     }
 

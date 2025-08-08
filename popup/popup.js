@@ -3,6 +3,9 @@
  * @description Lógica para o popup da barra de ferramentas da extensão.
  */
 
+// Importar utilitários DOM seguros
+import { createElement, replaceContent, createLoadingElement } from '../src/dom-utils.js';
+
 // Aplica o tema com base nas configurações guardadas
 function applyTheme(theme) {
   if (
@@ -142,7 +145,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Listener para o botão de agrupar tudo
   groupAllButton.addEventListener("click", () => {
     groupAllButton.disabled = true;
-    groupAllButton.innerHTML = `<div class="flex items-center justify-center space-x-2"><svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Agrupando...</span></div>`;
+    
+    // Criar elemento de loading de forma segura
+    const loadingContent = createLoadingElement('Agrupando...');
+    replaceContent(groupAllButton, loadingContent);
 
     browser.runtime
       .sendMessage({
