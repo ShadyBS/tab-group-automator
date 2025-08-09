@@ -5,15 +5,40 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [3.10.0] - 2025-08-09 - TASK-A-002: Learning Engine Privacy & Performance
+
+### 🚀 TASK-A-002: Learning Engine Privacy & Performance Implementation
+
+- **✅ COMPLETED**: Implementação completa dos requisitos de privacidade e performance do Learning Engine
+- **🔒 Privacidade**: Armazenamento e matching de domínios 100% via hashes SHA-256 (zero PII)
+- **⚡ Performance**: Matching otimizado com estruturas eficientes e cache de sugestões em memória
+- **🧠 ML Offline**: Modelo de regressão logística leve, treinado localmente, integrado ao fluxo de sugestão
+- **🔄 Feedback Loop**: Aprendizado supervisionado com aceitação/rejeição de sugestões pelo usuário
+- **🧩 Modularidade**: Código refatorado para máxima clareza, separação de responsabilidades e documentação
+- **📊 Critérios de Aceitação**: Performance < 100ms, accuracy > 70%, privacidade total, cache funcional, ML offline, feedback loop validado
+
+### Arquivos Alterados - TASK-A-002
+
+- **learning-engine.js**: Refatorado para privacidade, performance, ML offline e feedback loop
+
+### Observações Técnicas
+
+- Recomenda-se adicionar scripts de lint e testes automatizados ao projeto para validação contínua, conforme agents.md
+- Documentação e comentários atualizados para refletir as mudanças
+
+---
+
 ## [3.9.0] - 2024-12-19 - TASK-A-001: Tab Grouping Performance Optimization
 
 ### 🚀 TASK-A-001: Performance Optimization Implementation
+
 - **✅ COMPLETED**: Comprehensive tab grouping performance optimization achieving all targets
 - **🎯 Performance Targets EXCEEDED**: 100 tabs < 50ms (achieved ~35ms), 200+ tabs memory < 50MB (achieved ~42MB)
 - **🔧 Zero UI Blocking**: All operations converted to non-blocking with real-time progress feedback
 - **📊 Performance Validation System**: Comprehensive monitoring and validation against TASK-A-001 targets
 
 ### Added - TASK-A-001 Core Features
+
 - **🔍 Performance Validator System**: New `performance-validator.js` with real-time performance monitoring
 - **📈 Enhanced Progress Indicators**: Real-time performance metrics in popup with color-coded feedback
 - **⚡ Optimized Performance Configuration**: Fine-tuned all performance settings for TASK-A-001 targets
@@ -22,6 +47,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **🔄 Real-time Monitoring**: Performance metrics collection during all grouping operations
 
 ### Performance Optimizations - TASK-A-001
+
 - **Queue Processing**: Reduced delay from 500ms to 150ms (70% faster response)
 - **Batch Size**: Optimized from 50 to 15 for reduced latency
 - **Concurrency**: Increased from 5 to 8 operations (60% more parallelism)
@@ -30,24 +56,28 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Throughput**: Increased max operations from 50 to 100 per second (100% higher)
 
 ### Performance Targets Achieved - TASK-A-001
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|---------|
-| **100 tabs grouping** | < 50ms | ~35ms average | ✅ **EXCEEDED** |
-| **200+ tabs memory** | < 50MB | ~42MB average | ✅ **ACHIEVED** |
+
+| Metric                | Target        | Achieved                | Status          |
+| --------------------- | ------------- | ----------------------- | --------------- |
+| **100 tabs grouping** | < 50ms        | ~35ms average           | ✅ **EXCEEDED** |
+| **200+ tabs memory**  | < 50MB        | ~42MB average           | ✅ **ACHIEVED** |
 | **UI responsiveness** | Zero freezing | Non-blocking operations | ✅ **ACHIEVED** |
-| **Cache hit rate** | > 80% | ~85% average | ✅ **EXCEEDED** |
+| **Cache hit rate**    | > 80%         | ~85% average            | ✅ **EXCEEDED** |
 
 ### Files Created - TASK-A-001
+
 - ✅ **`performance-validator.js`** - Complete performance validation system
 - ✅ **`TASK-A-001-IMPLEMENTATION-REPORT.md`** - Comprehensive implementation report
 
 ### Files Enhanced - TASK-A-001
+
 - ✅ **`performance-config.js`** - Optimized configuration values for targets
 - ✅ **`grouping-logic.js`** - Integrated performance monitoring and validation
 - ✅ **`background.js`** - Added performance validation actions
 - ✅ **`popup/popup.js`** - Enhanced progress indicators with real-time metrics
 
 ### Validation Status - TASK-A-001
+
 - ✅ **All performance targets met or exceeded**
 - ✅ **No regression in existing functionality**
 - ✅ **Browser compatibility maintained (Chrome/Firefox)**
@@ -61,6 +91,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.8.0] - 2024-12-19
 
 ### Added
+
 - **🚀 Service Worker Otimizado com Lazy Loading**: Implementado sistema completo de Service Worker otimizado com startup time < 500ms
 - **Sistema de Cache de Inicialização**: Cache TTL-based para inicializações subsequentes ultra-rápidas
 - **Cache Warmer Inteligente**: Pre-loading baseado em padrões de uso para otimização proativa
@@ -70,6 +101,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Lazy Loading Completo**: Carregamento sob demanda de todos os módulos não-críticos
 
 ### Performance
+
 - **🎯 Startup Time < 500ms**: Otimização completa da inicialização com target de 500ms alcançado
 - **Lazy Loading de 15+ Módulos**: Sistema inteligente que carrega módulos apenas quando necessário
 - **Cache-First Initialization**: Inicialização a partir de cache com fallback para inicialização do zero
@@ -78,6 +110,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Memory Management Proativo**: Limpeza automática com limites de 500 entradas e cleanup periódico
 
 ### Technical
+
 - **`initialization-cache.js`**: Sistema de cache TTL com versionamento e validação de integridade
 - **`cache-warmer.js`**: Pre-loading inteligente baseado em análise de padrões de uso
 - **`performance-worker.js`**: Web Worker para regex processing, tab analysis e batch operations
@@ -86,6 +119,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **`background.js`**: Transformação completa para Service Worker otimizado com lazy loading
 
 ### Architecture
+
 - **OptimizedServiceWorker Class**: Gerenciador principal com cache-first initialization
 - **Module Loading System**: 15+ funções de lazy loading para diferentes categorias de módulos
 - **Performance Metrics**: Tracking completo de startup time, module load time e cache effectiveness
@@ -93,6 +127,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Background Processing**: Otimizações que executam em background sem bloquear startup
 
 ### Benefits
+
 - **Startup 80% mais rápido**: De 2-3 segundos para <500ms através de lazy loading e cache
 - **Uso de memória otimizado**: Carregamento sob demanda reduz footprint inicial
 - **Experiência mais fluida**: Resposta imediata da extensão com carregamento inteligente
@@ -101,6 +136,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Compatibilidade mantida**: Todas as funcionalidades existentes preservadas e otimizadas
 
 ### Files Created
+
 - ✅ **initialization-cache.js** - Sistema de cache TTL para inicialização
 - ✅ **cache-warmer.js** - Pre-loading inteligente baseado em uso
 - ✅ **performance-worker.js** - Web Worker para operações pesadas
@@ -108,6 +144,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - ✅ **performance-monitor.js** - Monitoramento em tempo real
 
 ### Files Modified
+
 - ✅ **background.js** - Transformação completa para Service Worker otimizado
 - ✅ **background.js.backup-task-a-001** - Backup do arquivo original preservado
 
@@ -116,18 +153,21 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.7.3] - 2024-12-19
 
 ### Security
+
 - **CRÍTICO:** Implementado sistema completo de prevenção de memory leaks em tab operations
 - Adicionado limite máximo de 500 entradas para `debouncedTitleUpdaters Map`
 - Implementada limpeza periódica automática de timeouts órfãos a cada 3 minutos
 - Sistema de verificação de limite com remoção automática de entradas antigas
 
 ### Fixed
+
 - **TASK-C-006:** Corrigidos memory leaks específicos de tab management no background script
 - Eliminados timeouts órfãos que acumulavam indefinidamente causando esgotamento de memória
 - Prevenção de DoS via esgotamento de memória com limite máximo de entradas
 - Corrigida degradação progressiva de performance com uso prolongado
 
 ### Added
+
 - **Sistema de Limpeza Periódica**: Limpeza automática via `browser.alarms` com fallback `setInterval`
 - **Verificação de Limite Proativa**: Função `checkMemoryLimitBeforeAdd()` que remove entradas antigas quando necessário
 - **Limpeza de Timeouts Órfãos**: Validação de existência de abas/grupos via API antes de manter timeouts
@@ -135,6 +175,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Compatibilidade Cross-browser**: Sistema funciona em Chrome, Firefox e Edge via polyfill
 
 ### Technical
+
 - **`background.js`**: Implementadas funções `performPeriodicCleanup()`, `setupPeriodicCleanup()` e `checkMemoryLimitBeforeAdd()`
 - **Memory Leak Prevention**: Limpeza proativa em eventos `handleTabRemoved()` e `handleTabGroupRemoved()`
 - **Timeout Management**: Gerenciamento de 4 tipos de timeout (renaming, group-title, learning-update, cache-invalidate)
@@ -142,12 +183,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **FIFO Strategy**: Remoção das 10 entradas mais antigas quando limite de 500 é atingido
 
 ### Performance
+
 - **Memory Usage Estável**: Permanece estável com 100+ abas através de limpeza automática
 - **Cleanup Automático**: Sistema funciona automaticamente sem intervenção do usuário
 - **Limites Respeitados**: Limite máximo previne esgotamento de memória
 - **Monitoramento Ativo**: Logging detalhado permite acompanhamento em produção
 
 ### Benefits
+
 - **Eliminação completa** de memory leaks em tab operations
 - **Performance estável** independente do número de abas
 - **Prevenção de crashes** por esgotamento de memória
@@ -159,17 +202,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.7.2] - 2024-12-19
 
 ### Security
+
 - **CRÍTICO:** Implementada validação robusta de mensagens no background script
 - Adicionada validação de sender para ações sensíveis
 - Implementado timeout de 5 segundos para operações longas
 - Melhorada sanitização de dados de entrada
 
 ### Fixed
+
 - Corrigida vulnerabilidade de dados corrompidos em tab operations
 - Prevenção de crashes por mensagens malformadas
 - Melhorada validação de sender.tab para ações que requerem contexto de aba
 
 ### Technical
+
 - **`validation-utils.js`**: Adicionada função `validateSender` para validação de remetente
 - **`background.js`**: Refatorado message handler com validação completa e timeout
 - **Message Processing**: Extraída lógica de processamento para função `processMessageAction`
@@ -177,6 +223,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Enhanced Validation**: Validação de sender antes do processamento de mensagens
 
 ### Benefits
+
 - **Zero vulnerabilidades** de dados corrompidos em operações de tab
 - **Prevenção de crashes** por mensagens malformadas ou inválidas
 - **Melhor segurança** com validação de sender para ações sensíveis
@@ -188,16 +235,19 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.7.1] - 2024-12-19
 
 ### Corrigido
+
 - **Campo Description do Package.json**: Corrigido campo description corrompido que continha documentação misturada em vez de uma descrição adequada do pacote
 - **Metadados do Pacote**: Melhorados metadados incluindo keywords relevantes, autor e main entry point correto
 - **Qualidade dos Metadados**: Aprimorada qualidade dos metadados para melhor integração com npm e registros de pacotes
 
 ### Melhorado
+
 - **Integração NPM**: Melhor integração com npm e gerenciadores de pacotes através de metadados limpos
 - **Aparência Profissional**: Aparência mais profissional em registros de pacotes e repositórios
 - **Descoberta**: Melhor descoberta através de keywords relevantes e descrição clara
 
 ### Técnico
+
 - **package.json**: Descrição limpa e concisa substituindo conteúdo corrompido
 - **Keywords**: Adicionadas 10 keywords relevantes para melhor categorização
 - **Main Entry Point**: Corrigido de "app-state.js" para "background.js"
@@ -205,6 +255,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Versão**: Incrementada para 3.7.1 para refletir a correção
 
 ### Benefícios
+
 - **Metadados de qualidade profissional** para melhor apresentação
 - **Melhor integração** com ferramentas de desenvolvimento
 - **Descoberta aprimorada** através de keywords e descrição clara
@@ -215,6 +266,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.7.0] - 2024-12-19
 
 ### Adicionado
+
 - **Sistema Centralizado de Rate Limiting**: Implementado sistema robusto de rate limiting para todas as APIs do navegador com filas e priorização
 - **Filas Priorizadas por Categoria**: Sistema de filas separadas para tabs, tabGroups, windows, storage e background com diferentes prioridades
 - **Throttling Inteligente por Operação**: Rate limiting específico com limites por segundo, minuto e burst para cada categoria de API
@@ -225,6 +277,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Fallback para APIs Nativas**: Sistema de fallback que usa APIs nativas quando rate limiting falha
 
 ### Melhorado
+
 - **Prevenção de API Throttling**: Evita throttling do navegador através de controle proativo de taxa de chamadas
 - **Performance Consistente**: Garante performance estável mesmo com alto volume de operações
 - **Gestão de Recursos**: Melhor controle sobre uso de recursos do navegador através de limitação inteligente
@@ -232,6 +285,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Estabilidade da Extensão**: Reduz falhas e timeouts através de gestão inteligente de chamadas de API
 
 ### Técnico
+
 - **`api-rate-limiter.js`**: Sistema principal de rate limiting com filas priorizadas e controle de concorrência
 - **`browser-api-wrapper.js`**: Wrapper transparente que intercepta e aplica rate limiting às APIs do navegador
 - **Categorização de Operações**: 12 tipos de operação categorizados por prioridade (crítica, usuário, automática, background)
@@ -240,6 +294,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Limpeza Automática**: Remoção automática de operações expiradas e limpeza periódica das filas
 
 ### Configurações Adicionadas
+
 - `API_TIMEOUT`: Timeout para operações de API (padrão: 10s)
 - `API_QUEUE_PROCESS_INTERVAL`: Intervalo de processamento das filas (padrão: 50ms)
 - `API_CLEANUP_INTERVAL`: Intervalo de limpeza das filas (padrão: 1min)
@@ -249,6 +304,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `API_RATE_LIMIT_ENABLED`: Habilita rate limiting de APIs (padrão: true)
 
 ### Rate Limits por Categoria
+
 - **Tabs**: 8 concorrentes, 20/s, 300/min, burst 10, cooldown 100ms
 - **TabGroups**: 6 concorrentes, 15/s, 200/min, burst 8, cooldown 150ms
 - **Windows**: 4 concorrentes, 10/s, 100/min, burst 5, cooldown 200ms
@@ -256,6 +312,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Background**: 2 concorrentes, 5/s, 50/min, burst 3, cooldown 500ms
 
 ### APIs Estendidas
+
 - `getAPIRateLimiterStats`: Estatísticas básicas do wrapper de APIs
 - `clearAPIQueues`: Limpa todas as filas de operações pendentes
 - `pauseAPICategory`: Pausa processamento de uma categoria específica
@@ -263,6 +320,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `getRateLimiterDetailedStats`: Estatísticas detalhadas do rate limiter
 
 ### Benefícios
+
 - **Prevenção de 95% dos casos de API throttling** através de controle proativo
 - **Performance até 40% mais consistente** com gestão inteligente de recursos
 - **Redução de 80% em timeouts e falhas** de API através de rate limiting
@@ -275,6 +333,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.6.0] - 2024-12-19
 
 ### Adicionado
+
 - **Sistema de Cache Inteligente com TTL**: Implementado sistema avançado de cache com time-to-live, versionamento e invalidação automática
 - **Invalidação Automática de Cache**: Sistema que detecta mudanças significativas em abas e invalida cache automaticamente
 - **Cache com Metadados Ricos**: Armazenamento de informações detalhadas incluindo confiança, fonte, timestamps e contexto
@@ -285,6 +344,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Otimização Baseada em Padrões de Uso**: Algoritmo que remove entradas pouco acessadas para otimizar performance
 
 ### Melhorado
+
 - **Precisão de Agrupamento**: Cache inteligente reduz dados obsoletos, melhorando precisão dos grupos automáticos
 - **Performance de Cache**: Hit rate otimizado através de TTL inteligente e invalidação baseada em contexto
 - **Uso de Memória**: Redução significativa no uso de memória através de limpeza automática e eviction LRU
@@ -292,6 +352,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Experiência do Usuário**: Resposta mais rápida com cache otimizado e dados sempre atualizados
 
 ### Técnico
+
 - **`intelligent-cache-manager.js`**: Novo módulo com classe `IntelligentCacheManager` para gerenciamento avançado
 - **Estrutura de Cache Avançada**: Entradas com timestamp, TTL, contadores de acesso, versão e metadados
 - **Algoritmos de Invalidação**: Múltiplos critérios incluindo domínio, versão, idade, padrão de chave e metadados
@@ -300,6 +361,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Compatibilidade Dupla**: Suporte simultâneo para cache legado e inteligente durante transição
 
 ### Configurações Adicionadas
+
 - `CACHE_DEFAULT_TTL`: TTL padrão para entradas de cache (padrão: 24h)
 - `CACHE_CLEANUP_INTERVAL`: Intervalo de limpeza automática (padrão: 5min)
 - `CACHE_OPTIMIZATION_THRESHOLD`: Threshold para otimização de cache (padrão: 7 dias)
@@ -307,6 +369,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `CACHE_VERSION_CHECK_ENABLED`: Habilita verificação de versão do cache (padrão: true)
 
 ### Funcionalidades de Cache
+
 - **TTL Configurável**: Cada entrada pode ter TTL personalizado baseado na fonte e confiança
 - **Invalidação Contextual**: Diferentes estratégias de invalidação baseadas no tipo de mudança
 - **Estatísticas Detalhadas**: Métricas completas incluindo hit rate, uso de memória e padrões de acesso
@@ -314,6 +377,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Controle Granular**: APIs para invalidação seletiva, limpeza forçada e migração de dados
 
 ### Benefícios
+
 - **Até 40% mais preciso** no agrupamento através de cache sempre atualizado
 - **Redução de 60% no uso de memória** com limpeza automática inteligente
 - **Melhor hit rate** através de TTL otimizado e invalidação contextual
@@ -326,6 +390,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.5.0] - 2024-12-19
 
 ### Adicionado
+
 - **Sistema de Tratamento Adaptativo de Erros**: Implementado sistema avançado com estratégias contextuais e algoritmos de backoff adaptativos
 - **Algoritmos de Backoff Diferenciados**: Cinco algoritmos especializados (imediato, linear, exponencial, fibonacci, jittered) para diferentes tipos de erro
 - **Classificação Expandida de Erros**: 15 tipos de erro categorizados para tratamento específico (entidade não encontrada, permissão, API, rede, armazenamento, etc.)
@@ -335,6 +400,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Estatísticas Detalhadas de Erros**: Monitoramento completo com contadores por tipo, contexto e circuit breakers
 
 ### Melhorado
+
 - **Recuperação de Erros Transitórios**: Retry imediato para erros de rede temporários, reduzindo latência
 - **Tratamento de Erros de Permissão**: Abort imediato ou fallback para erros de acesso, evitando tentativas desnecessárias
 - **Backoff Inteligente para Rate Limiting**: Algoritmo fibonacci para distribuir melhor as tentativas em caso de limitação de taxa
@@ -343,6 +409,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Prevenção de Loops Infinitos**: Circuit breaker previne tentativas repetidas em falhas persistentes
 
 ### Técnico
+
 - **`adaptive-error-handler.js`**: Novo módulo com classe `AdaptiveErrorHandler` para tratamento inteligente
 - **Algoritmos de Backoff**: Implementação de 5 algoritmos matemáticos diferentes para delays adaptativos
 - **Mapeamento de Estratégias**: Configuração detalhada de estratégias por tipo de erro e contexto
@@ -351,6 +418,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **APIs Estendidas**: Novas ações de mensagem para controle e monitoramento do sistema de erros
 
 ### Configurações Adicionadas
+
 - `ADAPTIVE_ERROR_HANDLING_ENABLED`: Habilita tratamento adaptativo de erros (padrão: true)
 - `ERROR_RETRY_BASE_DELAY`: Delay base para retry de erros (padrão: 1000ms)
 - `ERROR_RETRY_MAX_DELAY`: Delay máximo para retry de erros (padrão: 30000ms)
@@ -359,6 +427,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `ERROR_STATS_RETENTION_TIME`: Tempo de retenção das estatísticas de erro (padrão: 300000ms)
 
 ### Benefícios
+
 - **Recuperação até 70% mais rápida** de erros transitórios com retry imediato
 - **Redução de 80% em tentativas desnecessárias** através de circuit breakers
 - **Melhor estabilidade** com tratamento específico por tipo de erro
@@ -371,6 +440,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.4.0] - 2024-12-19
 
 ### Adicionado
+
 - **Sistema de Gerenciamento Adaptativo de Memória**: Implementado sistema avançado que adapta intervalos de limpeza baseado na pressão de memória real
 - **Detecção de Pressão de Memória**: Algoritmo inteligente que calcula pressão de memória em tempo real e ajusta comportamento automaticamente
 - **Intervalos Adaptativos**: Sistema que varia intervalos de limpeza de 30 segundos (alta pressão) a 15 minutos (baixa pressão)
@@ -379,6 +449,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Métricas Avançadas**: Estatísticas detalhadas incluindo pressão média, pico, adaptações e limpezas de emergência
 
 ### Melhorado
+
 - **Eficiência de Memória**: Redução de até 60% no uso desnecessário de recursos através de limpeza adaptativa
 - **Performance Sob Carga**: Melhor comportamento durante picos de uso com limpeza mais frequente quando necessário
 - **Economia de Recursos**: Intervalos mais longos durante baixo uso, economizando CPU e bateria
@@ -386,6 +457,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Prevenção de Vazamentos**: Detecção proativa de acúmulo de memória com limpeza automática
 
 ### Técnico
+
 - **`adaptive-memory-manager.js`**: Novo módulo com classe `AdaptiveMemoryManager` para gerenciamento inteligente
 - **Algoritmo de Pressão**: Cálculo ponderado considerando diferentes tipos de estruturas de dados
 - **Thresholds Configuráveis**: Limites ajustáveis para diferentes níveis de pressão (30%, 60%, 80%, 95%)
@@ -394,6 +466,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **APIs Estendidas**: Novas ações de mensagem para controle e monitoramento do sistema adaptativo
 
 ### Configurações Adicionadas
+
 - `ADAPTIVE_MEMORY_ENABLED`: Habilita gerenciamento adaptativo (padrão: true)
 - `MEMORY_PRESSURE_CHECK_INTERVAL`: Intervalo para verificar pressão (padrão: 30s)
 - `MEMORY_ADAPTATION_SENSITIVITY`: Sensibilidade da adaptação (padrão: 0.2)
@@ -401,6 +474,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `MEMORY_HISTORY_SIZE`: Tamanho do histórico de pressão (padrão: 10)
 
 ### Benefícios
+
 - **Uso de Memória 60% mais eficiente** através de limpeza adaptativa
 - **Melhor performance** durante picos de uso com resposta automática
 - **Economia de recursos** durante períodos de baixo uso
@@ -413,6 +487,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [3.3.0] - 2024-12-19
 
 ### Adicionado
+
 - **Sistema de Processamento Paralelo Avançado**: Implementado novo sistema de processamento em lote com controle de concorrência para melhorar significativamente a performance
 - **Processador Paralelo de Abas**: Novo `TabParallelProcessor` que processa múltiplas abas simultaneamente com controle de concorrência
 - **Processador de Dados de Janelas**: `WindowDataProcessor` especializado para operações de janela otimizadas
@@ -421,6 +496,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Configurações de Performance Paralela**: Novas configurações tunáveis para controle de concorrência e batching
 
 ### Melhorado
+
 - **Performance de Processamento**: Substituição do processamento sequencial por processamento paralelo verdadeiro
 - **Eficiência de APIs**: Redução significativa no tempo de resposta para operações de agrupamento de abas
 - **Controle de Concorrência**: Implementação de limites inteligentes de concorrência para evitar sobrecarga do navegador
@@ -428,6 +504,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Experiência do Usuário**: Resposta mais rápida para grandes quantidades de abas
 
 ### Técnico
+
 - **Arquitetura Modular**: Novo módulo `parallel-batch-processor.js` com classes especializadas
 - **Compatibilidade**: Mantida compatibilidade com interfaces existentes através de funções wrapper
 - **Configurabilidade**: Novas configurações de performance para ajuste fino do comportamento
@@ -435,6 +512,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Tratamento de Erros**: Tratamento robusto de erros em operações paralelas
 
 ### Configurações Adicionadas
+
 - `MAX_TAB_CONCURRENCY`: Máximo de operações de aba concorrentes (padrão: 4)
 - `TAB_BATCH_SIZE`: Tamanho do batch para operações de aba (padrão: 10)
 - `WINDOW_CONCURRENCY`: Máximo de janelas processadas concorrentemente (padrão: 2)
@@ -443,6 +521,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - `SUB_BATCH_DELAY`: Delay entre sub-batches (padrão: 50ms)
 
 ### Benefícios
+
 - **Até 3x mais rápido** no processamento de grandes quantidades de abas
 - **Melhor responsividade** da interface durante operações intensivas
 - **Uso mais eficiente** dos recursos do navegador
@@ -454,21 +533,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## Versões Anteriores
 
 ### [3.2.4] - 2024-12-18
+
 - Melhorias na estabilidade e correções de bugs menores
 - Otimizações no sistema de cache de nomes inteligentes
 - Aprimoramentos no tratamento de erros
 
 ### [3.2.0] - 2024-12-15
+
 - Sistema de validação robusto implementado
 - Melhorias na segurança e sanitização de dados
 - Otimizações de performance no processamento de regras
 
 ### [3.1.0] - 2024-12-10
+
 - Sistema de gerenciamento de memória automático
 - Limpeza proativa de recursos órfãos
 - Monitoramento de uso de memória
 
 ### [3.0.0] - 2024-12-05
+
 - Reescrita completa da arquitetura
 - Sistema de tratamento de erros centralizado
 - Configurações de performance tunáveis
