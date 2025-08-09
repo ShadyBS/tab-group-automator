@@ -11,6 +11,7 @@ function validateSecurity() {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   if (
     manifest.content_security_policy &&
+    typeof manifest.content_security_policy === "string" &&
     manifest.content_security_policy.includes("unsafe-eval")
   ) {
     console.error("CSP contains unsafe-eval, which is not allowed.");
