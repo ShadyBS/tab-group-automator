@@ -13,7 +13,7 @@ import {
   createElement,
   replaceContent,
   createSelect,
-  createInputWithLabel,
+  // createInputWithLabel, // Removido para evitar warning de variável não usada
 } from '../src/dom-utils.js';
 import { safeInnerHTML } from '../src/html-sanitizer.js';
 
@@ -44,7 +44,7 @@ const helpTexts = {
   exceptionsList:
     'Liste aqui os sites que você NUNCA quer que sejam agrupados. Insira o domínio (ex: `mail.google.com`), um por linha. Qualquer URL que contenha o texto inserido será ignorada.',
   customRules:
-    'Crie regras poderosas para cenários complexos. As regras são verificadas de cima para baixo; a primeira que corresponder será usada. Arraste-as para reordenar a prioridade. <br><a href=\'../help/help.html\' target=\'_blank\' class=\'text-indigo-400 hover:underline\'>Aprenda a dominar as regras.</a>',
+    'Crie regras poderosas para cenários complexos. As regras são verificadas de cima para baixo; a primeira que corresponder será usada. Arraste-as para reordenar a prioridade. <br><a href='../help/help.html' target='_blank' class='text-indigo-400 hover:underline'>Aprenda a dominar as regras.</a>',
   ruleTester:
     'Use este campo para testar como uma URL e um título seriam agrupados com base nas suas regras e configurações atuais. O resultado mostrará qual regra personalizada correspondeu, ou se será usado o agrupamento padrão.',
   syncEnabled:
@@ -68,7 +68,7 @@ const helpTexts = {
   cssAttribute:
     'Opcional. Se você precisa extrair o valor de um atributo de um elemento em vez do seu texto, especifique o nome do atributo aqui. Comum para imagens (use <code>alt</code>) ou links (use <code>title</code>).',
   regexPattern:
-    'Expressões Regulares (Regex) são um padrão de busca poderoso para encontrar e manipular texto. <br><strong>Dica:</strong> Use parênteses <code>()</code> para criar um \'grupo de captura\'. Você pode então usar <code>$1</code>, <code>$2</code>, etc., no campo \'Substituir por\' para se referir ao texto capturado. <br><a href=\'https://regex101.com/\' target=\'_blank\' class=\'text-indigo-400 hover:underline\'>Aprenda e teste suas Regex aqui.</a>',
+    'Expressões Regulares (Regex) são um padrão de busca poderoso para encontrar e manipular texto. <br><strong>Dica:</strong> Use parênteses <code>()</code> para criar um \'grupo de captura\'. Você pode então usar <code>$1</code>, <code>$2</code>, etc., no campo \'Substituir por\' para se referir ao texto capturado. <br><a href="https://regex101.com/" target="_blank" class="text-indigo-400 hover:underline">Aprenda e teste suas Regex aqui.</a>',
   advancedRenamingOptions:
     'Ajustes finos para o comportamento da regra:<ul><li><strong>Aguardar carregamento:</strong> Útil para sites que carregam o título dinamicamente após a página inicial carregar.</li><li><strong>Armazenar em cache:</strong> Melhora a performance ao salvar o resultado da renomeação, evitando reprocessamento.</li><li><strong>Respeitar alterações manuais:</strong> Se você renomear manualmente uma aba, a extensão não tentará renomeá-la novamente.</li><li><strong>Tentativas de Reaplicação:</strong> Quantas vezes a regra deve tentar ser aplicada se a primeira tentativa falhar (ex: o elemento ainda não apareceu na página).</li></ul>',
   suggestionsEnabled:
@@ -224,23 +224,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- LÓGICA DO CONSTRUTOR DE REGRAS DE AGRUPAMENTO ---
 
-  const propertyOptions = `
-        <option value="url">URL Completa</option>
-        <option value="hostname">Domínio (ex: google.com)</option>
-        <option value="url_path">Caminho da URL (ex: /noticias)</option>
-        <option value="title">Título da Aba</option>
-    `;
+  // const propertyOptions = `
+  //       <option value='url'>URL Completa</option>
+  //       <option value='hostname'>Domínio (ex: google.com)</option>
+  //       <option value='url_path'>Caminho da URL (ex: /noticias)</option>
+  //       <option value='title'>Título da Aba</option>
+  //   `;
 
-  const operatorOptions = {
-    string: `
-            <option value="contains">contém</option>
-            <option value="not_contains">não contém</option>
-            <option value="starts_with">começa com</option>
-            <option value="ends_with">termina com</option>
-            <option value="equals">é igual a</option>
-            <option value="regex">corresponde à Regex</option>
-        `,
-  };
+  // const operatorOptions = {
+  //   string: `
+  //           <option value='contains'>contém</option>
+  //           <option value='not_contains'>não contém</option>
+  //           <option value='starts_with'>começa com</option>
+  //           <option value='ends_with'>termina com</option>
+  //           <option value='equals'>é igual a</option>
+  //           <option value='regex'>corresponde à Regex</option>
+  //       `,
+  // };
 
   function createConditionElement(condition = {}) {
     const conditionDiv = createElement('div', {
@@ -367,19 +367,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- NOVO: LÓGICA DO CONSTRUTOR DE REGRAS DE RENOMEAÇÃO ---
 
   const renamingStrategyOptions = `
-    <option value="css_extract">Extração CSS</option>
-    <option value="title_manipulation">Manipulação de Título</option>
-    <option value="domain_based">Baseado em Domínio</option>
-    <option value="original_title">Título Original (Fallback)</option>
+    <option value='css_extract'>Extração CSS</option>
+    <option value='title_manipulation'>Manipulação de Título</option>
+    <option value='domain_based'>Baseado em Domínio</option>
+    <option value='original_title'>Título Original (Fallback)</option>
   `;
 
   const textActionOptions = `
-    <option value="replace">Substituir</option>
-    <option value="prepend">Adicionar no Início</option>
-    <option value="append">Adicionar no Fim</option>
-    <option value="remove">Remover</option>
-    <option value="truncate">Truncar</option>
-    <option value="extract">Extrair (Regex)</option>
+    <option value='replace'>Substituir</option>
+    <option value='prepend'>Adicionar no Início</option>
+    <option value='append'>Adicionar no Fim</option>
+    <option value='remove'>Remover</option>
+    <option value='truncate'>Truncar</option>
+    <option value='extract'>Extrair (Regex)</option>
   `;
 
   function createRenamingConditionElement(condition = {}) {
@@ -505,19 +505,19 @@ document.addEventListener('DOMContentLoaded', () => {
     opDiv.className =
       'text-operation-item bg-slate-100 dark:bg-slate-700/70 p-3 rounded-lg border border-slate-200 dark:border-slate-600';
     opDiv.innerHTML = `
-        <div class="flex justify-between items-center mb-2">
-            <label class="font-semibold text-sm">Ação:</label>
-            <select class="operation-action p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+        <div class='flex justify-between items-center mb-2'>
+            <label class='font-semibold text-sm'>Ação:</label>
+            <select class='operation-action p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600'>
                 ${textActionOptions}
             </select>
-            <button type="button" class="remove-operation-btn text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            <button type='button' class='remove-operation-btn text-red-500 hover:text-red-700 font-bold p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'>
+                <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='currentColor' viewBox='0 0 16 16'>
+                    <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z'/>
+                    <path d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z'/>
                 </svg>
             </button>
         </div>
-        <div class="operation-fields space-y-2">
+        <div class='operation-fields space-y-2'>
             <!-- Campos dinâmicos aqui -->
         </div>
     `;
@@ -537,27 +537,27 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'extract':
           fieldsHtml += `
             <div>
-                <label class="block text-xs font-medium mb-1">Padrão (Regex):</label>
-                <input type="text" class="operation-pattern w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: (.*) - YouTube">
+                <label class='block text-xs font-medium mb-1'>Padrão (Regex):</label>
+                <input type='text' class='operation-pattern w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: (.*) - YouTube'>
             </div>
             <div>
-                <label class="block text-xs font-medium mb-1">Flags (opcional):</label>
-                <input type="text" class="operation-flags w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: gi (global, case-insensitive)">
+                <label class='block text-xs font-medium mb-1'>Flags (opcional):</label>
+                <input type='text' class='operation-flags w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: gi (global, case-insensitive)'>
             </div>
           `;
           if (action === 'replace') {
             fieldsHtml += `
               <div>
-                  <label class="block text-xs font-medium mb-1">Substituir por:</label>
-                  <input type="text" class="operation-replacement w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: $1">
+                  <label class='block text-xs font-medium mb-1'>Substituir por:</label>
+                  <input type='text' class='operation-replacement w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: $1'>
               </div>
             `;
           }
           if (action === 'extract') {
             fieldsHtml += `
               <div>
-                  <label class="block text-xs font-medium mb-1">Grupo de Captura (opcional):</label>
-                  <input type="number" min="0" class="operation-group w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: 1">
+                  <label class='block text-xs font-medium mb-1'>Grupo de Captura (opcional):</label>
+                  <input type='number' min='0' class='operation-group w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: 1'>
               </div>
             `;
           }
@@ -566,20 +566,20 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'append':
           fieldsHtml += `
             <div>
-                <label class="block text-xs font-medium mb-1">Texto:</label>
-                <input type="text" class="operation-text w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: [Lido] ">
+                <label class='block text-xs font-medium mb-1'>Texto:</label>
+                <input type='text' class='operation-text w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: [Lido] '>
             </div>
           `;
           break;
         case 'truncate':
           fieldsHtml += `
             <div>
-                <label class="block text-xs font-medium mb-1">Comprimento Máximo:</label>
-                <input type="number" min="1" class="operation-max-length w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+                <label class='block text-xs font-medium mb-1'>Comprimento Máximo:</label>
+                <input type='number' min='1' class='operation-max-length w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600'>
             </div>
             <div>
-                <label class="block text-xs font-medium mb-1">Elipse (opcional):</label>
-                <input type="text" class="operation-ellipsis w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: ...">
+                <label class='block text-xs font-medium mb-1'>Elipse (opcional):</label>
+                <input type='text' class='operation-ellipsis w-full p-1 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: ...'>
             </div>
           `;
           break;
@@ -623,28 +623,28 @@ document.addEventListener('DOMContentLoaded', () => {
     strategyDiv.className =
       'renaming-strategy-item bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-600';
     strategyDiv.innerHTML = `
-        <div class="flex justify-between items-center mb-3">
-            <label class="font-semibold">Estratégia:</label>
-            <select class="strategy-type p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
+        <div class='flex justify-between items-center mb-3'>
+            <label class='font-semibold'>Estratégia:</label>
+            <select class='strategy-type p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600'>
                 ${renamingStrategyOptions}
             </select>
-            <button type="button" class="remove-strategy-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+            <button type='button' class='remove-strategy-btn text-red-500 hover:text-red-700 font-bold p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'>
+                <svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='currentColor' viewBox='0 0 16 16'>
+                    <path d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z'/>
+                    <path d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z'/>
                 </svg>
             </button>
         </div>
-        <div class="strategy-fields space-y-3">
+        <div class='strategy-fields space-y-3'>
             <!-- Campos específicos da estratégia -->
         </div>
-        <div class="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-            <label class="block text-sm font-medium mb-1">Fallback (se a estratégia acima falhar):</label>
-            <select class="strategy-fallback w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600">
-                <option value="">Nenhum</option>
+        <div class='mt-3 border-t border-slate-200 dark:border-slate-700 pt-3'>
+            <label class='block text-sm font-medium mb-1'>Fallback (se a estratégia acima falhar):</label>
+            <select class='strategy-fallback w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600'>
+                <option value=''>Nenhum</option>
                 ${renamingStrategyOptions}
             </select>
-            <div class="fallback-config-container mt-2 pl-4 border-l-2 border-slate-200 dark:border-slate-600">
+            <div class='fallback-config-container mt-2 pl-4 border-l-2 border-slate-200 dark:border-slate-600'>
                 <!-- Campos de configuração do Fallback serão renderizados aqui -->
             </div>
         </div>
@@ -667,22 +667,22 @@ document.addEventListener('DOMContentLoaded', () => {
         case 'css_extract':
           fieldsHtml = `
             <div>
-                <label class="block text-sm font-medium mb-1">Seletor CSS:</label>
-                <input type="text" class="strategy-selector w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: h1.title" value="${
+                <label class='block text-sm font-medium mb-1'>Seletor CSS:</label>
+                <input type='text' class='strategy-selector w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: h1.title' value='${
                   strategyData.selector || ''
-                }">
+                }'>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Atributo (opcional):</label>
-                <input type="text" class="strategy-attribute w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600" placeholder="Ex: alt" value="${
+                <label class='block text-sm font-medium mb-1'>Atributo (opcional):</label>
+                <input type='text' class='strategy-attribute w-full p-2 border border-slate-300 rounded-md shadow-sm dark:bg-slate-900 dark:border-slate-600' placeholder='Ex: alt' value='${
                   strategyData.attribute || ''
-                }">
+                }'>
             </div>`;
           break;
         case 'title_manipulation':
           fieldsHtml = `
-            <div class="text-operations-container space-y-2"></div>
-            <button type="button" class="add-operation-btn mt-2 bg-blue-400 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg text-xs">
+            <div class='text-operations-container space-y-2'></div>
+            <button type='button' class='add-operation-btn mt-2 bg-blue-400 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded-lg text-xs'>
                 + Adicionar Operação de Texto
             </button>`;
           break;
@@ -980,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let summary = 'Regra vazia ou inválida';
       if (conditions.length > 0) {
         const firstCond = conditions[0];
-        summary = `${firstCond.property} ${firstCond.operator} "${firstCond.value}"`;
+        summary = `${firstCond.property} ${firstCond.operator} '${firstCond.value}'`;
         if (conditions.length > 1) {
           summary += ` ${operator.toLowerCase()} mais ${
             conditions.length - 1
@@ -1009,11 +1009,11 @@ document.addEventListener('DOMContentLoaded', () => {
             .join(` ${operator} `)
         : 'Regra em formato antigo. Edite para corrigir.';
 
-      ruleElement.innerHTML = `<div class="flex items-center space-x-4 flex-grow min-w-0"><span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">☰</span><span class="w-5 h-5 rounded-full flex-shrink-0" style="background-color: ${
+      ruleElement.innerHTML = `<div class='flex items-center space-x-4 flex-grow min-w-0'><span class='drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500'>☰</span><span class='w-5 h-5 rounded-full flex-shrink-0' style='background-color: ${
         colorMap[rule.color] || '#ccc'
-      }"></span><div class="flex-grow min-w-0"><strong class="text-indigo-700 dark:text-indigo-400">${
+      }'></span><div class='flex-grow min-w-0'><strong class='text-indigo-700 dark:text-indigo-400'>${
         rule.name
-      }</strong><p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${tooltipTitle}">${summary}</p></div></div><div class="flex space-x-1 flex-shrink-0"><button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button><button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button><button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button></div>`;
+      }</strong><p class='text-sm text-slate-600 dark:text-slate-300 truncate' title='${tooltipTitle}'>${summary}</p></div></div><div class='flex space-x-1 flex-shrink-0'><button data-action='duplicate' class='text-slate-500 hover:text-blue-600 p-2 rounded-md' title='Duplicar Regra'>❐</button><button data-action='edit' class='text-slate-500 hover:text-indigo-600 p-2 rounded-md' title='Editar Regra'>✏️</button><button data-action='delete' class='text-slate-500 hover:text-red-600 p-2 rounded-md' title='Excluir Regra'>🗑️</button></div>`;
       ui.rulesList.appendChild(ruleElement);
     });
 
@@ -1050,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rules = currentSettings.tabRenamingRules || [];
     if (rules.length === 0) {
       ui.renamingRulesList.innerHTML =
-        '<p class="text-slate-500 italic text-center p-4 dark:text-slate-400">Nenhuma regra de renomeação personalizada ainda.</p>';
+        '<p class='text-slate-500 italic text-center p-4 dark:text-slate-400'>Nenhuma regra de renomeação personalizada ainda.</p>';
       return;
     }
 
@@ -1088,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
           propertyMap[firstCond.property] || firstCond.property;
         const operatorText =
           operatorMap[firstCond.operator] || firstCond.operator;
-        summaryText = `Se ${propertyText} ${operatorText} "${firstCond.value}"`;
+        summaryText = `Se ${propertyText} ${operatorText} '${firstCond.value}'`;
         if (rule.conditions.length > 1) {
           summaryText += ` ${conditionOperator.toLowerCase()} mais ${
             rule.conditions.length - 1
@@ -1099,26 +1099,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       ruleElement.innerHTML = `
-        <div class="flex items-center space-x-4 flex-grow min-w-0">
-          <span class="drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500">☰</span>
-          <div class="flex-grow min-w-0">
-            <strong class="text-indigo-700 dark:text-indigo-400">${
+        <div class='flex items-center space-x-4 flex-grow min-w-0'>
+          <span class='drag-handle cursor-move p-2 text-slate-400 dark:text-slate-500'>☰</span>
+          <div class='flex-grow min-w-0'>
+            <strong class='text-indigo-700 dark:text-indigo-400'>${
               rule.name
             }</strong>
-            <p class="text-sm text-slate-600 dark:text-slate-300 truncate" title="${summaryText}">${summaryText}</p>
+            <p class='text-sm text-slate-600 dark:text-slate-300 truncate' title='${summaryText}'>${summaryText}</p>
           </div>
-          <span class="text-xs font-semibold px-2 py-1 rounded-full ${
+          <span class='text-xs font-semibold px-2 py-1 rounded-full ${
             rule.enabled
               ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
               : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-          }">
+          }'>
             ${rule.enabled ? 'Ativa' : 'Inativa'}
           </span>
         </div>
-        <div class="flex space-x-1 flex-shrink-0">
-          <button data-action="duplicate" class="text-slate-500 hover:text-blue-600 p-2 rounded-md" title="Duplicar Regra">❐</button>
-          <button data-action="edit" class="text-slate-500 hover:text-indigo-600 p-2 rounded-md" title="Editar Regra">✏️</button>
-          <button data-action="delete" class="text-slate-500 hover:text-red-600 p-2 rounded-md" title="Excluir Regra">🗑️</button>
+        <div class='flex space-x-1 flex-shrink-0'>
+          <button data-action='duplicate' class='text-slate-500 hover:text-blue-600 p-2 rounded-md' title='Duplicar Regra'>❐</button>
+          <button data-action='edit' class='text-slate-500 hover:text-indigo-600 p-2 rounded-md' title='Editar Regra'>✏️</button>
+          <button data-action='delete' class='text-slate-500 hover:text-red-600 p-2 rounded-md' title='Excluir Regra'>🗑️</button>
         </div>
       `;
       ui.renamingRulesList.appendChild(ruleElement);
@@ -1320,7 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       let resultHtml = '';
       if (matchingGroupingRule) {
-        resultHtml += `Agrupamento: <strong class="text-indigo-600 dark:text-indigo-400">${matchingGroupingRule.name}</strong><br>`;
+        resultHtml += `Agrupamento: <strong class='text-indigo-600 dark:text-indigo-400'>${matchingGroupingRule.name}</strong><br>`;
       } else {
         resultHtml +=
           'Agrupamento: Nenhuma regra personalizada correspondeu. Usará a nomenclatura inteligente/domínio.<br>';
@@ -1328,18 +1328,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (ui.tabRenamingEnabled.checked) {
         if (appliedRenamingRule) {
-          resultHtml += `Renomeação: <strong class="text-indigo-600 dark:text-indigo-400">${appliedRenamingRule.name}</strong><br>`;
-          resultHtml += `Título Final: <strong class="text-green-600 dark:text-green-400">${finalTitle}</strong>`;
+          resultHtml += `Renomeação: <strong class='text-indigo-600 dark:text-indigo-400'>${appliedRenamingRule.name}</strong><br>`;
+          resultHtml += `Título Final: <strong class='text-green-600 dark:text-green-400'>${finalTitle}</strong>`;
         } else {
-          resultHtml += `Renomeação: Nenhuma regra de renomeação correspondeu ou gerou título. Título original: <strong class="text-orange-600 dark:text-orange-400">${mockTab.title}</strong>`;
+          resultHtml += `Renomeação: Nenhuma regra de renomeação correspondeu ou gerou título. Título original: <strong class='text-orange-600 dark:text-orange-400'>${mockTab.title}</strong>`;
         }
       } else {
-        resultHtml += `Renomeação: Desativada. Título original: <strong class="text-orange-600 dark:text-orange-400">${mockTab.title}</strong>`;
+        resultHtml += `Renomeação: Desativada. Título original: <strong class='text-orange-600 dark:text-orange-400'>${mockTab.title}</strong>`;
       }
 
       ui.ruleTesterResult.innerHTML = resultHtml;
     } catch (e) {
-      ui.ruleTesterResult.innerHTML = `<span class="text-red-500">Erro na avaliação da regra: ${e.message}</span>`;
+      ui.ruleTesterResult.innerHTML = `<span class='text-red-500'>Erro na avaliação da regra: ${e.message}</span>`;
       console.error('Erro no testador de regras:', e);
     }
   }
@@ -1428,12 +1428,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function deleteRule(index) {
     const ruleName = currentSettings.customRules[index].name;
     showConfirmModal(
-      `Tem a certeza que deseja excluir a regra "${ruleName}"?`,
+      `Tem a certeza que deseja excluir a regra '${ruleName}'?`,
       () => {
         currentSettings.customRules.splice(index, 1);
         renderRulesList();
         scheduleSave();
-        showNotification(`Regra "${ruleName}" excluída.`, 'info');
+        showNotification(`Regra '${ruleName}' excluída.`, 'info');
       }
     );
   }
@@ -1445,7 +1445,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSettings.customRules.splice(index + 1, 0, newRule);
     renderRulesList();
     scheduleSave();
-    showNotification(`Regra "${originalRule.name}" duplicada.`, 'info');
+    showNotification(`Regra '${originalRule.name}' duplicada.`, 'info');
   }
 
   // NOVO: Funções para regras de renomeação
@@ -1733,13 +1733,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!rule) return;
 
     showConfirmModal(
-      `Tem a certeza que deseja excluir a regra de renomeação "${rule.name}"?`,
+      `Tem a certeza que deseja excluir a regra de renomeação '${rule.name}'?`,
       () => {
         currentSettings.tabRenamingRules =
           currentSettings.tabRenamingRules.filter((r) => r.id !== ruleId);
         renderRenamingRulesList();
         scheduleSave();
-        showNotification(`Regra "${rule.name}" excluída.`, 'info');
+        showNotification(`Regra '${rule.name}' excluída.`, 'info');
       }
     );
   }
@@ -1763,7 +1763,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderRenamingRulesList();
     scheduleSave();
-    showNotification(`Regra "${originalRule.name}" duplicada.`, 'info');
+    showNotification(`Regra '${originalRule.name}' duplicada.`, 'info');
   }
 
   /**
@@ -1846,33 +1846,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let contentHtml = `
-      <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
-          <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${
+      <div class='mb-4 grid grid-cols-1 md:grid-cols-3 gap-4'>
+        <div class='bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center'>
+          <div class='text-2xl font-bold text-blue-600 dark:text-blue-400'>${
             report.totalPatterns || 0
           }</div>
-          <div class="text-sm text-slate-600 dark:text-slate-400">Padrões Aprendidos</div>
+          <div class='text-sm text-slate-600 dark:text-slate-400'>Padrões Aprendidos</div>
         </div>
-        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
-          <div class="text-2xl font-bold text-green-600 dark:text-green-400">${
+        <div class='bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center'>
+          <div class='text-2xl font-bold text-green-600 dark:text-green-400'>${
             report.uniqueDomains || 0
           }</div>
-          <div class="text-sm text-slate-600 dark:text-slate-400">Domínios Únicos</div>
+          <div class='text-sm text-slate-600 dark:text-slate-400'>Domínios Únicos</div>
         </div>
-        <div class="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center">
-          <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">${
+        <div class='bg-slate-100 dark:bg-slate-700 p-3 rounded-lg text-center'>
+          <div class='text-2xl font-bold text-purple-600 dark:text-purple-400'>${
             report.daysUntilExpiration || 'N/A'
           }</div>
-          <div class="text-sm text-slate-600 dark:text-slate-400">Dias até Expiração</div>
+          <div class='text-sm text-slate-600 dark:text-slate-400'>Dias até Expiração</div>
         </div>
       </div>
     `;
 
     if (report.patterns && report.patterns.length > 0) {
       contentHtml += `
-        <div class="mb-4">
-          <h4 class="font-semibold mb-2">Padrões de Agrupamento:</h4>
-          <div class="max-h-64 overflow-y-auto space-y-2">
+        <div class='mb-4'>
+          <h4 class='font-semibold mb-2'>Padrões de Agrupamento:</h4>
+          <div class='max-h-64 overflow-y-auto space-y-2'>
       `;
 
       report.patterns.forEach((pattern) => {
@@ -1880,15 +1880,15 @@ document.addEventListener('DOMContentLoaded', () => {
           'pt-BR'
         );
         contentHtml += `
-          <div class="bg-slate-50 dark:bg-slate-700 p-3 rounded border">
-            <div class="flex justify-between items-start">
+          <div class='bg-slate-50 dark:bg-slate-700 p-3 rounded border'>
+            <div class='flex justify-between items-start'>
               <div>
-                <div class="font-medium">${pattern.groupName}</div>
-                <div class="text-sm text-slate-600 dark:text-slate-400">
+                <div class='font-medium'>${pattern.groupName}</div>
+                <div class='text-sm text-slate-600 dark:text-slate-400'>
                   Domínios: ${pattern.domains.join(', ')}
                 </div>
               </div>
-              <div class="text-xs text-slate-500 dark:text-slate-400">
+              <div class='text-xs text-slate-500 dark:text-slate-400'>
                 Expira: ${expirationDate}
               </div>
             </div>
@@ -1902,9 +1902,9 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     } else {
       contentHtml += `
-        <div class="text-center py-8 text-slate-500 dark:text-slate-400">
+        <div class='text-center py-8 text-slate-500 dark:text-slate-400'>
           <p>Nenhum padrão de aprendizado encontrado.</p>
-          <p class="text-sm mt-2">Use a extensão para criar grupos manuais e os padrões serão aprendidos automaticamente.</p>
+          <p class='text-sm mt-2'>Use a extensão para criar grupos manuais e os padrões serão aprendidos automaticamente.</p>
         </div>
       `;
     }
