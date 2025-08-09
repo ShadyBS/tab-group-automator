@@ -32,6 +32,10 @@ jobs:
 
       - name: Lint and validate
         run: npm run validate
+      - name: Print working directory and files
+        run: |
+          pwd
+          ls -l
 
       - name: Build extensions
         run: npm run build
