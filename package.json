@@ -1,37 +1,43 @@
 {
   "name": "tab-group-automator",
-  "version": "3.7.3",
-  "description": "Extensão WebExtension que organiza automaticamente as abas do navegador em grupos inteligentes baseados em domínio, subdomínio ou regras personalizadas. Mantém sua sessão de navegação organizada e limpa sem esforço manual.",
+  "version": "1.0.0",
+  "description": "Productivity browser extension for tab grouping and renaming, following strict local dependency and validation rules.",
   "main": "background.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify",
-    "watch": "tailwindcss -i ./src/input.css -o ./vendor/tailwind.css --minify --watch",
-    "package": "node build.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ShadyBS/tab-group-automator.git"
+    "lint": "eslint src popup options help --ext .js,.ts",
+    "validate:manifest": "node scripts/validation/validate-manifest.js",
+    "validate:permissions": "node scripts/validation/validate-permissions.js",
+    "validate:security": "node scripts/validation/validate-security.js",
+    "validate:csp": "node scripts/validation/validate-csp.js",
+    "validate:performance": "node scripts/validation/validate-performance.js",
+    "validate:vendor": "node scripts/utils/vendor-integrity.js",
+    "validate": "npm run lint && npm run validate:manifest && npm run validate:permissions && npm run validate:security && npm run validate:csp && npm run validate:performance && npm run validate:vendor",
+    "build:chromium": "node scripts/build/build-chromium.js",
+    "build:firefox": "node scripts/build/build-firefox.js",
+    "build": "npm run build:chromium && npm run build:firefox",
+    "package": "node scripts/package/package-build.js",
+    "changelog": "node scripts/utils/changelog-generator.js",
+    "summary": "node scripts/utils/generate-summary.js",
+    "docs": "node scripts/utils/generate-docs.js",
+    "clean:legacy": "node scripts/utils/remove-legacy-scripts.js",
+    "ci": "npm run clean:legacy && npm run validate && npm run build && npm run package && npm run changelog && npm run summary && npm run docs"
   },
   "keywords": [
     "browser-extension",
-    "webextension",
-    "tab-management",
-    "tab-grouping",
-    "firefox",
-    "chrome",
     "productivity",
-    "automation",
-    "organization",
-    "tabs"
+    "tab-grouping",
+    "chrome",
+    "firefox",
+    "webextension",
+    "local-dependency",
+    "validation",
+    "pipeline",
+    "automation"
   ],
   "author": "ShadyBS",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/ShadyBS/tab-group-automator/issues"
-  },
-  "homepage": "https://github.com/ShadyBS/tab-group-automator#readme"
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "archiver": "^5.3.1"
+  }
 }

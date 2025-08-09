@@ -1,0 +1,94 @@
+name: CD Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove legacy scripts
+        run: npm run clean:legacy
+
+      - name: Lint and validate
+        run: npm run validate
+
+      - name: Build extensions
+        run: npm run build
+
+      - name: Package builds
+        run: npm run package
+
+      - name: Generate changelog
+        run: npm run changelog
+
+      - name: Generate build summary
+        run: npm run summary
+
+      - name: Generate scripts documentation
+        run: npm run docs
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body_path: ./CHANGELOG.md
+          draft: false
+          prerelease: false
+
+      - name: Upload Chromium build
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/chromium.zip
+          asset_name: chromium.zip
+          asset_content_type: application/zip
+
+      - name: Upload Firefox build
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/firefox.zip
+          asset_name: firefox.zip
+          asset_content_type: application/zip
+
+      - name: Upload build summary
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build-summary.md
+          asset_name: build-summary.md
+          asset_content_type: text/markdown
+
+      - name: Upload scripts documentation
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: scripts/README.md
+          asset_name: scripts-README.md
+          asset_content_type: text/markdown
