@@ -4,6 +4,10 @@
     "browser": true,
     "es2021": true
   },
+  "globals": {
+    "browser": "readonly",
+    "Sortable": "readonly"
+  },
   "extends": ["eslint:recommended"],
   "parserOptions": {
     "ecmaVersion": 12,
