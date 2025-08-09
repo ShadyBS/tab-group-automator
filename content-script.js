@@ -139,29 +139,49 @@
     'meta[name="twitter:app:name:iphone"]',
     'meta[name="twitter:app:name:googleplay"]',
     'meta[name="DC.publisher"]',
-    
+
     // Elementos estruturais
-    'title',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'body', 'main', 'article', 'section', 'header', 'footer', 'nav',
-    
+    "title",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "body",
+    "main",
+    "article",
+    "section",
+    "header",
+    "footer",
+    "nav",
+
     // Links e recursos
     'link[rel="manifest"]',
     'script[type="application/ld+json"]',
-    
+
     // Imagens e logos
-    'header img[alt]',
-    'a[href="/"] img[alt]',
+    "header img[alt]",
+    "a[href=" / "] img[alt]",
     '[class*="logo"] img[alt]',
     'img[alt*="logo"]',
-    'header a img[alt]'
+    "header a img[alt]",
   ];
 
   const ALLOWED_ATTRIBUTES = [
-    'content', 'alt', 'title', 'href', 'src', 'name', 'property', 'rel', 'type'
+    "content",
+    "alt",
+    "title",
+    "href",
+    "src",
+    "name",
+    "property",
+    "rel",
+    "type",
   ];
 
-  const SAFE_CSS_SELECTOR_REGEX = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|_]+$/;
+  const SAFE_CSS_SELECTOR_REGEX =
+    /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\'\|_]+$/;
 
   const DANGEROUS_PATTERNS = [
     /javascript:/i,
@@ -171,7 +191,7 @@
     /behavior:/i,
     /binding:/i,
     /vbscript:/i,
-    /data:/i
+    /data:/i,
   ];
 
   // Rate Limiter para Content Script
@@ -181,15 +201,17 @@
       this.maxRequests = 5;
       this.windowMs = 1000;
     }
-    
+
     isAllowed() {
       const now = Date.now();
-      this.requests = this.requests.filter(time => now - time < this.windowMs);
-      
+      this.requests = this.requests.filter(
+        (time) => now - time < this.windowMs
+      );
+
       if (this.requests.length >= this.maxRequests) {
         return false;
       }
-      
+
       this.requests.push(now);
       return true;
     }
@@ -200,55 +222,61 @@
   // Função de validação melhorada
   function validateCSSSelector(selector) {
     // 1. Verificações básicas
-    if (!selector || typeof selector !== 'string') {
-      return { valid: false, reason: 'Seletor deve ser uma string não vazia' };
+    if (!selector || typeof selector !== "string") {
+      return { valid: false, reason: "Seletor deve ser uma string não vazia" };
     }
-    
+
     // 2. Limite de tamanho
     if (selector.length > 200) {
-      return { valid: false, reason: 'Seletor muito longo' };
+      return { valid: false, reason: "Seletor muito longo" };
     }
-    
+
     // 3. Verificar padrões perigosos
     for (const pattern of DANGEROUS_PATTERNS) {
       if (pattern.test(selector)) {
-        return { valid: false, reason: 'Seletor contém padrão perigoso' };
+        return { valid: false, reason: "Seletor contém padrão perigoso" };
       }
     }
-    
+
     // 4. Verificar whitelist
-    const isInWhitelist = ALLOWED_SELECTORS.some(allowed => 
-      selector === allowed || selector.startsWith(allowed)
+    const isInWhitelist = ALLOWED_SELECTORS.some(
+      (allowed) => selector === allowed || selector.startsWith(allowed)
     );
-    
+
     // 5. Verificar regex básica se não estiver na whitelist
     if (!isInWhitelist && !SAFE_CSS_SELECTOR_REGEX.test(selector)) {
-      return { valid: false, reason: 'Seletor contém caracteres não permitidos' };
+      return {
+        valid: false,
+        reason: "Seletor contém caracteres não permitidos",
+      };
     }
-    
+
     // 6. Verificação adicional para seletores script perigosos
-    if (selector.toLowerCase().includes('script') && selector !== 'script[type="application/ld+json"]') {
-      return { valid: false, reason: 'Seletor script não permitido' };
+    if (
+      selector.toLowerCase().includes("script") &&
+      selector !== 'script[type="application/ld+json"]'
+    ) {
+      return { valid: false, reason: "Seletor script não permitido" };
     }
-    
+
     return { valid: true };
   }
 
   // Função de sanitização melhorada
   function sanitizeExtractedContent(content) {
-    if (!content || typeof content !== 'string') {
+    if (!content || typeof content !== "string") {
       return null;
     }
-    
+
     const sanitized = content
-      .replace(/[\x00-\x1F\x7F]/g, '') // Remove caracteres de controle
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-      .replace(/javascript:/gi, '') // Remove javascript:
-      .replace(/on\w+\s*=\s*[^,\s]*/gi, '') // Remove event handlers (melhorado)
-      .replace(/data:[^,\s]*/gi, '') // Remove data URLs (melhorado)
+      .replace(/[\x00-\x1F\x7F]/g, "") // Remove caracteres de controle
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "") // Remove scripts
+      .replace(/javascript:/gi, "") // Remove javascript:
+      .replace(/on\w+\s*=\s*[^,\s]*/gi, "") // Remove event handlers (melhorado)
+      .replace(/data:[^,\s]*/gi, "") // Remove data URLs (melhorado)
       .trim()
       .slice(0, 500); // Limita tamanho
-      
+
     return sanitized.length > 0 ? sanitized : null;
   }
 
@@ -259,29 +287,35 @@
         if (!rateLimiter.isAllowed()) {
           throw new Error("Rate limit excedido para extração de conteúdo");
         }
-        
+
         // 2. Validação do seletor
         const validation = validateCSSSelector(message.selector);
         if (!validation.valid) {
           throw new Error(`Seletor inválido: ${validation.reason}`);
         }
-        
+
         // 3. Validação do atributo
-        if (message.attribute && !ALLOWED_ATTRIBUTES.includes(message.attribute)) {
+        if (
+          message.attribute &&
+          !ALLOWED_ATTRIBUTES.includes(message.attribute)
+        ) {
           throw new Error("Atributo não permitido");
         }
-        
+
         // 4. Timeout para operação (reduzido para 2 segundos)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("Timeout na extração de conteúdo")), 2000);
+          setTimeout(
+            () => reject(new Error("Timeout na extração de conteúdo")),
+            2000
+          );
         });
-        
+
         // 5. Extração com sanitização
         const extractionPromise = new Promise((resolve) => {
           try {
             const element = document.querySelector(message.selector);
             let extractedContent = null;
-            
+
             if (element) {
               if (message.attribute) {
                 extractedContent = element.getAttribute(message.attribute);
@@ -289,7 +323,7 @@
                 extractedContent = element.textContent;
               }
             }
-            
+
             // Sanitiza o conteúdo extraído
             const sanitizedContent = sanitizeExtractedContent(extractedContent);
             resolve(sanitizedContent);
@@ -297,9 +331,8 @@
             resolve(null);
           }
         });
-        
+
         return Promise.race([extractionPromise, timeoutPromise]);
-        
       } catch (error) {
         // Log detalhado do erro
         browser.runtime
@@ -308,18 +341,20 @@
             level: "error",
             context: `ContentScript:extractContent:${window.location.hostname}`,
             message: `Erro na validação: ${error.message}`,
-            details: [{ 
-              selector: message.selector, 
-              attribute: message.attribute,
-              url: window.location.href 
-            }],
+            details: [
+              {
+                selector: message.selector,
+                attribute: message.attribute,
+                url: window.location.href,
+              },
+            ],
           })
           .catch(() => {});
-        
+
         return Promise.resolve(null);
       }
     }
-    
+
     return false;
   });
   // --- FIM NOVO ---
