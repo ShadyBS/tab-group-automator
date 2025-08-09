@@ -1,3 +1,4 @@
+# Força invalidação de cache do GitHub Actions - 2025-08-09
 name: CI Pipeline
 
 on:
