@@ -2,3 +2,4 @@ test: trigger CI workflow
 test: re-trigger CI workflow
 test: re-trigger CI workflow after lint fix
 test: re-trigger CI workflow with ESLint config
+test: re-trigger CI workflow with globals fix
