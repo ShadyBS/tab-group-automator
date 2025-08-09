@@ -44,7 +44,7 @@ const ADAPTIVE_CONFIG = {
 
 /**
  * Classe para gerenciamento adaptativo de memória.
- * Monitora o uso de memória de várias estruturas de dados, calcula uma "pressão"
+ * Monitora o uso de memória de várias estruturas de dados, calcula uma 'pressão'
  * de memória e ajusta dinamicamente a frequência e a agressividade da limpeza
  * para manter o desempenho e evitar o uso excessivo de recursos.
  */

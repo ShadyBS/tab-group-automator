@@ -5,17 +5,17 @@
  */
 
 // Importa o polyfill para garantir que o namespace `browser` esteja disponível em todos os navegadores.
-import "./vendor/browser-polyfill.js";
+import './vendor/browser-polyfill.js';
 
 // Importações críticas (carregamento imediato)
-import Logger from "./logger.js";
+import Logger from './logger.js';
 import {
   settings,
   loadSettings,
   updateSettings,
   DEFAULT_SETTINGS,
   smartNameCache,
-} from "./settings-manager.js";
+} from './settings-manager.js';
 import {
   getConfig,
   loadConfigFromSettings,
@@ -23,15 +23,15 @@ import {
   createConfigurableDelay,
   getAllConfig,
   updateConfig,
-} from "./performance-config.js";
-import { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } from "./validation-utils.js";
+} from './performance-config.js';
+import { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } from './validation-utils.js';
 
 // Sistemas de otimização de performance
-import moduleLoader from "./module-loader.js";
-import initializationCache from "./initialization-cache.js";
-import cacheWarmer from "./cache-warmer.js";
-import workerManager from "./worker-manager.js";
-import performanceMonitor from "./performance-monitor.js";
+import moduleLoader from './module-loader.js';
+import initializationCache from './initialization-cache.js';
+import cacheWarmer from './cache-warmer.js';
+import workerManager from './worker-manager.js';
+import performanceMonitor from './performance-monitor.js';
 
 // Importações lazy (carregamento sob demanda)
 let processTabQueue = null;
@@ -115,7 +115,7 @@ function checkMemoryLimitBeforeAdd(key) {
   const currentSize = debouncedTitleUpdaters.size;
   
   if (currentSize >= MAX_DEBOUNCED_ENTRIES) {
-    Logger.warn("checkMemoryLimitBeforeAdd", `Limite de ${MAX_DEBOUNCED_ENTRIES} entradas atingido. Tamanho atual: ${currentSize}`);
+    Logger.warn('checkMemoryLimitBeforeAdd', `Limite de ${MAX_DEBOUNCED_ENTRIES} entradas atingido. Tamanho atual: ${currentSize}`);
     
     // Remove as 10 entradas mais antigas para fazer espaço
     const entriesToRemove = Math.min(10, currentSize - MAX_DEBOUNCED_ENTRIES + 10);
@@ -128,7 +128,7 @@ function checkMemoryLimitBeforeAdd(key) {
       removedCount++;
     }
     
-    Logger.info("checkMemoryLimitBeforeAdd", `Removidas ${removedCount} entradas antigas. Novo tamanho: ${debouncedTitleUpdaters.size}`);
+    Logger.info('checkMemoryLimitBeforeAdd', `Removidas ${removedCount} entradas antigas. Novo tamanho: ${debouncedTitleUpdaters.size}`);
   }
   
   return true; // Sempre permite adicionar após limpeza
@@ -139,7 +139,7 @@ function checkMemoryLimitBeforeAdd(key) {
  * Remove entradas para abas/grupos que não existem mais
  */
 async function performPeriodicCleanup() {
-  Logger.info("performPeriodicCleanup", "Iniciando limpeza periódica de timeouts órfãos");
+  Logger.info('performPeriodicCleanup', 'Iniciando limpeza periódica de timeouts órfãos');
   
   let cleanedCount = 0;
   const keysToRemove = [];
@@ -198,7 +198,7 @@ async function performPeriodicCleanup() {
         cleanedCount++;
       }
     } catch (e) {
-      Logger.warn("performPeriodicCleanup", `Erro ao verificar chave ${key}:`, e);
+      Logger.warn('performPeriodicCleanup', `Erro ao verificar chave ${key}:`, e);
       // Em caso de erro, remove a entrada para evitar acumulação
       keysToRemove.push(key);
       clearTimeout(timeoutId);
@@ -210,7 +210,7 @@ async function performPeriodicCleanup() {
   keysToRemove.forEach(key => debouncedTitleUpdaters.delete(key));
   
   const currentSize = debouncedTitleUpdaters.size;
-  Logger.info("performPeriodicCleanup", `Limpeza concluída. Removidas: ${cleanedCount}, Tamanho atual: ${currentSize}`);
+  Logger.info('performPeriodicCleanup', `Limpeza concluída. Removidas: ${cleanedCount}, Tamanho atual: ${currentSize}`);
   
   return { cleaned: cleanedCount, currentSize };
 }
@@ -228,9 +228,9 @@ function setupPeriodicCleanup() {
       browser.alarms.onAlarm.addListener(handlePeriodicAlarm);
     }
     
-    Logger.info("setupPeriodicCleanup", "Alarme de limpeza periódica configurado (3 minutos)");
+    Logger.info('setupPeriodicCleanup', 'Alarme de limpeza periódica configurado (3 minutos)');
   } else {
-    Logger.warn("setupPeriodicCleanup", "API de alarmes não disponível, usando fallback com setInterval");
+    Logger.warn('setupPeriodicCleanup', 'API de alarmes não disponível, usando fallback com setInterval');
     // Fallback usando setInterval se alarms API não estiver disponível
     setInterval(performPeriodicCleanup, 3 * 60 * 1000); // 3 minutos
   }
@@ -276,51 +276,51 @@ function scheduleSuggestionCheck() {
 
       if (pendingSuggestion) {
         Logger.info(
-          "scheduleSuggestionCheck",
-          "Nova sugestão disponível.",
+          'scheduleSuggestionCheck',
+          'Nova sugestão disponível.',
           pendingSuggestion
         );
         // Notifica o popup que uma nova sugestão está pronta
         browser.runtime
-          .sendMessage({ action: "suggestionUpdated" })
+          .sendMessage({ action: 'suggestionUpdated' })
           .catch(() => {});
       }
     } catch (e) {
       Logger.error(
-        "scheduleSuggestionCheck",
-        "Erro ao verificar sugestões:",
+        'scheduleSuggestionCheck',
+        'Erro ao verificar sugestões:',
         e
       );
       pendingSuggestion = null;
     }
-  }, getConfig("SUGGESTION_CHECK_DEBOUNCE") || 3000); // Fallback de 3s
+  }, getConfig('SUGGESTION_CHECK_DEBOUNCE') || 3000); // Fallback de 3s
 }
 
 browser.runtime.onInstalled.addListener(async (details) => {
-  if (details.reason === "install") {
+  if (details.reason === 'install') {
     Logger.info(
-      "onInstalled",
-      "Extensão instalada pela primeira vez. A abrir página de boas-vindas."
+      'onInstalled',
+      'Extensão instalada pela primeira vez. A abrir página de boas-vindas.'
     );
-    const welcomeUrl = browser.runtime.getURL("help/help.html");
+    const welcomeUrl = browser.runtime.getURL('help/help.html');
     browser.tabs.create({ url: welcomeUrl });
-  } else if (details.reason === "update") {
+  } else if (details.reason === 'update') {
     // Recarrega as configurações após uma atualização para garantir que
     // configurações do sync sejam preservadas
     Logger.info(
-      "onInstalled",
-      "Extensão atualizada. A recarregar configurações..."
+      'onInstalled',
+      'Extensão atualizada. A recarregar configurações...'
     );
     try {
       await loadSettings();
       Logger.info(
-        "onInstalled",
-        "Configurações recarregadas após atualização."
+        'onInstalled',
+        'Configurações recarregadas após atualização.'
       );
     } catch (e) {
       Logger.error(
-        "onInstalled",
-        "Erro ao recarregar configurações após atualização:",
+        'onInstalled',
+        'Erro ao recarregar configurações após atualização:',
         e
       );
     }
@@ -335,7 +335,7 @@ browser.runtime.onInstalled.addListener(async (details) => {
  * @returns {string|null} Hostname ou null se inválido
  */
 function getHostnameFromUrl(url) {
-  if (typeof url !== "string" || !url) {
+  if (typeof url !== 'string' || !url) {
     return null;
   }
 
@@ -343,7 +343,7 @@ function getHostnameFromUrl(url) {
     return new URL(url).hostname;
   } catch (e) {
     Logger.debug(
-      "getHostnameFromUrl",
+      'getHostnameFromUrl',
       `Erro ao extrair hostname da URL: ${url}`
     );
     return null;
@@ -358,12 +358,12 @@ function getHostnameFromUrl(url) {
 async function invalidateCacheForDomainChange(hostname, changeType) {
   try {
     const { invalidateCacheByDomainChange } = await import(
-      "./settings-manager.js"
+      './settings-manager.js'
     );
     invalidateCacheByDomainChange(hostname, changeType);
   } catch (e) {
     Logger.debug(
-      "invalidateCacheForDomainChange",
+      'invalidateCacheForDomainChange',
       `Erro ao invalidar cache: ${e.message}`
     );
   }
@@ -538,8 +538,8 @@ async function ensureLearningEngineLoaded() {
  */
 async function scheduleQueueProcessing() {
   Logger.debug(
-    "scheduleQueueProcessing",
-    "Agendamento de processamento da fila."
+    'scheduleQueueProcessing',
+    'Agendamento de processamento da fila.'
   );
 
   // Carrega módulos necessários sob demanda
@@ -549,13 +549,13 @@ async function scheduleQueueProcessing() {
   // Verifica se precisa de limpeza de emergência antes de processar
   if (isMemoryLimitExceeded(memoryMaps)) {
     Logger.warn(
-      "scheduleQueueProcessing",
-      "Limite de memória excedido - executando limpeza de emergência."
+      'scheduleQueueProcessing',
+      'Limite de memória excedido - executando limpeza de emergência.'
     );
     emergencyCleanup(memoryMaps).then(() => {
       Logger.info(
-        "scheduleQueueProcessing",
-        "Limpeza de emergência concluída."
+        'scheduleQueueProcessing',
+        'Limpeza de emergência concluída.'
       );
     });
   }
@@ -565,13 +565,13 @@ async function scheduleQueueProcessing() {
     const tabsToProcess = Array.from(tabProcessingQueue);
     tabProcessingQueue.clear();
     Logger.info(
-      "Queue",
+      'Queue',
       `A processar ${tabsToProcess.length} abas.`,
       tabsToProcess
     );
     await processTabQueue(tabsToProcess);
     scheduleSuggestionCheck(); // NOVO: Verifica sugestões após processar a fila
-  }, getConfig("QUEUE_DELAY"));
+  }, getConfig('QUEUE_DELAY'));
 }
 
 /**
@@ -584,7 +584,7 @@ async function scheduleQueueProcessing() {
  */
 // CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
 function handleTabUpdated(tabId, changeInfo, tab) {
-  Logger.debug("handleTabUpdated", `Aba ${tabId} atualizada.`, {
+  Logger.debug('handleTabUpdated', `Aba ${tabId} atualizada.`, {
     changeInfo,
     tab,
   });
@@ -600,11 +600,11 @@ function handleTabUpdated(tabId, changeInfo, tab) {
   }
 
   // Invalidação de cache baseada em mudanças significativas (otimizada)
-  if (tab.url && tab.url.startsWith("http")) {
+  if (tab.url && tab.url.startsWith('http')) {
     const hostname = getHostnameFromUrl(tab.url);
     if (hostname) {
       // Invalida cache apenas para mudanças de título significativas
-      if (changeInfo.title && tab.status === "complete") {
+      if (changeInfo.title && tab.status === 'complete') {
         // Só invalida se o título mudou substancialmente (não apenas contadores)
         const titleChange = changeInfo.title;
         const isSignificantChange =
@@ -620,7 +620,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
             // NOVO: Verifica limite antes de adicionar
             if (checkMemoryLimitBeforeAdd(cacheKey)) {
               const timeoutId = setTimeout(() => {
-                invalidateCacheForDomainChange(hostname, "title_change");
+                invalidateCacheForDomainChange(hostname, 'title_change');
                 debouncedTitleUpdaters.delete(cacheKey);
               }, 2000); // 2 second debounce
               debouncedTitleUpdaters.set(cacheKey, timeoutId);
@@ -631,7 +631,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
 
       // Invalida cache se houve mudança de URL (navegação)
       if (changeInfo.url) {
-        invalidateCacheForDomainChange(hostname, "url_change");
+        invalidateCacheForDomainChange(hostname, 'url_change');
       }
     }
   }
@@ -641,13 +641,13 @@ function handleTabUpdated(tabId, changeInfo, tab) {
   const needsGroupingProcessing =
     settings.autoGroupingEnabled &&
     tab.url &&
-    tab.url.startsWith("http") &&
-    (changeInfo.status === "complete" ||
-      (changeInfo.title && tab.status === "complete"));
+    tab.url.startsWith('http') &&
+    (changeInfo.status === 'complete' ||
+      (changeInfo.title && tab.status === 'complete'));
 
   if (needsGroupingProcessing) {
     Logger.debug(
-      "handleTabUpdated",
+      'handleTabUpdated',
       `Aba ${tabId} marcada para processamento de agrupamento devido a mudança de status ou título.`
     );
     // Carrega estado da aplicação sob demanda (não bloqueia)
@@ -656,7 +656,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
       tabProcessingQueue.add(tabId);
       scheduleQueueProcessing();
     }).catch(error => {
-      Logger.warn("handleTabUpdated", "Erro ao carregar estado da aplicação:", error);
+      Logger.warn('handleTabUpdated', 'Erro ao carregar estado da aplicação:', error);
       // Continua mesmo com erro
       tabProcessingQueue.add(tabId);
       scheduleQueueProcessing();
@@ -674,21 +674,21 @@ function handleTabUpdated(tabId, changeInfo, tab) {
   if (
     settings.tabRenamingEnabled &&
     tab.url &&
-    tab.url.startsWith("http") &&
-    (changeInfo.status === "complete" || changeInfo.title || changeInfo.url)
+    tab.url.startsWith('http') &&
+    (changeInfo.status === 'complete' || changeInfo.title || changeInfo.url)
   ) {
     // NOVO: Verifica limite antes de adicionar
     if (checkMemoryLimitBeforeAdd(renamingDebounceKey)) {
       const timeoutId = setTimeout(async () => {
         Logger.debug(
-          "handleTabUpdated",
+          'handleTabUpdated',
           `Acionando motor de renomeação para aba ${tabId}.`
         );
         // Carrega motor de renomeação sob demanda
         await ensureTabRenamingLoaded();
         await globalTabRenamingEngine.processTab(tabId, tab);
         debouncedTitleUpdaters.delete(renamingDebounceKey);
-      }, getConfig("TAB_RENAMING_DELAY")); // Usa um delay configurável para renomeação
+      }, getConfig('TAB_RENAMING_DELAY')); // Usa um delay configurável para renomeação
       debouncedTitleUpdaters.set(renamingDebounceKey, timeoutId);
     }
   }
@@ -703,7 +703,7 @@ function handleTabUpdated(tabId, changeInfo, tab) {
  * @param {object} removeInfo - Informações sobre a remoção (ex: isWindowClosing).
  */
 function handleTabRemoved(tabId, removeInfo) {
-  Logger.debug("handleTabRemoved", `Aba ${tabId} removida.`, { removeInfo });
+  Logger.debug('handleTabRemoved', `Aba ${tabId} removida.`, { removeInfo });
   const oldGroupId = tabGroupMap.get(tabId);
   if (oldGroupId) {
     scheduleTitleUpdate(oldGroupId);
@@ -724,7 +724,7 @@ function handleTabRemoved(tabId, removeInfo) {
       pendingAutomaticGroups.delete(tabId);
     }
   }).catch(error => {
-    Logger.warn("handleTabRemoved", "Erro ao carregar estado para limpeza:", error);
+    Logger.warn('handleTabRemoved', 'Erro ao carregar estado para limpeza:', error);
   });
 
   // MELHORADO: Limpeza completa de todos os timeouts relacionados à aba removida
@@ -732,7 +732,7 @@ function handleTabRemoved(tabId, removeInfo) {
   if (debouncedTitleUpdaters.has(renamingDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(renamingDebounceKey));
     debouncedTitleUpdaters.delete(renamingDebounceKey);
-    Logger.debug("handleTabRemoved", `Timeout de renomeação limpo para aba ${tabId}`);
+    Logger.debug('handleTabRemoved', `Timeout de renomeação limpo para aba ${tabId}`);
   }
 
   // NOVO: Limpa timeouts órfãos relacionados à aba (por hostname se disponível)
@@ -746,7 +746,7 @@ function handleTabRemoved(tabId, removeInfo) {
           if (debouncedTitleUpdaters.has(cacheKey)) {
             clearTimeout(debouncedTitleUpdaters.get(cacheKey));
             debouncedTitleUpdaters.delete(cacheKey);
-            Logger.debug("handleTabRemoved", `Timeout de cache limpo para hostname ${hostname}`);
+            Logger.debug('handleTabRemoved', `Timeout de cache limpo para hostname ${hostname}`);
           }
         }
       }
@@ -763,14 +763,14 @@ function handleTabRemoved(tabId, removeInfo) {
  * Inclui otimizações e fallbacks para garantir a compatibilidade entre navegadores.
  * @param {boolean} enable - `true` para ativar os listeners, `false` para desativar.
  */
-// CORRIGIDO: Adiciona "title" às propriedades que o listener de onUpdated observa.
+// CORRIGIDO: Adiciona 'title' às propriedades que o listener de onUpdated observa.
 function toggleListeners(enable) {
   // Adiciona verificações de segurança para garantir que as APIs existem antes de usá-las.
   // Isto previne falhas se as permissões estiverem em falta ou se o browser não suportar a API.
   if (!browser.tabs || !browser.tabs.onUpdated || !browser.tabs.onRemoved) {
     Logger.warn(
-      "toggleListeners",
-      "A API browser.tabs.onUpdated ou onRemoved não está disponível. Listeners não serão alterados."
+      'toggleListeners',
+      'A API browser.tabs.onUpdated ou onRemoved não está disponível. Listeners não serão alterados.'
     );
     return;
   }
@@ -786,18 +786,18 @@ function toggleListeners(enable) {
         // Tenta registar o listener com um filtro otimizado.
         // Isto é mais eficiente, pois a extensão só é notificada sobre as alterações que lhe interessam.
         browser.tabs.onUpdated.addListener(handleTabUpdated, {
-          properties: ["status", "groupId", "title", "url"], // Adicionado 'url' para renomeação
+          properties: ['status', 'groupId', 'title', 'url'], // Adicionado 'url' para renomeação
         });
       } catch (e) {
         // Fallback para navegadores (como algumas versões do Edge) que podem não suportar
         // o filtro de propriedade 'title'. Neste caso, registamos o listener sem filtros.
         // A extensão continuará a funcionar, embora receba mais eventos do que o necessário.
         Logger.warn(
-          "toggleListeners",
-          "Otimização do listener 'onUpdated' não suportada pelo navegador. A usar fallback compatível."
+          'toggleListeners',
+          'Otimização do listener 'onUpdated' não suportada pelo navegador. A usar fallback compatível.'
         );
         // O erro 'e' só é relevante para depuração, por isso não o mostramos nos níveis de log normais.
-        Logger.debug("toggleListeners", "Detalhes do erro de filtro:", e);
+        Logger.debug('toggleListeners', 'Detalhes do erro de filtro:', e);
         browser.tabs.onUpdated.addListener(handleTabUpdated);
       }
     }
@@ -822,11 +822,11 @@ function toggleListeners(enable) {
  */
 function updateAutoCollapseTimer() {
   Logger.debug(
-    "Timers",
+    'Timers',
     `Timer de auto-collapse ${
       settings.autoCollapseTimeout > 0
         ? `ativado (${settings.autoCollapseTimeout}s)`
-        : "desativado"
+        : 'desativado'
     }.`
   );
   if (collapseInterval) clearInterval(collapseInterval);
@@ -837,7 +837,7 @@ function updateAutoCollapseTimer() {
       if (timeoutMs <= 0) return;
       try {
         const windows = await browser.windows.getAll({
-          windowTypes: ["normal"],
+          windowTypes: ['normal'],
         });
         for (const window of windows) {
           const activeTabs = await browser.tabs.query({
@@ -857,7 +857,7 @@ function updateAutoCollapseTimer() {
             const lastActivityTime = groupActivity.get(group.id) || Date.now();
             if (Date.now() - lastActivityTime > timeoutMs) {
               Logger.debug(
-                "checkAutoCollapse",
+                'checkAutoCollapse',
                 `Grupo inativo ${group.id} a ser recolhido.`
               );
               await browser.tabGroups.update(group.id, { collapsed: true });
@@ -867,12 +867,12 @@ function updateAutoCollapseTimer() {
         }
       } catch (e) {
         Logger.error(
-          "checkAutoCollapse",
-          "Erro ao verificar grupos inativos:",
+          'checkAutoCollapse',
+          'Erro ao verificar grupos inativos:',
           e
         );
       }
-    }, getConfig("AUTO_COLLAPSE_CHECK_INTERVAL"));
+    }, getConfig('AUTO_COLLAPSE_CHECK_INTERVAL'));
   }
 }
 
@@ -910,7 +910,7 @@ async function checkSingleTabGroups() {
         } else {
           if (now - singleTabGroupTimestamps.get(groupId) > timeoutMs) {
             Logger.debug(
-              "checkSingleTabGroups",
+              'checkSingleTabGroups',
               `Grupo ${groupId} solitário. A desagrupar a aba ${info.tabIds[0]}.`
             );
             await browser.tabs.ungroup(info.tabIds); // desagrupa todas as abas (deve ser só uma)
@@ -929,8 +929,8 @@ async function checkSingleTabGroups() {
     }
   } catch (e) {
     Logger.error(
-      "checkSingleTabGroups",
-      "Erro ao verificar grupos com abas únicas:",
+      'checkSingleTabGroups',
+      'Erro ao verificar grupos com abas únicas:',
       e
     );
     // Limpa timestamps órfãos para evitar acumulação de memória
@@ -944,11 +944,11 @@ async function checkSingleTabGroups() {
  */
 function updateUngroupTimer() {
   Logger.debug(
-    "Timers",
+    'Timers',
     `Timer de desagrupar abas únicas ${
       settings.ungroupSingleTabs
         ? `ativado (${settings.ungroupSingleTabsTimeout}s)`
-        : "desativado"
+        : 'desativado'
     }.`
   );
   if (ungroupInterval) clearInterval(ungroupInterval);
@@ -956,7 +956,7 @@ function updateUngroupTimer() {
   if (settings.ungroupSingleTabs && settings.ungroupSingleTabsTimeout > 0) {
     ungroupInterval = setInterval(
       checkSingleTabGroups,
-      getConfig("SINGLE_TAB_CHECK_INTERVAL")
+      getConfig('SINGLE_TAB_CHECK_INTERVAL')
     );
   }
 }
@@ -978,19 +978,19 @@ async function handleTabActivated({ tabId }) {
       groupActivity.set(group.id, Date.now());
       if (group.collapsed) {
         Logger.debug(
-          "handleTabActivated",
+          'handleTabActivated',
           `A expandir o grupo ${group.id} devido à ativação da aba ${tabId}.`
         );
         await browser.tabGroups.update(group.id, { collapsed: false });
       }
       return { success: true, groupId: group.id };
     }
-    return { success: false, reason: "no_group" };
+    return { success: false, reason: 'no_group' };
   }, `handleTabActivated-${tabId}`);
 
   if (result === null) {
     Logger.debug(
-      "handleTabActivated",
+      'handleTabActivated',
       `Aba ${tabId} ou grupo não encontrado - operação ignorada.`
     );
   }
@@ -1000,7 +1000,7 @@ async function handleTabActivated({ tabId }) {
 
 /**
  * Atualiza o título de um grupo para incluir a contagem de abas.
- * Ex: "Meu Grupo" -> "Meu Grupo (3)".
+ * Ex: 'Meu Grupo' -> 'Meu Grupo (3)'.
  * Adiciona um pino (📌) para grupos manuais.
  * @param {number} groupId - O ID do grupo a ser atualizado.
  */
@@ -1017,9 +1017,9 @@ async function updateGroupTitleWithCount(groupId) {
     const tabsInGroup = await browser.tabs.query({ groupId });
     const count = tabsInGroup.length;
 
-    let cleanTitle = (group.title || "")
-      .replace(/\s\(\d+\)$/, "")
-      .replace(/📌\s*/, "");
+    let cleanTitle = (group.title || '')
+      .replace(/\s\(\d+\)$/, '')
+      .replace(/📌\s*/, '');
     let newTitle = count > 0 ? `${cleanTitle} (${count})` : cleanTitle;
 
     if (settings.manualGroupIds.includes(groupId)) {
@@ -1028,18 +1028,18 @@ async function updateGroupTitleWithCount(groupId) {
 
     if (group.title !== newTitle) {
       Logger.debug(
-        "updateGroupTitle",
+        'updateGroupTitle',
         `A atualizar o título do grupo ${groupId} para '${newTitle}'.`
       );
       await browser.tabGroups.update(groupId, { title: newTitle });
       return { success: true, newTitle };
     }
-    return { success: false, reason: "no_change_needed" };
+    return { success: false, reason: 'no_change_needed' };
   }, `updateGroupTitle-${groupId}`);
 
   if (result === null) {
     Logger.debug(
-      "updateGroupTitle",
+      'updateGroupTitle',
       `Grupo ${groupId} não encontrado - operação ignorada.`
     );
   }
@@ -1064,7 +1064,7 @@ function scheduleTitleUpdate(groupId) {
     const timeoutId = setTimeout(() => {
       updateGroupTitleWithCount(groupId);
       debouncedTitleUpdaters.delete(groupTitleDebounceKey);
-    }, getConfig("TITLE_UPDATE_DEBOUNCE"));
+    }, getConfig('TITLE_UPDATE_DEBOUNCE'));
     debouncedTitleUpdaters.set(groupTitleDebounceKey, timeoutId);
   }
 }
@@ -1088,7 +1088,7 @@ async function handleTabGroupCreated(group) {
     // Compara os IDs dos separadores (convertidos para string para uma comparação fiável de arrays)
     if (JSON.stringify(newGroupTabIds) === JSON.stringify(pendingTabIds)) {
       Logger.debug(
-        "handleTabGroupCreated",
+        'handleTabGroupCreated',
         `Grupo ${group.id} correspondeu a uma intenção pendente. Classificado como automático.`
       );
       // A intenção foi cumprida, remove-a do mapa.
@@ -1099,7 +1099,7 @@ async function handleTabGroupCreated(group) {
 
   // Se o loop terminar e não houver correspondência, o grupo foi criado manualmente.
   Logger.info(
-    "handleTabGroupCreated",
+    'handleTabGroupCreated',
     `Grupo ${group.id} classificado como manual.`
   );
   if (!settings.manualGroupIds.includes(group.id)) {
@@ -1109,26 +1109,26 @@ async function handleTabGroupCreated(group) {
     // Adiciona o pino ao título para identificação visual.
     const pinResult = await handleGroupOperation(async () => {
       const currentGroup = await browser.tabGroups.get(group.id);
-      const cleanTitle = (currentGroup.title || "Grupo").replace(/📌\s*/, "");
-      if (!currentGroup.title.startsWith("📌")) {
+      const cleanTitle = (currentGroup.title || 'Grupo').replace(/📌\s*/, '');
+      if (!currentGroup.title.startsWith('📌')) {
         await browser.tabGroups.update(group.id, {
           title: `📌 ${cleanTitle}`,
         });
         return { success: true, title: `📌 ${cleanTitle}` };
       }
-      return { success: false, reason: "already_pinned" };
+      return { success: false, reason: 'already_pinned' };
     }, `handleTabGroupCreated-pin-${group.id}`);
 
     if (pinResult === null) {
       Logger.warn(
-        "handleTabGroupCreated",
+        'handleTabGroupCreated',
         `Grupo manual ${group.id} removido antes de adicionar pino.`
       );
     }
 
     // --- NOVO: Lógica de Aprendizagem na Criação ---
     // Se o grupo manual já foi criado com um título, aprende com ele.
-    const cleanTitle = (group.title || "").replace(/📌\s*/, "").trim();
+    const cleanTitle = (group.title || '').replace(/📌\s*/, '').trim();
     if (cleanTitle) {
       learningEngine.learnFromGroup(cleanTitle, tabsInNewGroup);
     }
@@ -1143,10 +1143,10 @@ async function handleTabGroupCreated(group) {
  * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi atualizado.
  */
 async function handleTabGroupUpdated(group) {
-  Logger.debug("handleTabGroupUpdated", `Grupo ${group.id} atualizado.`, group);
+  Logger.debug('handleTabGroupUpdated', `Grupo ${group.id} atualizado.`, group);
   const isManual = settings.manualGroupIds.includes(group.id);
-  const title = group.title || "";
-  const hasPin = title.startsWith("📌");
+  const title = group.title || '';
+  const hasPin = title.startsWith('📌');
 
   // --- NOVO: Lógica de Aprendizagem ---
   // Aprende quando o título de um grupo manual é alterado pelo usuário.
@@ -1162,7 +1162,7 @@ async function handleTabGroupUpdated(group) {
     const timeoutId = setTimeout(async () => {
       try {
         const currentGroup = await browser.tabGroups.get(group.id);
-        const cleanTitle = (currentGroup.title || "").replace(/📌\s*/, "").trim();
+        const cleanTitle = (currentGroup.title || '').replace(/📌\s*/, '').trim();
 
         // Só aprende se for um grupo manual e tiver um título significativo
         if (isManual && cleanTitle) {
@@ -1173,7 +1173,7 @@ async function handleTabGroupUpdated(group) {
         }
       } catch (e) {
         Logger.warn(
-          "handleTabGroupUpdated",
+          'handleTabGroupUpdated',
           `Não foi possível aprender com o grupo ${group.id}, pode ter sido removido.`,
           e
         );
@@ -1189,7 +1189,7 @@ async function handleTabGroupUpdated(group) {
     await browser.tabGroups.update(group.id, { title: `📌 ${title}` });
   } else if (!isManual && hasPin) {
     await browser.tabGroups.update(group.id, {
-      title: title.replace(/📌\s*/, ""),
+      title: title.replace(/📌\s*/, ''),
     });
   }
 }
@@ -1201,7 +1201,7 @@ async function handleTabGroupUpdated(group) {
  * @param {browser.tabGroups.TabGroup} group - O objeto do grupo que foi removido.
  */
 async function handleTabGroupRemoved(group) {
-  Logger.info("handleTabGroupRemoved", `Grupo ${group.id} removido.`, group);
+  Logger.info('handleTabGroupRemoved', `Grupo ${group.id} removido.`, group);
   scheduleSuggestionCheck(); // NOVO: Verifica sugestões após remover grupo
 
   // Atualiza configurações se era um grupo manual
@@ -1221,7 +1221,7 @@ async function handleTabGroupRemoved(group) {
   if (debouncedTitleUpdaters.has(groupTitleDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(groupTitleDebounceKey));
     debouncedTitleUpdaters.delete(groupTitleDebounceKey);
-    Logger.debug("handleTabGroupRemoved", `Timeout de título limpo para grupo ${group.id}`);
+    Logger.debug('handleTabGroupRemoved', `Timeout de título limpo para grupo ${group.id}`);
   }
 
   // NOVO: Limpa timeout de aprendizagem relacionado ao grupo
@@ -1229,7 +1229,7 @@ async function handleTabGroupRemoved(group) {
   if (debouncedTitleUpdaters.has(learningDebounceKey)) {
     clearTimeout(debouncedTitleUpdaters.get(learningDebounceKey));
     debouncedTitleUpdaters.delete(learningDebounceKey);
-    Logger.debug("handleTabGroupRemoved", `Timeout de aprendizagem limpo para grupo ${group.id}`);
+    Logger.debug('handleTabGroupRemoved', `Timeout de aprendizagem limpo para grupo ${group.id}`);
   }
 
   // Remove abas órfãs do mapa tab-grupo
@@ -1272,17 +1272,17 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
 
   if (changedRules.length === 0) return;
   Logger.info(
-    "checkForRenamedRules",
-    "Regras renomeadas ou editadas detetadas, a atualizar grupos existentes...",
+    'checkForRenamedRules',
+    'Regras renomeadas ou editadas detetadas, a atualizar grupos existentes...',
     changedRules
   );
 
   const allGroups = await browser.tabGroups.query({});
   for (const change of changedRules) {
-    const cleanOldName = change.oldName.replace(/📌\s*/, "");
+    const cleanOldName = change.oldName.replace(/📌\s*/, '');
     const targetGroup = allGroups.find(
       (g) =>
-        (g.title || "").replace(/\s\(\d+\)$/, "").replace(/📌\s*/g, "") ===
+        (g.title || '').replace(/\s\(\d+\)$/, '').replace(/📌\s*/g, '') ===
         cleanOldName
     );
 
@@ -1290,7 +1290,7 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
       try {
         const updatePayload = {};
         if (change.oldName !== change.newName) {
-          updatePayload.title = (targetGroup.title || "").replace(
+          updatePayload.title = (targetGroup.title || '').replace(
             cleanOldName,
             change.newName
           );
@@ -1303,8 +1303,8 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
         }
       } catch (e) {
         Logger.error(
-          "checkForRenamedRules",
-          `Erro ao atualizar o grupo para a regra renomeada de "${change.oldName}":`,
+          'checkForRenamedRules',
+          `Erro ao atualizar o grupo para a regra renomeada de '${change.oldName}':`,
           e
         );
       }
@@ -1321,52 +1321,52 @@ async function checkForRenamedOrEditedRules(oldSettings, newSettings) {
  * @returns {Promise<object>} - Resultado da operação
  */
 async function processMessageAction(message, sender) {
-  Logger.info("processMessageAction", `Processando ação '${message.action}'`, { action: message.action });
+  Logger.info('processMessageAction', `Processando ação '${message.action}'`, { action: message.action });
   
   switch (message.action) {
-    case "getSettings":
+    case 'getSettings':
       return settings;
       
-    case "getSuggestion": // NOVO
+    case 'getSuggestion': // NOVO
       return pendingSuggestion;
       
-    case "clearSuggestion": // NOVO
+    case 'clearSuggestion': // NOVO
       pendingSuggestion = null;
       return { success: true };
       
-    case "clearLearningHistory": // NOVO
+    case 'clearLearningHistory': // NOVO
       await ensureLearningEngineLoaded();
       await learningEngine.clearHistory();
       return { success: true };
 
-    case "getLearningReport": // NOVO
+    case 'getLearningReport': // NOVO
       await ensureLearningEngineLoaded();
       const report = await learningEngine.getPrivacyReport();
       return report;
 
-    case "setLearningEnabled": // NOVO
+    case 'setLearningEnabled': // NOVO
       await updateSettings({ learningEnabled: message.enabled });
       return { success: true };
 
-    case "cleanupExpiredLearning": // NOVO
+    case 'cleanupExpiredLearning': // NOVO
       await ensureLearningEngineLoaded();
       const removed = await learningEngine.cleanupExpiredPatterns();
       return { removed };
       
-    case "validatePerformance": // NOVO: TASK-A-001
-      const { validatePerformance } = await import("./performance-validator.js");
+    case 'validatePerformance': // NOVO: TASK-A-001
+      const { validatePerformance } = await import('./performance-validator.js');
       return await validatePerformance();
       
-    case "getPerformanceReport": // NOVO: TASK-A-001
-      const { getPerformanceReport } = await import("./performance-validator.js");
+    case 'getPerformanceReport': // NOVO: TASK-A-001
+      const { getPerformanceReport } = await import('./performance-validator.js');
       return getPerformanceReport();
       
-    case "runPerformanceStressTest": // NOVO: TASK-A-001
-      const { runPerformanceStressTest } = await import("./performance-validator.js");
+    case 'runPerformanceStressTest': // NOVO: TASK-A-001
+      const { runPerformanceStressTest } = await import('./performance-validator.js');
       const tabCount = message.tabCount || 100;
       return await runPerformanceStressTest(tabCount);
       
-    case "acceptSuggestion": // NOVO
+    case 'acceptSuggestion': // NOVO
       if (message.suggestion && message.suggestion.tabIds) {
         try {
           const { tabIds, suggestedName } = message.suggestion;
@@ -1385,17 +1385,17 @@ async function processMessageAction(message, sender) {
           return { success: true, groupId: newGroupId };
         } catch (e) {
           Logger.error(
-            "acceptSuggestion",
-            "Erro ao criar grupo a partir da sugestão:",
+            'acceptSuggestion',
+            'Erro ao criar grupo a partir da sugestão:',
             e
           );
           return { success: false, error: e.message };
         }
       } else {
-        return { success: false, error: "Sugestão inválida." };
+        return { success: false, error: 'Sugestão inválida.' };
       }
       
-    case "updateSettings":
+    case 'updateSettings':
       const { oldSettings, newSettings } = await updateSettings(
         message.settings
       );
@@ -1423,32 +1423,32 @@ async function processMessageAction(message, sender) {
 
       // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
       browser.runtime
-        .sendMessage({ action: "settingsUpdated" })
+        .sendMessage({ action: 'settingsUpdated' })
         .catch(() => {});
       return newSettings;
       
-    case "groupAllTabs":
+    case 'groupAllTabs':
       const allTabs = await browser.tabs.query({
         currentWindow: true,
         pinned: false,
       });
       await processTabQueue(allTabs.map((t) => t.id));
-      return { status: "ok" };
+      return { status: 'ok' };
       
-    case "getMemoryStats":
+    case 'getMemoryStats':
       await ensureMemoryManagementLoaded();
       return getMemoryStats(memoryMaps);
       
-    case "cleanupMemory":
+    case 'cleanupMemory':
       await ensureMemoryManagementLoaded();
       const cleanupStats = await performMemoryCleanup(memoryMaps);
       return cleanupStats;
       
-    case "getAdaptiveMemoryStats":
+    case 'getAdaptiveMemoryStats':
       await ensureMemoryManagementLoaded();
       return globalAdaptiveMemoryManager.getDetailedStats(memoryMaps);
       
-    case "forceAdaptiveCleanup":
+    case 'forceAdaptiveCleanup':
       await ensureMemoryManagementLoaded();
       const adaptiveCleanupStats =
         await globalAdaptiveMemoryManager.performAdaptiveCleanup(
@@ -1457,22 +1457,22 @@ async function processMessageAction(message, sender) {
         );
       return adaptiveCleanupStats;
       
-    case "emergencyAdaptiveCleanup":
+    case 'emergencyAdaptiveCleanup':
       await ensureMemoryManagementLoaded();
       const emergencyStats =
         await globalAdaptiveMemoryManager.emergencyCleanup(memoryMaps);
       return emergencyStats;
       
-    case "getErrorStats":
+    case 'getErrorStats':
       await ensureErrorHandlingLoaded();
       return globalAdaptiveErrorHandler.getErrorStats();
       
-    case "resetErrorStats":
+    case 'resetErrorStats':
       await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.resetStats();
       return { success: true };
       
-    case "setCustomErrorStrategy":
+    case 'setCustomErrorStrategy':
       await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.setCustomStrategy(
         message.errorType,
@@ -1480,7 +1480,7 @@ async function processMessageAction(message, sender) {
       );
       return { success: true };
       
-    case "setContextualErrorConfig":
+    case 'setContextualErrorConfig':
       await ensureErrorHandlingLoaded();
       globalAdaptiveErrorHandler.setContextualConfig(
         message.context,
@@ -1488,73 +1488,73 @@ async function processMessageAction(message, sender) {
       );
       return { success: true };
       
-    case "getCacheStats":
-      const { getCacheStats } = await import("./settings-manager.js");
+    case 'getCacheStats':
+      const { getCacheStats } = await import('./settings-manager.js');
       return getCacheStats();
       
-    case "getDetailedCacheStats":
+    case 'getDetailedCacheStats':
       const { getDetailedCacheStats } = await import(
-        "./settings-manager.js"
+        './settings-manager.js'
       );
       return getDetailedCacheStats();
       
-    case "invalidateCacheByDomain":
+    case 'invalidateCacheByDomain':
       const { invalidateCacheByDomainChange } = await import(
-        "./settings-manager.js"
+        './settings-manager.js'
       );
       invalidateCacheByDomainChange(message.hostname, message.changeType);
       return { success: true };
       
-    case "invalidateCacheByCriteria":
+    case 'invalidateCacheByCriteria':
       const { invalidateCacheByCriteria } = await import(
-        "./settings-manager.js"
+        './settings-manager.js'
       );
       const invalidatedCount = invalidateCacheByCriteria(message.criteria);
       return { success: true, invalidated: invalidatedCount };
       
-    case "clearAllCaches":
-      const { clearAllCaches } = await import("./settings-manager.js");
+    case 'clearAllCaches':
+      const { clearAllCaches } = await import('./settings-manager.js');
       clearAllCaches();
       return { success: true };
       
-    case "migrateLegacyCache":
+    case 'migrateLegacyCache':
       const { migrateLegacyCacheToIntelligent } = await import(
-        "./settings-manager.js"
+        './settings-manager.js'
       );
       const migrationResult = await migrateLegacyCacheToIntelligent();
       return migrationResult;
       
-    case "getPerformanceConfig":
+    case 'getPerformanceConfig':
       return getAllConfig();
       
-    case "updatePerformanceConfig":
+    case 'updatePerformanceConfig':
       updateConfig(message.config);
       return { success: true };
       
-    case "getAPIRateLimiterStats":
+    case 'getAPIRateLimiterStats':
       await ensureAPIWrapperLoaded();
       return getAPIWrapperStats();
       
-    case "clearAPIQueues":
+    case 'clearAPIQueues':
       await ensureAPIWrapperLoaded();
       const clearedCount = clearAPIQueues();
       return { success: true, cleared: clearedCount };
       
-    case "pauseAPICategory":
+    case 'pauseAPICategory':
       await ensureAPIWrapperLoaded();
       pauseAPICategory(message.category);
       return { success: true };
       
-    case "resumeAPICategory":
+    case 'resumeAPICategory':
       await ensureAPIWrapperLoaded();
       resumeAPICategory(message.category);
       return { success: true };
       
-    case "getRateLimiterDetailedStats":
+    case 'getRateLimiterDetailedStats':
       await ensureRateLimiterLoaded();
       return globalAPIRateLimiter.getDetailedStats();
       
-    case "log":
+    case 'log':
       if (
         sender.tab &&
         message.level &&
@@ -1569,26 +1569,26 @@ async function processMessageAction(message, sender) {
       }
       return { success: true };
       
-    case "extractContent":
+    case 'extractContent':
       // Validação adicional no background para extração de conteúdo
-      const { validateCSSSelector, ALLOWED_HTML_ATTRIBUTES } = await import("./validation-utils.js");
+      const { validateCSSSelector, ALLOWED_HTML_ATTRIBUTES } = await import('./validation-utils.js');
       
       const selectorValidation = validateCSSSelector(message.selector);
       if (!selectorValidation.isValid) {
-        throw new Error(`Seletor inválido: ${selectorValidation.errors.join("; ")}`);
+        throw new Error(`Seletor inválido: ${selectorValidation.errors.join('; ')}`);
       }
       
       if (message.attribute && !ALLOWED_HTML_ATTRIBUTES.has(message.attribute)) {
-        throw new Error("Atributo não permitido para extração");
+        throw new Error('Atributo não permitido para extração');
       }
       
       // Verifica se o sender é uma aba válida
-      if (!sender.tab || typeof sender.tab.id !== "number") {
-        throw new Error("Extração de conteúdo deve vir de uma aba válida");
+      if (!sender.tab || typeof sender.tab.id !== 'number') {
+        throw new Error('Extração de conteúdo deve vir de uma aba válida');
       }
       
       // Log da operação para auditoria
-      Logger.info("extractContent", `Solicitação de extração validada`, {
+      Logger.info('extractContent', `Solicitação de extração validada`, {
         selector: message.selector,
         attribute: message.attribute,
         tabId: sender.tab.id,
@@ -1598,7 +1598,7 @@ async function processMessageAction(message, sender) {
       return { success: true, validated: true };
       
     default:
-      Logger.warn("processMessageAction", `Ação desconhecida: ${message.action}`);
+      Logger.warn('processMessageAction', `Ação desconhecida: ${message.action}`);
       throw new Error(`Ação desconhecida: ${message.action}`);
   }
 }
@@ -1606,28 +1606,28 @@ async function processMessageAction(message, sender) {
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     // Importa validação de mensagens
-    const { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } = await import("./validation-utils.js");
+    const { validateRuntimeMessage, sanitizeMessageData, messageRateLimiter, validateSender } = await import('./validation-utils.js');
     
     // 1. VALIDAÇÃO DE SENDER (NOVO)
     if (!validateSender(sender, message?.action)) {
-      Logger.warn("onMessage", `Sender inválido para ação ${message?.action}`, { sender });
-      sendResponse({ error: "Sender inválido" });
+      Logger.warn('onMessage', `Sender inválido para ação ${message?.action}`, { sender });
+      sendResponse({ error: 'Sender inválido' });
       return;
     }
 
     // 2. RATE LIMITING (JÁ EXISTE - MANTER)
     const tabId = sender.tab?.id || 0;
     if (!messageRateLimiter.isAllowed(tabId)) {
-      Logger.warn("onMessage", `Rate limit excedido para aba ${tabId}`);
-      sendResponse({ error: "Rate limit excedido" });
+      Logger.warn('onMessage', `Rate limit excedido para aba ${tabId}`);
+      sendResponse({ error: 'Rate limit excedido' });
       return;
     }
 
     // 3. VALIDAÇÃO DE MENSAGEM (JÁ EXISTE - MELHORAR)
     const validation = validateRuntimeMessage(message, sender);
     if (!validation.isValid) {
-      Logger.warn("onMessage", `Mensagem inválida: ${validation.errors.join("; ")}`, { message, sender });
-      sendResponse({ error: `Mensagem inválida: ${validation.errors.join("; ")}` });
+      Logger.warn('onMessage', `Mensagem inválida: ${validation.errors.join('; ')}`, { message, sender });
+      sendResponse({ error: `Mensagem inválida: ${validation.errors.join('; ')}` });
       return;
     }
 
@@ -1636,17 +1636,17 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // 5. TIMEOUT PARA OPERAÇÕES LONGAS (NOVO)
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Timeout da operação")), 5000);
+      setTimeout(() => reject(new Error('Timeout da operação')), 5000);
     });
 
-    Logger.info("onMessage", `Ação '${sanitizedMessage.action}' recebida.`, { action: sanitizedMessage.action, tabId });
+    Logger.info('onMessage', `Ação '${sanitizedMessage.action}' recebida.`, { action: sanitizedMessage.action, tabId });
     
     try {
       const operationPromise = processMessageAction(sanitizedMessage, sender);
       const result = await Promise.race([operationPromise, timeoutPromise]);
       sendResponse(result);
     } catch (error) {
-      Logger.error("onMessage", `Erro ao processar ação "${sanitizedMessage.action}":`, error);
+      Logger.error('onMessage', `Erro ao processar ação '${sanitizedMessage.action}':`, error);
       sendResponse({ error: error.message });
     }
   })();
@@ -1668,17 +1668,17 @@ async function populateTabGroupMap() {
         }
       }
       Logger.debug(
-        "populateTabGroupMap",
+        'populateTabGroupMap',
         `Mapa populado com ${tabGroupMap.size} entradas.`
       );
       return { success: true, count: tabGroupMap.size };
     },
-    "populateTabGroupMap",
+    'populateTabGroupMap',
     async () => {
       // Fallback: inicia com mapa vazio, funcionalidades ainda funcionarão
       Logger.warn(
-        "populateTabGroupMap",
-        "Usando fallback - mapa de abas vazio."
+        'populateTabGroupMap',
+        'Usando fallback - mapa de abas vazio.'
       );
       return { success: false, fallback: true };
     }
@@ -1707,7 +1707,7 @@ class OptimizedServiceWorker {
     const startTime = performance.now();
     
     try {
-      Logger.info("OptimizedServiceWorker", "🚀 Iniciando inicialização otimizada...");
+      Logger.info('OptimizedServiceWorker', '🚀 Iniciando inicialização otimizada...');
       
       // Registra início da inicialização
       performanceMonitor.recordMetric('startupTime_start', startTime, 'ms');
@@ -1717,10 +1717,10 @@ class OptimizedServiceWorker {
       
       if (cachedInit) {
         await this.initializeFromCache(cachedInit);
-        Logger.info("OptimizedServiceWorker", "✅ Inicializado a partir do cache");
+        Logger.info('OptimizedServiceWorker', '✅ Inicializado a partir do cache');
       } else {
         await this.initializeFromScratch();
-        Logger.info("OptimizedServiceWorker", "✅ Inicializado do zero");
+        Logger.info('OptimizedServiceWorker', '✅ Inicializado do zero');
       }
       
       // Inicia cache warming em background (não bloqueia)
@@ -1732,7 +1732,7 @@ class OptimizedServiceWorker {
       
       this.initialized = true;
       
-      Logger.info("OptimizedServiceWorker", `🎯 Inicialização concluída em ${initTime.toFixed(2)}ms`);
+      Logger.info('OptimizedServiceWorker', `🎯 Inicialização concluída em ${initTime.toFixed(2)}ms`);
       
       return {
         success: true,
@@ -1743,7 +1743,7 @@ class OptimizedServiceWorker {
       
     } catch (error) {
       const initTime = performance.now() - startTime;
-      Logger.error("OptimizedServiceWorker", "❌ Falha na inicialização otimizada:", error);
+      Logger.error('OptimizedServiceWorker', '❌ Falha na inicialização otimizada:', error);
       performanceMonitor.recordMetric('startupTime_error', initTime, 'ms', { error: error.message });
       
       // Fallback para inicialização tradicional
@@ -1771,10 +1771,10 @@ class OptimizedServiceWorker {
       const cacheTime = performance.now() - startTime;
       this.recordPerformanceMetric('cache_initialization_time', cacheTime);
       
-      Logger.debug("OptimizedServiceWorker", `Cache initialization: ${cacheTime.toFixed(2)}ms`);
+      Logger.debug('OptimizedServiceWorker', `Cache initialization: ${cacheTime.toFixed(2)}ms`);
       
     } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Falha na inicialização por cache, usando fallback:", error);
+      Logger.warn('OptimizedServiceWorker', 'Falha na inicialização por cache, usando fallback:', error);
       throw error; // Re-throw para acionar fallback
     }
   }
@@ -1805,10 +1805,10 @@ class OptimizedServiceWorker {
       const scratchTime = performance.now() - startTime;
       this.recordPerformanceMetric('scratch_initialization_time', scratchTime);
       
-      Logger.debug("OptimizedServiceWorker", `Scratch initialization: ${scratchTime.toFixed(2)}ms`);
+      Logger.debug('OptimizedServiceWorker', `Scratch initialization: ${scratchTime.toFixed(2)}ms`);
       
     } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Falha na inicialização do zero:", error);
+      Logger.error('OptimizedServiceWorker', 'Falha na inicialização do zero:', error);
       throw error;
     }
   }
@@ -1829,10 +1829,10 @@ class OptimizedServiceWorker {
       const loadTime = performance.now() - startTime;
       this.recordPerformanceMetric('critical_modules_load_time', loadTime);
       
-      Logger.debug("OptimizedServiceWorker", `Critical modules loaded: ${loadTime.toFixed(2)}ms`);
+      Logger.debug('OptimizedServiceWorker', `Critical modules loaded: ${loadTime.toFixed(2)}ms`);
       
     } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Falha ao carregar módulos críticos:", error);
+      Logger.error('OptimizedServiceWorker', 'Falha ao carregar módulos críticos:', error);
       throw error;
     }
   }
@@ -1857,10 +1857,10 @@ class OptimizedServiceWorker {
         }
       }
       
-      Logger.debug("OptimizedServiceWorker", "Estado básico restaurado do cache");
+      Logger.debug('OptimizedServiceWorker', 'Estado básico restaurado do cache');
       
     } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao restaurar estado do cache:", error);
+      Logger.warn('OptimizedServiceWorker', 'Erro ao restaurar estado do cache:', error);
     }
   }
 
@@ -1881,10 +1881,10 @@ class OptimizedServiceWorker {
         settings.tabRenamingEnabled
       );
       
-      Logger.debug("OptimizedServiceWorker", "Listeners essenciais configurados");
+      Logger.debug('OptimizedServiceWorker', 'Listeners essenciais configurados');
       
     } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Erro ao configurar listeners:", error);
+      Logger.error('OptimizedServiceWorker', 'Erro ao configurar listeners:', error);
     }
   }
 
@@ -1903,10 +1903,10 @@ class OptimizedServiceWorker {
       // Configura limpeza periódica
       setupPeriodicCleanup();
       
-      Logger.debug("OptimizedServiceWorker", "Inicialização básica concluída");
+      Logger.debug('OptimizedServiceWorker', 'Inicialização básica concluída');
       
     } catch (error) {
-      Logger.error("OptimizedServiceWorker", "Erro na inicialização básica:", error);
+      Logger.error('OptimizedServiceWorker', 'Erro na inicialização básica:', error);
     }
   }
 
@@ -1923,10 +1923,10 @@ class OptimizedServiceWorker {
       };
       
       await initializationCache.setCachedInitialization(cacheData);
-      Logger.debug("OptimizedServiceWorker", "Estado de inicialização cacheado");
+      Logger.debug('OptimizedServiceWorker', 'Estado de inicialização cacheado');
       
     } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao cachear estado:", error);
+      Logger.warn('OptimizedServiceWorker', 'Erro ao cachear estado:', error);
     }
   }
 
@@ -1946,10 +1946,10 @@ class OptimizedServiceWorker {
         // Inicia monitoramento de performance
         performanceMonitor.startAutoReporting();
         
-        Logger.info("OptimizedServiceWorker", "🔧 Otimizações em background concluídas");
+        Logger.info('OptimizedServiceWorker', '🔧 Otimizações em background concluídas');
         
       } catch (error) {
-        Logger.warn("OptimizedServiceWorker", "Erro nas otimizações em background:", error);
+        Logger.warn('OptimizedServiceWorker', 'Erro nas otimizações em background:', error);
       }
     }, 100); // Delay mínimo para não bloquear
   }
@@ -1969,10 +1969,10 @@ class OptimizedServiceWorker {
       // Carrega em paralelo mas com limite
       const results = await moduleLoader.preloadModules(backgroundModules);
       
-      Logger.debug("OptimizedServiceWorker", `Módulos não críticos carregados: ${results.successful}/${results.total}`);
+      Logger.debug('OptimizedServiceWorker', `Módulos não críticos carregados: ${results.successful}/${results.total}`);
       
     } catch (error) {
-      Logger.warn("OptimizedServiceWorker", "Erro ao carregar módulos não críticos:", error);
+      Logger.warn('OptimizedServiceWorker', 'Erro ao carregar módulos não críticos:', error);
     }
   }
 
@@ -1980,12 +1980,12 @@ class OptimizedServiceWorker {
    * Fallback para inicialização tradicional
    */
   async fallbackInitialization() {
-    Logger.warn("OptimizedServiceWorker", "🔄 Usando inicialização de fallback...");
+    Logger.warn('OptimizedServiceWorker', '🔄 Usando inicialização de fallback...');
     
     try {
       // Inicialização mínima garantida
       await loadSettings();
-      Logger.setLevel(settings.logLevel || "ERROR");
+      Logger.setLevel(settings.logLevel || 'ERROR');
       
       // Setup básico sem otimizações
       await this.setupBasicInitialization();
@@ -1999,7 +1999,7 @@ class OptimizedServiceWorker {
       };
       
     } catch (error) {
-      Logger.error("OptimizedServiceWorker", "❌ Falha crítica na inicialização:", error);
+      Logger.error('OptimizedServiceWorker', '❌ Falha crítica na inicialização:', error);
       return {
         success: false,
         error: error.message,
@@ -2052,16 +2052,16 @@ async function main() {
     async () => {
       return await optimizedServiceWorker.initialize();
     },
-    "optimized-service-worker-initialization",
+    'optimized-service-worker-initialization',
     async () => {
       // Fallback crítico
-      Logger.error("Main", "🆘 Fallback crítico ativado");
+      Logger.error('Main', '🆘 Fallback crítico ativado');
       return await optimizedServiceWorker.fallbackInitialization();
     }
   );
   
   if (result && result.success) {
-    Logger.info("Main", "🎉 Service Worker otimizado inicializado com sucesso!", {
+    Logger.info('Main', '🎉 Service Worker otimizado inicializado com sucesso!', {
       initTime: `${result.initTime?.toFixed(2)}ms`,
       fromCache: result.fromCache,
       fallback: result.fallback
@@ -2071,7 +2071,7 @@ async function main() {
     performanceMonitor.recordMetric('initialization_success', 1, 'count');
     
   } else {
-    Logger.error("Main", "💥 Falha crítica na inicialização do Service Worker", result);
+    Logger.error('Main', '💥 Falha crítica na inicialização do Service Worker', result);
     performanceMonitor.recordMetric('initialization_failure', 1, 'count');
   }
   
@@ -2080,5 +2080,5 @@ async function main() {
 
 // Inicialização global otimizada
 main().catch(error => {
-  Logger.error("Main", "💥 Erro não tratado na inicialização:", error);
+  Logger.error('Main', '💥 Erro não tratado na inicialização:', error);
 });
