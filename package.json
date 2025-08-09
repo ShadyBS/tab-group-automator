@@ -1,6 +1,6 @@
 {
   "name": "tab-group-automator",
-  "version": "1.0.0",
+  "version": "3.7.4",
   "description": "Productivity browser extension for tab grouping and renaming, following strict local dependency and validation rules.",
   "main": "background.js",
   "scripts": {
