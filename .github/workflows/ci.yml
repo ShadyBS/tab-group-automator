@@ -25,27 +25,35 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: ./tab-group-automator
 
       - name: Remove legacy scripts
         run: npm run clean:legacy
+        working-directory: ./tab-group-automator
 
       - name: Lint and validate
         run: npm run validate
+        working-directory: ./tab-group-automator
 
       - name: Build extensions
         run: npm run build
+        working-directory: ./tab-group-automator
 
       - name: Package builds
         run: npm run package
+        working-directory: ./tab-group-automator
 
       - name: Generate changelog
         run: npm run changelog
+        working-directory: ./tab-group-automator
 
       - name: Generate build summary
         run: npm run summary
+        working-directory: ./tab-group-automator
 
       - name: Generate scripts documentation
         run: npm run docs
+        working-directory: ./tab-group-automator
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
