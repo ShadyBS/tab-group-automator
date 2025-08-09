@@ -9,7 +9,12 @@ function validateCSP() {
     process.exit(1);
   }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  const csp = manifest.content_security_policy || "";
+  let csp = manifest.content_security_policy || "";
+  if (typeof csp === "object") {
+    // Chrome Manifest V3: CSP pode ser objeto (ex: {extension_pages: "..."}).
+    csp = csp.extension_pages || "";
+  }
+  if (typeof csp !== "string") csp = "";
   if (!csp.includes("script-src") || !csp.includes("object-src")) {
     console.error("CSP must define script-src and object-src.");
     process.exit(1);
