@@ -1353,6 +1353,19 @@ async function processMessageAction(message, sender) {
       const removed = await learningEngine.cleanupExpiredPatterns();
       return { removed };
       
+    case "validatePerformance": // NOVO: TASK-A-001
+      const { validatePerformance } = await import("./performance-validator.js");
+      return await validatePerformance();
+      
+    case "getPerformanceReport": // NOVO: TASK-A-001
+      const { getPerformanceReport } = await import("./performance-validator.js");
+      return getPerformanceReport();
+      
+    case "runPerformanceStressTest": // NOVO: TASK-A-001
+      const { runPerformanceStressTest } = await import("./performance-validator.js");
+      const tabCount = message.tabCount || 100;
+      return await runPerformanceStressTest(tabCount);
+      
     case "acceptSuggestion": // NOVO
       if (message.suggestion && message.suggestion.tabIds) {
         try {

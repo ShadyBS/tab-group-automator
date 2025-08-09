@@ -5,97 +5,111 @@
 
 import Logger from "./logger.js";
 
-// Configurações padrão de performance
+// Configurações padrão de performance otimizadas para TASK-A-001
 const DEFAULT_PERFORMANCE_CONFIG = {
-  // --- Configurações de Queue e Processamento ---
-  QUEUE_DELAY: 500,                      // ms - Delay para processar fila de abas
-  TITLE_UPDATE_DEBOUNCE: 250,            // ms - Debounce para atualizações de título
-  INITIAL_CLEANUP_DELAY: 10000,          // ms - Delay para limpeza inicial após inicialização
+  // --- TASK-A-001: Configurações Otimizadas de Queue e Processamento ---
+  QUEUE_DELAY: 150,                      // ms - Reduzido de 500ms para resposta mais rápida
+  TITLE_UPDATE_DEBOUNCE: 150,            // ms - Reduzido de 250ms para atualizações mais responsivas
+  INITIAL_CLEANUP_DELAY: 5000,           // ms - Reduzido de 10s para inicialização mais rápida
   
-  // --- Configurações de Injection e Retry ---
-  MAX_INJECTION_RETRIES: 3,              // Máximo de tentativas de injeção de script
-  INJECTION_RETRY_DELAY: 1000,           // ms - Delay entre tentativas de injeção
+  // --- TASK-A-001: Configurações Otimizadas de Injection e Retry ---
+  MAX_INJECTION_RETRIES: 2,              // Reduzido de 3 para evitar delays desnecessários
+  INJECTION_RETRY_DELAY: 500,            // ms - Reduzido de 1000ms para retry mais rápido
   
   // --- Configurações de Timers e Intervalos ---
-  AUTO_COLLAPSE_CHECK_INTERVAL: 5000,    // ms - Intervalo para verificar grupos inativos
-  SINGLE_TAB_CHECK_INTERVAL: 1500,       // ms - Intervalo para verificar grupos com aba única
+  AUTO_COLLAPSE_CHECK_INTERVAL: 5000,    // ms - Mantido
+  SINGLE_TAB_CHECK_INTERVAL: 1500,       // ms - Mantido
   
   // --- Configurações de Storage ---
-  STORAGE_RETRY_DELAY: 1000,             // ms - Delay para retry de operações de storage
-  CACHE_SAVE_DELAY: 2000,                // ms - Delay para salvar cache
-  CACHE_CLEANUP_RETRY_DELAY: 500,        // ms - Delay para retry de limpeza de cache
+  STORAGE_RETRY_DELAY: 500,              // ms - Reduzido de 1000ms
+  CACHE_SAVE_DELAY: 1000,                // ms - Reduzido de 2000ms para salvamento mais rápido
+  CACHE_CLEANUP_RETRY_DELAY: 250,        // ms - Reduzido de 500ms
   
-  // --- Configurações de Cache ---
-  MAX_CACHE_SIZE: 1000,                  // Tamanho máximo do cache de nomes
-  CACHE_MAX_AGE: 24 * 60 * 60 * 1000,    // ms - Idade máxima do cache (24h)
+  // --- TASK-A-001: Configurações Otimizadas de Cache ---
+  MAX_CACHE_SIZE: 2000,                  // Aumentado de 1000 para melhor hit rate
+  CACHE_MAX_AGE: 24 * 60 * 60 * 1000,    // ms - Mantido (24h)
   
-  // --- Configurações de Cache Inteligente ---
-  CACHE_DEFAULT_TTL: 24 * 60 * 60 * 1000, // ms - TTL padrão para entradas (24h)
-  CACHE_CLEANUP_INTERVAL: 5 * 60 * 1000,  // ms - Intervalo de limpeza automática (5min)
-  CACHE_OPTIMIZATION_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // ms - Threshold para otimização (7 dias)
-  CACHE_DOMAIN_CHANGE_THRESHOLD: 3,       // Número de mudanças para invalidar domínio
-  CACHE_VERSION_CHECK_ENABLED: true,      // Habilita verificação de versão do cache
+  // --- TASK-A-001: Configurações Otimizadas de Cache Inteligente ---
+  CACHE_DEFAULT_TTL: 24 * 60 * 60 * 1000, // ms - Mantido (24h)
+  CACHE_CLEANUP_INTERVAL: 3 * 60 * 1000,  // ms - Reduzido de 5min para 3min
+  CACHE_OPTIMIZATION_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // ms - Mantido (7 dias)
+  CACHE_DOMAIN_CHANGE_THRESHOLD: 3,       // Mantido
+  CACHE_VERSION_CHECK_ENABLED: true,      // Mantido
   
   // --- Configurações de Gerenciamento Adaptativo de Memória ---
-  ADAPTIVE_MEMORY_ENABLED: true,         // Habilita gerenciamento adaptativo
-  MEMORY_PRESSURE_CHECK_INTERVAL: 30000, // ms - Intervalo para verificar pressão
-  MEMORY_ADAPTATION_SENSITIVITY: 0.2,    // Sensibilidade da adaptação (0-1)
-  EMERGENCY_CLEANUP_THRESHOLD: 0.95,     // Threshold para limpeza de emergência
-  MEMORY_HISTORY_SIZE: 10,               // Tamanho do histórico de pressão
+  ADAPTIVE_MEMORY_ENABLED: true,         // Mantido
+  MEMORY_PRESSURE_CHECK_INTERVAL: 20000, // ms - Reduzido de 30s para 20s
+  MEMORY_ADAPTATION_SENSITIVITY: 0.3,    // Aumentado de 0.2 para resposta mais rápida
+  EMERGENCY_CLEANUP_THRESHOLD: 0.90,     // Reduzido de 0.95 para cleanup mais agressivo
+  MEMORY_HISTORY_SIZE: 15,               // Aumentado de 10 para melhor análise
   
   // --- Configurações de Tratamento Adaptativo de Erros ---
-  ADAPTIVE_ERROR_HANDLING_ENABLED: true, // Habilita tratamento adaptativo de erros
-  ERROR_RETRY_BASE_DELAY: 1000,          // ms - Delay base para retry de erros
-  ERROR_RETRY_MAX_DELAY: 30000,          // ms - Delay máximo para retry de erros
-  CIRCUIT_BREAKER_THRESHOLD: 5,          // Número de falhas para ativar circuit breaker
-  CIRCUIT_BREAKER_RESET_TIME: 60000,     // ms - Tempo para reset do circuit breaker
-  ERROR_STATS_RETENTION_TIME: 300000,    // ms - Tempo de retenção das estatísticas de erro
+  ADAPTIVE_ERROR_HANDLING_ENABLED: true, // Mantido
+  ERROR_RETRY_BASE_DELAY: 500,           // ms - Reduzido de 1000ms
+  ERROR_RETRY_MAX_DELAY: 15000,          // ms - Reduzido de 30s para 15s
+  CIRCUIT_BREAKER_THRESHOLD: 3,          // Reduzido de 5 para resposta mais rápida
+  CIRCUIT_BREAKER_RESET_TIME: 30000,     // ms - Reduzido de 60s para 30s
+  ERROR_STATS_RETENTION_TIME: 180000,    // ms - Reduzido de 5min para 3min
   
-  // --- Configurações de Batching ---
-  BATCH_SIZE: 50,                        // Tamanho padrão do batch para operações
-  BATCH_DELAY: 10,                       // ms - Delay entre processamento de batches
-  MAX_CONCURRENT_OPERATIONS: 5,          // Máximo de operações concorrentes
+  // --- TASK-A-001: Configurações Otimizadas de Batching ---
+  BATCH_SIZE: 15,                        // Reduzido de 50 para processamento mais rápido
+  BATCH_DELAY: 5,                        // ms - Reduzido de 10ms para menor latência
+  MAX_CONCURRENT_OPERATIONS: 8,          // Aumentado de 5 para maior paralelismo
   
-  // --- Configurações de Processamento Paralelo ---
-  MAX_TAB_CONCURRENCY: 4,                // Máximo de operações de aba concorrentes
-  TAB_BATCH_SIZE: 10,                    // Tamanho do batch para operações de aba
-  WINDOW_CONCURRENCY: 2,                 // Máximo de janelas processadas concorrentemente
-  GROUP_OPERATION_DELAY: 150,            // ms - Delay entre operações de grupo
-  ITEM_CONCURRENCY: 3,                   // Itens processados concorrentemente por batch
-  SUB_BATCH_DELAY: 50,                   // ms - Delay entre sub-batches
+  // --- TASK-A-001: Configurações Otimizadas de Processamento Paralelo ---
+  MAX_TAB_CONCURRENCY: 6,                // Aumentado de 4 para maior paralelismo
+  TAB_BATCH_SIZE: 12,                    // Aumentado de 10 para melhor throughput
+  WINDOW_CONCURRENCY: 3,                 // Aumentado de 2 para processar mais janelas
+  GROUP_OPERATION_DELAY: 100,            // ms - Reduzido de 150ms para operações mais rápidas
+  ITEM_CONCURRENCY: 5,                   // Aumentado de 3 para maior paralelismo
+  SUB_BATCH_DELAY: 25,                   // ms - Reduzido de 50ms para menor latência
   
-  // --- Configurações de API Calls ---
-  API_TIMEOUT: 5000,                     // ms - Timeout para chamadas de API
-  API_RETRY_COUNT: 3,                    // Número de tentativas para APIs
-  API_BATCH_SIZE: 20,                    // Tamanho do batch para operações de API
+  // --- TASK-A-001: Configurações Otimizadas de API Calls ---
+  API_TIMEOUT: 3000,                     // ms - Reduzido de 5000ms para timeout mais agressivo
+  API_RETRY_COUNT: 2,                    // Reduzido de 3 para evitar delays
+  API_BATCH_SIZE: 25,                    // Aumentado de 20 para melhor throughput
   
-  // --- Configurações de Performance Monitoring ---
-  PERFORMANCE_LOG_THRESHOLD: 1000,       // ms - Log operações que demoram mais que isso
-  BATCH_PERFORMANCE_LOG: true,           // Log performance de operações em batch
+  // --- TASK-A-001: Configurações de Performance Monitoring ---
+  PERFORMANCE_LOG_THRESHOLD: 50,         // ms - Reduzido de 1000ms para detectar operações lentas
+  BATCH_PERFORMANCE_LOG: true,           // Mantido para monitoramento
+  PERFORMANCE_TARGET_100_TABS: 50,       // ms - Meta para 100 abas (TASK-A-001)
+  PERFORMANCE_TARGET_200_TABS: 100,      // ms - Meta para 200 abas (TASK-A-001)
+  MEMORY_TARGET_200_TABS: 50,            // MB - Meta de memória para 200+ abas (TASK-A-001)
   
-  // --- Configurações de Throttling ---
-  THROTTLE_DELAY: 100,                   // ms - Delay para throttling
-  MAX_OPERATIONS_PER_SECOND: 50,         // Máximo de operações por segundo
+  // --- TASK-A-001: Configurações Otimizadas de Throttling ---
+  THROTTLE_DELAY: 50,                    // ms - Reduzido de 100ms para menor latência
+  MAX_OPERATIONS_PER_SECOND: 100,        // Aumentado de 50 para maior throughput
   
   // --- Configurações de Rate Limiting de APIs ---
-  API_TIMEOUT: 10000,                    // ms - Timeout para operações de API
-  API_QUEUE_PROCESS_INTERVAL: 50,        // ms - Intervalo de processamento das filas
-  API_CLEANUP_INTERVAL: 60000,           // ms - Intervalo de limpeza das filas (1min)
-  API_MAX_QUEUE_SIZE: 1000,              // Tamanho máximo da fila por categoria
-  API_OPERATION_MAX_AGE: 30000,          // ms - Idade máxima de operação na fila (30s)
-  API_BURST_RECOVERY_TIME: 5000,         // ms - Tempo de recuperação após burst (5s)
-  API_RATE_LIMIT_ENABLED: true,          // Habilita rate limiting de APIs
+  API_TIMEOUT: 5000,                     // ms - Reduzido de 10000ms
+  API_QUEUE_PROCESS_INTERVAL: 25,        // ms - Reduzido de 50ms para processamento mais rápido
+  API_CLEANUP_INTERVAL: 30000,           // ms - Reduzido de 60s para 30s
+  API_MAX_QUEUE_SIZE: 1500,              // Aumentado de 1000 para maior capacidade
+  API_OPERATION_MAX_AGE: 15000,          // ms - Reduzido de 30s para 15s
+  API_BURST_RECOVERY_TIME: 2500,         // ms - Reduzido de 5s para 2.5s
+  API_RATE_LIMIT_ENABLED: true,          // Mantido
   
   // Configurações de Renomeação de Abas
-  TAB_RENAMING_DELAY: 2000,               // ms - Delay após carregamento da página
-  TAB_RENAMING_TIMEOUT: 10000,            // ms - Timeout para extração de conteúdo
-  TAB_RENAMING_CACHE_TTL: 300000,         // ms - TTL padrão do cache (5 min)
-  TAB_RENAMING_CACHE_CLEANUP_INTERVAL: 600000, // ms - Intervalo de limpeza do cache (10 min)
-  TAB_RENAMING_MAX_CONCURRENT: 3,         // Máximo de abas processadas simultaneamente
-  TAB_RENAMING_RETRY_DELAY: 1000,         // ms - Delay entre tentativas
-  TAB_RENAMING_MAX_TITLE_LENGTH: 100,     // Comprimento máximo do título
-  TAB_RENAMING_MAX_RULES: 50,             // Máximo de regras de renomeação
-  TAB_RENAMING_ENABLED: false             // Habilita renomeação automática (padrão: desabilitado)
+  TAB_RENAMING_DELAY: 1000,               // ms - Reduzido de 2000ms
+  TAB_RENAMING_TIMEOUT: 5000,             // ms - Reduzido de 10000ms
+  TAB_RENAMING_CACHE_TTL: 300000,         // ms - Mantido (5 min)
+  TAB_RENAMING_CACHE_CLEANUP_INTERVAL: 300000, // ms - Reduzido de 10min para 5min
+  TAB_RENAMING_MAX_CONCURRENT: 5,         // Aumentado de 3 para maior paralelismo
+  TAB_RENAMING_RETRY_DELAY: 500,          // ms - Reduzido de 1000ms
+  TAB_RENAMING_MAX_TITLE_LENGTH: 100,     // Mantido
+  TAB_RENAMING_MAX_RULES: 50,             // Mantido
+  TAB_RENAMING_ENABLED: false,            // Mantido (padrão: desabilitado)
+  
+  // --- TASK-A-001: Configurações de Debouncing Inteligente ---
+  SMART_DEBOUNCE_BASE_DELAY: 150,        // ms - Delay base para debouncing inteligente
+  SMART_DEBOUNCE_MAX_DELAY: 500,         // ms - Delay máximo para debouncing inteligente
+  SMART_DEBOUNCE_EVENT_THRESHOLD: 10,    // Número de eventos para aumentar delay
+  SMART_DEBOUNCE_TIME_WINDOW: 1000,      // ms - Janela de tempo para contar eventos
+  
+  // --- TASK-A-001: Configurações de Sugestões ---
+  SUGGESTION_CHECK_DEBOUNCE: 2000,       // ms - Delay para verificação de sugestões
+  SUGGESTION_MIN_TABS: 3,                // Mínimo de abas para sugerir agrupamento
+  SUGGESTION_CONFIDENCE_THRESHOLD: 0.7   // Threshold de confiança para sugestões
 };
 
 // Configurações atuais (podem ser modificadas)

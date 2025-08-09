@@ -849,92 +849,149 @@ export async function processTabQueue(tabIds) {
     `Iniciando processamento para ${tabIds.length} abas.`
   );
 
-  // Otimização: Processar tabs em lotes para reduzir chamadas de API
-  const tabsToProcess = await batchGetTabs(tabIds);
-  if (tabsToProcess.length === 0) return;
+  try {
+    // Otimização: Processar tabs em lotes para reduzir chamadas de API
+    const tabsToProcess = await batchGetTabs(tabIds);
+    if (tabsToProcess.length === 0) return;
 
-  const tabsByWindow = groupTabsByWindow(tabsToProcess);
+    const tabsByWindow = groupTabsByWindow(tabsToProcess);
 
-  // Processa cada janela com otimizações de batching
-  for (const windowIdStr in tabsByWindow) {
-    const windowId = parseInt(windowIdStr, 10);
+    // Processa cada janela com otimizações de batching
+    for (const windowIdStr in tabsByWindow) {
+      const windowId = parseInt(windowIdStr, 10);
 
-    // Obtém dados da janela em paralelo
-    const { allTabsInWindow, allGroupsInWindow } = await batchGetWindowData(
-      windowId
-    );
-
-    const groupTitleToIdMap = new Map(
-      allGroupsInWindow.map((g) => [
-        (g.title || "").replace(/\s\(\d+\)$/, "").replace(/📌\s*/g, ""),
-        g.id,
-      ])
-    );
-
-    // Processa nomes de grupos em lote
-    const tabIdToGroupName = await batchProcessGroupNames(allTabsInWindow);
-
-    const groupNameCounts = new Map();
-    for (const name of tabIdToGroupName.values()) {
-      if (name) groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
-    }
-
-    const tabsToGroup = new Map();
-    for (const tab of allTabsInWindow) {
-      if (settings.manualGroupIds.includes(tab.groupId)) continue;
-
-      const finalGroupName = tabIdToGroupName.get(tab.id);
-      if (!finalGroupName) {
-        if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
-        continue;
-      }
-
-      const currentGroup = tab.groupId
-        ? allGroupsInWindow.find((g) => g.id === tab.groupId)
-        : null;
-      const currentCleanTitle = currentGroup
-        ? (currentGroup.title || "")
-            .replace(/\s\(\d+\)$/, "")
-            .replace(/📌\s*/g, "")
-        : null;
-      if (finalGroupName === currentCleanTitle) continue;
-
-      const matchedRule = settings.customRules.find(
-        (r) => r.name === finalGroupName
+      // Obtém dados da janela em paralelo
+      const { allTabsInWindow, allGroupsInWindow } = await batchGetWindowData(
+        windowId
       );
-      const minTabsRequired = matchedRule
-        ? matchedRule.minTabs || 1
-        : settings.minTabsForAutoGroup || 2;
-      const totalMatchingTabs = groupNameCounts.get(finalGroupName) || 0;
 
-      if (totalMatchingTabs < minTabsRequired) {
-        if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
-        continue;
+      const groupTitleToIdMap = new Map(
+        allGroupsInWindow.map((g) => [
+          (g.title || "").replace(/\s\(\d+\)$/, "").replace(/📌\s*/g, ""),
+          g.id,
+        ])
+      );
+
+      // Processa nomes de grupos em lote
+      const tabIdToGroupName = await batchProcessGroupNames(allTabsInWindow);
+
+      const groupNameCounts = new Map();
+      for (const name of tabIdToGroupName.values()) {
+        if (name) groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
       }
 
-      if (!tabsToGroup.has(finalGroupName)) {
-        tabsToGroup.set(finalGroupName, []);
+      const tabsToGroup = new Map();
+      for (const tab of allTabsInWindow) {
+        if (settings.manualGroupIds.includes(tab.groupId)) continue;
+
+        const finalGroupName = tabIdToGroupName.get(tab.id);
+        if (!finalGroupName) {
+          if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
+          continue;
+        }
+
+        const currentGroup = tab.groupId
+          ? allGroupsInWindow.find((g) => g.id === tab.groupId)
+          : null;
+        const currentCleanTitle = currentGroup
+          ? (currentGroup.title || "")
+              .replace(/\s\(\d+\)$/, "")
+              .replace(/📌\s*/g, "")
+          : null;
+        if (finalGroupName === currentCleanTitle) continue;
+
+        const matchedRule = settings.customRules.find(
+          (r) => r.name === finalGroupName
+        );
+        const minTabsRequired = matchedRule
+          ? matchedRule.minTabs || 1
+          : settings.minTabsForAutoGroup || 2;
+        const totalMatchingTabs = groupNameCounts.get(finalGroupName) || 0;
+
+        if (totalMatchingTabs < minTabsRequired) {
+          if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
+          continue;
+        }
+
+        if (!tabsToGroup.has(finalGroupName)) {
+          tabsToGroup.set(finalGroupName, []);
+        }
+        tabsToGroup.get(finalGroupName).push(tab.id);
       }
-      tabsToGroup.get(finalGroupName).push(tab.id);
+
+      // Executa operações de agrupamento em lote otimizado
+      await batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap);
     }
 
-    // Executa operações de agrupamento em lote otimizado
-    await batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap);
-  }
+    // TASK-A-001: Log de performance e validação
+    const duration = Date.now() - startTime;
+    const logThreshold = getConfig("PERFORMANCE_LOG_THRESHOLD");
 
-  // Log de performance se habilitado
-  const duration = Date.now() - startTime;
-  const logThreshold = getConfig("PERFORMANCE_LOG_THRESHOLD");
+    // Registra métrica de performance para validação
+    try {
+      const { recordPerformanceMetric } = await import("./performance-validator.js");
+      recordPerformanceMetric("processTabQueue", duration, tabIds.length, {
+        tabsProcessed: tabsToProcess.length,
+        windowsProcessed: Object.keys(tabsByWindow).length,
+        groupsCreated: Array.from(tabsByWindow).reduce((sum, [, tabs]) => sum + tabs.length, 0)
+      });
+    } catch (e) {
+      // Falha silenciosa se o validador não estiver disponível
+      Logger.debug("processTabQueue", "Performance validator não disponível:", e.message);
+    }
 
-  if (duration > logThreshold) {
-    Logger.info(
+    if (duration > logThreshold) {
+      Logger.info(
+        "processTabQueue",
+        `Processamento de ${tabIds.length} abas concluído em ${duration}ms (acima do threshold de ${logThreshold}ms)`
+      );
+    } else {
+      Logger.debug(
+        "processTabQueue",
+        `Processamento de ${tabIds.length} abas concluído em ${duration}ms`
+      );
+    }
+
+    // TASK-A-001: Validação de metas de performance
+    const target100 = getConfig("PERFORMANCE_TARGET_100_TABS");
+    const target200 = getConfig("PERFORMANCE_TARGET_200_TABS");
+    
+    if (tabIds.length <= 100 && duration > target100) {
+      Logger.warn(
+        "processTabQueue",
+        `⚠️ Performance abaixo da meta: ${duration}ms > ${target100}ms para ${tabIds.length} abas`
+      );
+    } else if (tabIds.length <= 200 && duration > target200) {
+      Logger.warn(
+        "processTabQueue",
+        `⚠️ Performance abaixo da meta: ${duration}ms > ${target200}ms para ${tabIds.length} abas`
+      );
+    } else if (tabIds.length <= 100 && duration <= target100) {
+      Logger.info(
+        "processTabQueue",
+        `✅ Meta de performance atingida: ${duration}ms ≤ ${target100}ms para ${tabIds.length} abas`
+      );
+    }
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    Logger.error(
       "processTabQueue",
-      `Processamento de ${tabIds.length} abas concluído em ${duration}ms (acima do threshold de ${logThreshold}ms)`
+      `Erro durante processamento de ${tabIds.length} abas após ${duration}ms:`,
+      error
     );
-  } else {
-    Logger.debug(
-      "processTabQueue",
-      `Processamento de ${tabIds.length} abas concluído em ${duration}ms`
-    );
+    
+    // Registra erro na validação de performance
+    try {
+      const { recordPerformanceMetric } = await import("./performance-validator.js");
+      recordPerformanceMetric("processTabQueue", duration, tabIds.length, {
+        error: error.message,
+        failed: true
+      });
+    } catch (e) {
+      // Falha silenciosa
+    }
+    
+    throw error; // Re-throw para manter comportamento original
   }
 }

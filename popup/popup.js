@@ -143,12 +143,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Listener para o botão de agrupar tudo
-  groupAllButton.addEventListener("click", () => {
+  groupAllButton.addEventListener("click", async () => {
     groupAllButton.disabled = true;
     
     // Criar elemento de loading de forma segura
     const loadingContent = createLoadingElement('Agrupando...');
     replaceContent(groupAllButton, loadingContent);
+
+    // Mostrar progresso no status
+    statusDiv.textContent = "Iniciando agrupamento...";
+    statusDiv.className = "text-xs text-center mt-2 h-4 text-blue-600 dark:text-blue-400";
 
     browser.runtime
       .sendMessage({
@@ -159,15 +163,70 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch(() => {});
 
-    browser.runtime
-      .sendMessage({ action: "groupAllTabs" })
-      .then(() => {
-        setTimeout(() => window.close(), 500);
-      })
-      .catch((error) => {
-        console.error("Erro ao agrupar todas as abas:", error);
-        showError("Falha ao agrupar abas.");
-      });
+    try {
+      // Obter contagem de abas primeiro para mostrar progresso
+      const tabs = await browser.tabs.query({ currentWindow: true, pinned: false });
+      const tabCount = tabs.length;
+      
+      if (tabCount === 0) {
+        statusDiv.textContent = "Nenhuma aba para agrupar";
+        statusDiv.className = "text-xs text-center mt-2 h-4 text-yellow-600 dark:text-yellow-400";
+        setTimeout(() => {
+          groupAllButton.disabled = false;
+          replaceContent(groupAllButton, [
+            createElement('svg', {
+              xmlns: 'http://www.w3.org/2000/svg',
+              className: 'h-5 w-5',
+              viewBox: '0 0 20 20',
+              fill: 'currentColor'
+            }),
+            createElement('span', {}, 'Agrupar Abas Abertas')
+          ]);
+          statusDiv.textContent = "";
+        }, 2000);
+        return;
+      }
+
+      statusDiv.textContent = `Processando ${tabCount} abas...`;
+      
+      const startTime = performance.now();
+      await browser.runtime.sendMessage({ action: "groupAllTabs" });
+      const duration = performance.now() - startTime;
+      
+      // Mostrar resultado com métricas de performance
+      if (duration < 50) {
+        statusDiv.textContent = `✅ ${tabCount} abas agrupadas em ${Math.round(duration)}ms`;
+        statusDiv.className = "text-xs text-center mt-2 h-4 text-green-600 dark:text-green-400";
+      } else if (duration < 200) {
+        statusDiv.textContent = `✅ ${tabCount} abas agrupadas em ${Math.round(duration)}ms`;
+        statusDiv.className = "text-xs text-center mt-2 h-4 text-blue-600 dark:text-blue-400";
+      } else {
+        statusDiv.textContent = `⚠️ ${tabCount} abas agrupadas em ${Math.round(duration)}ms (lento)`;
+        statusDiv.className = "text-xs text-center mt-2 h-4 text-yellow-600 dark:text-yellow-400";
+      }
+      
+      setTimeout(() => window.close(), 1500);
+      
+    } catch (error) {
+      console.error("Erro ao agrupar todas as abas:", error);
+      statusDiv.textContent = "❌ Falha ao agrupar abas";
+      statusDiv.className = "text-xs text-center mt-2 h-4 text-red-500";
+      
+      // Restaurar botão após erro
+      setTimeout(() => {
+        groupAllButton.disabled = false;
+        replaceContent(groupAllButton, [
+          createElement('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            className: 'h-5 w-5',
+            viewBox: '0 0 20 20',
+            fill: 'currentColor'
+          }),
+          createElement('span', {}, 'Agrupar Abas Abertas')
+        ]);
+        statusDiv.textContent = "";
+      }, 3000);
+    }
   });
 
   // Listener para o botão de opções
