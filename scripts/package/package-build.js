@@ -19,9 +19,15 @@ function zipDir(source, out) {
 }
 
 async function main() {
+  // Lê a versão do package.json
+  const pkg = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf8")
+  );
+  const version = pkg.version;
+
   const builds = [
-    { dir: "dist/chromium", out: "dist/chromium.zip" },
-    { dir: "dist/firefox", out: "dist/firefox.zip" },
+    { dir: "dist/chromium", out: `dist/chromium-${version}.zip` },
+    { dir: "dist/firefox", out: `dist/firefox-${version}.zip` },
   ];
 
   for (const build of builds) {

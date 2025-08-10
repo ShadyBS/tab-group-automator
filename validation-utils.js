@@ -1013,7 +1013,7 @@ export const VALID_MESSAGE_ACTIONS = new Set([
   "resumeAPICategory",
   "getRateLimiterDetailedStats",
   "log",
-  "extractContent"
+  "extractContent",
 ]);
 
 /**
@@ -1053,7 +1053,10 @@ export function validateRuntimeMessage(message, sender) {
         if (!Array.isArray(message.suggestion.tabIds)) {
           errors.push("suggestion.tabIds deve ser um array");
         }
-        if (!message.suggestion.suggestedName || typeof message.suggestion.suggestedName !== "string") {
+        if (
+          !message.suggestion.suggestedName ||
+          typeof message.suggestion.suggestedName !== "string"
+        ) {
           errors.push("suggestion.suggestedName deve ser uma string não vazia");
         }
       }
@@ -1064,7 +1067,8 @@ export function validateRuntimeMessage(message, sender) {
         errors.push("extractContent requer um seletor CSS válido");
       } else {
         // Validação básica de seletor CSS para prevenir injeção
-        const cssSelectorRegex = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
+        const cssSelectorRegex =
+          /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|]+$/;
         if (!cssSelectorRegex.test(message.selector)) {
           errors.push("Seletor CSS contém caracteres não permitidos");
         }
@@ -1081,7 +1085,10 @@ export function validateRuntimeMessage(message, sender) {
       break;
 
     case "log":
-      if (!message.level || !["debug", "info", "warn", "error"].includes(message.level)) {
+      if (
+        !message.level ||
+        !["debug", "info", "warn", "error"].includes(message.level)
+      ) {
         errors.push("log requer level válido (debug, info, warn, error)");
       }
       if (!message.context || typeof message.context !== "string") {
@@ -1105,7 +1112,9 @@ export function validateRuntimeMessage(message, sender) {
     try {
       Logger.warn("Validation", `Mensagem inválida: ${errors.join("; ")}`);
     } catch (logError) {
-      console.warn(`Erro ao registrar validação de mensagem: ${logError.message}`);
+      console.warn(
+        `Erro ao registrar validação de mensagem: ${logError.message}`
+      );
     }
   }
 
@@ -1123,12 +1132,25 @@ export function sanitizeMessageData(data) {
   }
 
   const sanitized = {};
-  
+
   // Lista de propriedades permitidas
   const allowedProps = [
-    "action", "settings", "suggestion", "selector", "attribute", 
-    "hostname", "changeType", "criteria", "config", "category",
-    "level", "context", "message", "details", "strategy", "errorType"
+    "action",
+    "settings",
+    "suggestion",
+    "selector",
+    "attribute",
+    "hostname",
+    "changeType",
+    "criteria",
+    "config",
+    "category",
+    "level",
+    "context",
+    "message",
+    "details",
+    "strategy",
+    "errorType",
   ];
 
   for (const prop of allowedProps) {
@@ -1163,7 +1185,7 @@ function sanitizeObjectShallow(obj) {
 
   for (const [key, value] of Object.entries(obj)) {
     if (propCount >= maxProps) break;
-    
+
     if (typeof key === "string" && key.length <= 50) {
       if (typeof value === "string") {
         sanitized[key] = sanitizeString(value, 500);
@@ -1195,24 +1217,24 @@ class MessageRateLimiter {
   isAllowed(tabId) {
     const now = Date.now();
     const tabRequests = this.requests.get(tabId) || [];
-    
+
     // Remove requests antigas
-    const validRequests = tabRequests.filter(timestamp => 
-      now - timestamp < this.windowMs
+    const validRequests = tabRequests.filter(
+      (timestamp) => now - timestamp < this.windowMs
     );
-    
+
     if (validRequests.length >= this.maxRequests) {
       return false;
     }
-    
+
     validRequests.push(now);
     this.requests.set(tabId, validRequests);
-    
+
     // Limpeza periódica
     if (this.requests.size > 100) {
       this.cleanup();
     }
-    
+
     return true;
   }
 
@@ -1222,10 +1244,10 @@ class MessageRateLimiter {
   cleanup() {
     const now = Date.now();
     for (const [tabId, requests] of this.requests.entries()) {
-      const validRequests = requests.filter(timestamp => 
-        now - timestamp < this.windowMs
+      const validRequests = requests.filter(
+        (timestamp) => now - timestamp < this.windowMs
       );
-      
+
       if (validRequests.length === 0) {
         this.requests.delete(tabId);
       } else {
@@ -1243,19 +1265,32 @@ export const messageRateLimiter = new MessageRateLimiter();
  * @param {string} action - Ação sendo executada
  * @returns {boolean} - Se o sender é válido
  */
-export function validateSender(sender, action) {
-  // Ações que requerem sender.tab válido
-  const tabRequiredActions = new Set([
-    "extractContent",
-    "log"
-  ]);
+/**
+ * Valida o sender de uma mensagem, aceitando sender.tab OU tabId explícito (MV3 robusto)
+ * @param {object} sender - Objeto sender
+ * @param {string} action - Ação sendo executada
+ * @param {number} [tabId] - tabId explícito da mensagem (opcional)
+ * @returns {boolean} - Se o sender é válido
+ */
+export function validateSender(sender, action, tabId) {
+  // Ações que requerem contexto de aba
+  const tabRequiredActions = new Set(["extractContent", "log"]);
 
   if (tabRequiredActions.has(action)) {
-    if (!sender || !sender.tab || typeof sender.tab.id !== "number") {
+    const hasSenderTab =
+      sender && sender.tab && typeof sender.tab.id === "number";
+    const hasExplicitTabId = typeof tabId === "number" && tabId > 0;
+    if (!hasSenderTab && !hasExplicitTabId) {
       try {
-        Logger.warn("validateSender", `Ação '${action}' requer sender.tab válido`, { sender });
+        Logger.warn(
+          "validateSender",
+          `Ação '${action}' requer sender.tab ou tabId explícito (MV3 robusto)`,
+          { sender, tabId }
+        );
       } catch (logError) {
-        console.warn(`Erro ao registrar validação de sender: ${logError.message}`);
+        console.warn(
+          `Erro ao registrar validação de sender: ${logError.message}`
+        );
       }
       return false;
     }
@@ -1271,17 +1306,17 @@ export function validateSender(sender, action) {
  */
 export function validateCSSSelector(selector) {
   const errors = [];
-  
+
   if (!isNonEmptyString(selector, "selector")) {
     errors.push("Seletor deve ser uma string não vazia");
     return { isValid: false, errors };
   }
-  
+
   // Limite de tamanho
   if (selector.length > 200) {
     errors.push("Seletor muito longo (máximo 200 caracteres)");
   }
-  
+
   // Padrões perigosos
   const dangerousPatterns = [
     /javascript:/i,
@@ -1291,31 +1326,33 @@ export function validateCSSSelector(selector) {
     /behavior:/i,
     /binding:/i,
     /vbscript:/i,
-    /data:/i
+    /data:/i,
   ];
-  
+
   for (const pattern of dangerousPatterns) {
     if (pattern.test(selector)) {
       errors.push("Seletor contém padrão potencialmente perigoso");
       break;
     }
   }
-  
+
   // Regex básica de segurança
   const safeRegex = /^[a-zA-Z0-9\s\.\#\[\]\:\-\(\)\*\+\~\>\,\=\'\"\|_]+$/;
   if (!safeRegex.test(selector)) {
     errors.push("Seletor contém caracteres não permitidos");
   }
-  
+
   const isValid = errors.length === 0;
   if (!isValid) {
     try {
       Logger.warn("Validation", `Seletor CSS inválido: ${errors.join("; ")}`);
     } catch (logError) {
-      console.warn(`Erro ao registrar validação de seletor: ${logError.message}`);
+      console.warn(
+        `Erro ao registrar validação de seletor: ${logError.message}`
+      );
     }
   }
-  
+
   return { isValid, errors };
 }
 
@@ -1331,30 +1368,41 @@ export const ALLOWED_CSS_SELECTORS = new Set([
   'meta[name="twitter:app:name:iphone"]',
   'meta[name="twitter:app:name:googleplay"]',
   'meta[name="DC.publisher"]',
-  'title',
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-  'body', 'main', 'article', 'section', 'header', 'footer', 'nav',
+  "title",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "body",
+  "main",
+  "article",
+  "section",
+  "header",
+  "footer",
+  "nav",
   'link[rel="manifest"]',
   'script[type="application/ld+json"]',
-  'header img[alt]',
+  "header img[alt]",
   'a[href="/"] img[alt]',
   '[class*="logo"] img[alt]',
-  'img[alt*="logo"]'
+  'img[alt*="logo"]',
 ]);
 
 /**
  * Lista de atributos HTML permitidos para extração
  */
 export const ALLOWED_HTML_ATTRIBUTES = new Set([
-  'content',
-  'alt',
-  'title',
-  'href',
-  'src',
-  'name',
-  'property',
-  'rel',
-  'type'
+  "content",
+  "alt",
+  "title",
+  "href",
+  "src",
+  "name",
+  "property",
+  "rel",
+  "type",
 ]);
 
 /**

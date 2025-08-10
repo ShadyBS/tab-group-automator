@@ -20,6 +20,7 @@
   - UI de popup, opções e help
   - Gerenciamento de dependências locais (pasta vendor)
 - **Tecnologias-chave:**
+
   - JavaScript/TypeScript, HTML, CSS
   - APIs de extensões Chrome/Firefox (chrome.tabs, browser.tabs, etc.)
   - WebExtension Polyfill
@@ -42,9 +43,11 @@
 5. **Integridade das dependências locais (vendor)**
 
 **Ordem de importância:**
+
 1. Segurança > 2. Compatibilidade > 3. Performance > 4. UX > 5. Organização
 
 **Validações obrigatórias:**
+
 - Lint e formatação de código
 - Testes de agrupamento e renomeação de abas
 - Testes de regras customizadas
@@ -66,6 +69,7 @@
 - **changelog.md**: Histórico de mudanças
 
 **Padrões de nomenclatura:**
+
 - Arquivos e pastas em inglês, nomes descritivos
 - Funções e variáveis em camelCase
 - Classes em PascalCase
@@ -87,19 +91,46 @@
 
 ---
 
-## 🛠️ SCRIPTS E VALIDAÇÕES
+## 🛠️ SCRIPTS E PIPELINE
 
 - **Lint:**
-  - `npm run lint` ou equivalente
+  - `npm run lint` — Lint e formatação de código (JS/TS)
 - **Testes:**
-  - `npm test` ou script de testes definido
+  - `npm test` (se definido)
 - **Build:**
-  - `npm run build` (gera versão para Chrome e Firefox)
-- **Validação de regras:**
-  - Testar agrupamento e renomeação de abas
-  - Testar criação/edição de regras customizadas
+  - `npm run build` — Gera builds para Chrome e Firefox
+- **Empacotamento:**
+  - `npm run package` — Gera arquivos .zip para distribuição
+- **Changelog:**
+  - `npm run changelog` — Atualiza o CHANGELOG.md
+- **Documentação:**
+  - `npm run docs` — Gera documentação dos scripts
+- **Validação:**
+  - `npm run validate` — Executa lint, validações de manifest, permissões, CSP, performance e vendor
+- **Resumo de build:**
+  - `npm run summary` — Gera build-summary.md
 - **Verificação de dependências:**
   - Conferir integridade da pasta vendor
+
+### Pipeline CI/CD
+
+- **CI:**
+
+  - Workflow `.github/workflows/ci.yml`
+  - Executa: lint, validações, build, empacotamento, changelog, summary, docs
+  - Roda em push/pull request para main/master
+
+- **CD:**
+
+  - Workflow `.github/workflows/cd.yml`
+  - Disparado por tags `v*`
+  - Executa: build, empacotamento, changelog, summary, docs
+  - Cria release no GitHub e anexa artefatos (`chromium.zip`, `firefox.zip`, `build-summary.md`, `scripts-README.md`)
+
+- **Scripts de build:**
+  - `scripts/build/build-chromium.js` — Gera build Chromium
+  - `scripts/build/build-firefox.js` — Gera build Firefox
+  - Ambos dependem de `fs-extra` (devDependency)
 
 ---
 
@@ -127,6 +158,7 @@
 - **NUNCA** ignore este agents.md
 
 **Riscos de não seguir:**
+
 - Bugs graves em produção
 - Incompatibilidade entre navegadores
 - Perda de produtividade e retrabalho
@@ -137,6 +169,7 @@
 ## ✅ CHECKLIST DE QUALIDADE
 
 ### Antes de iniciar:
+
 - [ ] Li completamente o agents.md
 - [ ] Compreendi prioridades e regras
 - [ ] Identifiquei fluxo obrigatório
@@ -144,6 +177,7 @@
 - [ ] Entendi validações obrigatórias
 
 ### Durante a execução:
+
 - [ ] Seguindo todos os padrões
 - [ ] Executando validações
 - [ ] Mantendo consistência
@@ -151,6 +185,7 @@
 - [ ] Testando funcionalidades
 
 ### Após completar:
+
 - [ ] Validei todas as regras e testes
 - [ ] Atualizei documentação
 - [ ] Segui convenções de commit

@@ -1,3 +1,5 @@
+/* eslint-env node */
+/* eslint-disable no-undef */
 const fs = require("fs");
 const path = require("path");
 const { execSync } = require("child_process");
@@ -25,6 +27,23 @@ const FILES_TO_INCLUDE = [
   "popup",
   "help",
   "vendor",
+  "src", // Código-fonte principal
+  "rules", // Regras embutidas e customizadas
+  "CHANGELOG.md", // Histórico de mudanças
+  "README.md", // Documentação principal
+  "SECURITY_FIXES_CHANGELOG.md", // Histórico de correções de segurança
+  "PERMISSIONS.md", // Justificativa de permissões
+  "PERMISSIONS_JUSTIFICATION.md",
+  "agents.md", // Referência obrigatória
+  "postcss.config.js",
+  "tailwind.config.js",
+  "performance-config.js",
+  "performance-monitor.js",
+  "performance-optimizations.js",
+  "performance-validator.js",
+  "performance-worker.js",
+  "validation-utils.js",
+  "scripts", // Scripts utilitários, build, validação, etc.
 ];
 
 // Garante que o diretório de distribuição exista.

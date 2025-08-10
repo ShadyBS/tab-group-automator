@@ -255,7 +255,11 @@ class LearningEngine {
         // Score ML para o conjunto de hashes agrupados
         const mlScore = this.mlScore(bestMatch.matchedHashes);
         if (mlScore < 0.7) {
-          Logger.debug(`${LOG_PREFIX} Score ML insuficiente (${mlScore.toFixed(2)}), sugestão não exibida.`);
+          Logger.debug(
+            `${LOG_PREFIX} Score ML insuficiente (${mlScore.toFixed(
+              2
+            )}), sugestão não exibida.`
+          );
           // Cacheia ausência de sugestão para este conjunto
           this.suggestionCache[cacheKey] = {
             suggestion: null,
@@ -275,7 +279,10 @@ class LearningEngine {
           suggestion,
           expiresAt: now + 5 * 60 * 1000,
         };
-        Logger.info(`${LOG_PREFIX} Sugestão encontrada (ML score ${mlScore.toFixed(2)}):`, suggestion);
+        Logger.info(
+          `${LOG_PREFIX} Sugestão encontrada (ML score ${mlScore.toFixed(2)}):`,
+          suggestion
+        );
         return suggestion;
       }
     }
@@ -320,57 +327,6 @@ class LearningEngine {
       }
       if (
         !report.newestPattern ||
-  /**
-   * Calcula o score ML para um conjunto de hashes usando regressão logística simples.
-   * @param {Array<string>} hashes
-   * @returns {number} score entre 0 e 1
-   */
-  mlScore(hashes) {
-    let sum = this.mlBias;
-    for (const h of hashes) {
-      sum += (this.mlWeights[h] || 0);
-    }
-    // Sigmoid
-    return 1 / (1 + Math.exp(-sum));
-  }
-
-  /**
-   * Recebe feedback do usuário sobre uma sugestão e treina o modelo ML.
-   * @param {Array<string>} tabUrls - URLs das abas agrupadas
-   * @param {boolean} accepted - true se o usuário aceitou a sugestão
-   */
-  async feedbackOnSuggestion(tabUrls, accepted) {
-    // Extrai hostnames e gera hashes
-    const hostnames = tabUrls
-      .map((url) => {
-        try {
-          return new URL(url).hostname;
-        } catch (e) {
-          return null;
-        }
-      })
-      .filter(Boolean);
-    const hashes = await Promise.all(hostnames.map(h => hashHostname(h)));
-    this.mlTrain(hashes, accepted);
-    Logger.info(`${LOG_PREFIX} Feedback recebido para ML: ${accepted ? "aceito" : "rejeitado"}.`);
-  }
-
-  /**
-   * Atualiza pesos do modelo ML com feedback supervisionado (aceito/rejeitado).
-   * @param {Array<string>} hashes
-   * @param {boolean} accepted
-   */
-  mlTrain(hashes, accepted) {
-    // Taxa de aprendizado simples
-    const lr = 0.1;
-    const target = accepted ? 1 : 0;
-    const pred = this.mlScore(hashes);
-    const error = target - pred;
-    for (const h of hashes) {
-      this.mlWeights[h] = (this.mlWeights[h] || 0) + lr * error;
-    }
-    this.mlBias += lr * error;
-  }
         pattern.createdAt > report.newestPattern.createdAt
       ) {
         report.newestPattern = pattern;
@@ -407,13 +363,59 @@ class LearningEngine {
   }
 
   /**
-   * Limpa todos os padrões aprendidos.
+   * Calcula o score ML para um conjunto de hashes usando regressão logística simples.
+   * @param {Array<string>} hashes
+   * @returns {number} score entre 0 e 1
    */
-  async clearHistory() {
-    this.patterns = [];
-    await this.savePatterns();
-    Logger.info(`${LOG_PREFIX} Histórico de aprendizado foi limpo.`);
+  mlScore(hashes) {
+    let sum = this.mlBias;
+    for (const h of hashes) {
+      sum += this.mlWeights[h] || 0;
+    }
+    // Sigmoid
+    return 1 / (1 + Math.exp(-sum));
+  }
+
+  /**
+   * Recebe feedback do usuário sobre uma sugestão e treina o modelo ML.
+   * @param {Array<string>} tabUrls - URLs das abas agrupadas
+   * @param {boolean} accepted - true se o usuário aceitou a sugestão
+   */
+  async feedbackOnSuggestion(tabUrls, accepted) {
+    // Extrai hostnames e gera hashes
+    const hostnames = tabUrls
+      .map((url) => {
+        try {
+          return new URL(url).hostname;
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter(Boolean);
+    const hashes = await Promise.all(hostnames.map((h) => hashHostname(h)));
+    this.mlTrain(hashes, accepted);
+    Logger.info(
+      `${LOG_PREFIX} Feedback recebido para ML: ${
+        accepted ? "aceito" : "rejeitado"
+      }.`
+    );
+  }
+
+  /**
+   * Atualiza pesos do modelo ML com feedback supervisionado (aceito/rejeitado).
+   * @param {Array<string>} hashes
+   * @param {boolean} accepted
+   */
+  mlTrain(hashes, accepted) {
+    // Taxa de aprendizado simples
+    const lr = 0.1;
+    const target = accepted ? 1 : 0;
+    const pred = this.mlScore(hashes);
+    const error = target - pred;
+    for (const h of hashes) {
+      this.mlWeights[h] = (this.mlWeights[h] || 0) + lr * error;
+    }
+    this.mlBias += lr * error;
   }
 }
-
 export const learningEngine = new LearningEngine();

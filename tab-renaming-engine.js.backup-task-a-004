@@ -1,6 +1,6 @@
 /**
  * @file tab-renaming-engine.js
- * Motor principal para renomeação automática de abas baseada em regras configuráveis.
+ * @description Motor principal para renomeação automática de abas baseada em regras configuráveis.
  */
 
 import Logger from "./logger.js";
@@ -9,24 +9,9 @@ import { getConfig } from "./performance-config.js";
 import { validateTabRenamingRule, sanitizeString } from "./validation-utils.js";
 import { WrappedBrowserAPI } from "./browser-api-wrapper.js"; // Importa o wrapper da API do navegador
 
-function debouncePerKey(fn, delay) {
-  const timers = new Map();
-  return function (key, ...args) {
-    if (timers.has(key)) {
-      clearTimeout(timers.get(key));
-    }
-    return new Promise((resolve) => {
-      timers.set(
-        key,
-        setTimeout(async () => {
-          timers.delete(key);
-          resolve(await fn.apply(this, [key, ...args]));
-        }, delay)
-      );
-    });
-  };
-}
-
+/**
+ * Estados de processamento de renomeação
+ */
 export const RenamingState = {
   IDLE: "IDLE",
   PROCESSING: "PROCESSING",
@@ -35,6 +20,9 @@ export const RenamingState = {
   CACHED: "CACHED",
 };
 
+/**
+ * Tipos de estratégias de renomeação
+ */
 export const StrategyType = {
   CSS_EXTRACT: "css_extract",
   TITLE_MANIPULATION: "title_manipulation",
@@ -42,6 +30,9 @@ export const StrategyType = {
   ORIGINAL_TITLE: "original_title",
 };
 
+/**
+ * Ações de manipulação de texto
+ */
 export const TextAction = {
   REPLACE: "replace",
   PREPEND: "prepend",
@@ -51,14 +42,14 @@ export const TextAction = {
   EXTRACT: "extract",
 };
 
+/**
+ * Motor principal de renomeação de abas
+ */
 export class TabRenamingEngine {
   constructor() {
     this.rules = new Map();
     this.processing = new Set();
     this.cache = new Map();
-
-    this.tabIdTitleCache = new Map();
-
     this.metrics = {
       totalProcessed: 0,
       successfulRenames: 0,
@@ -70,6 +61,7 @@ export class TabRenamingEngine {
       lastCleanup: Date.now(),
     };
 
+    // O timer de limpeza do cache será iniciado no background.js para garantir que as configurações sejam carregadas.
     this.cleanupIntervalId = null;
 
     Logger.info(
@@ -79,8 +71,8 @@ export class TabRenamingEngine {
   }
 
   /**
-   * Carrega regras de renomeação.
-   * @param {Array} rules - Array de regras de renomeação.
+   * Carrega regras de renomeação
+   * @param {Array} rules - Array de regras de renomeação
    */
   loadRules(rules) {
     this.rules.clear();
@@ -92,6 +84,7 @@ export class TabRenamingEngine {
 
     let validRules = 0;
     for (const rule of rules) {
+      // Adiciona um ID único para cada regra se ainda não tiver
       if (!rule.id) {
         rule.id = `rule-${Date.now()}-${Math.random()
           .toString(36)
@@ -104,9 +97,9 @@ export class TabRenamingEngine {
       } else {
         Logger.warn(
           "TabRenamingEngine",
-          `Regra inválida '${
+          `Regra inválida "${
             rule.name || "Sem Nome"
-          }': ${validation.errors.join(", ")}`
+          }": ${validation.errors.join(", ")}`
         );
       }
     }
@@ -124,133 +117,103 @@ export class TabRenamingEngine {
    * @returns {Promise<boolean>} True se a aba foi renomeada
    */
   async processTab(tabId, tab) {
-    const TIMEOUT_MS = 3000;
-    return await Promise.race([
-      (async () => {
-        if (this.processing.has(tabId)) {
-          Logger.debug(
+    // Risco: Chamadas excessivas podem sobrecarregar o motor.
+    // Mitigação: O debounce no background.js já ajuda. Aqui, verificamos se a aba já está em processamento.
+    if (this.processing.has(tabId)) {
+      Logger.debug(
+        "TabRenamingEngine",
+        `Aba ${tabId} já está sendo processada`
+      );
+      return false;
+    }
+
+    // Risco: Abas com URLs inválidas ou protegidas.
+    // Mitigação: Verifica se a URL é válida para processamento.
+    if (!tab || !tab.url || !tab.url.startsWith("http")) {
+      Logger.debug(
+        "TabRenamingEngine",
+        `Aba ${tabId} não é elegível para renomeação (URL inválida/protegida)`
+      );
+      return false;
+    }
+
+    // Se a regra 'respectManualChanges' estiver ativa e o título da aba for diferente do que está no cache,
+    // assumimos que o usuário fez uma alteração manual e não renomeamos.
+    // No entanto, para a Fase 1, não temos como saber se o título atual foi definido por uma regra ou manualmente.
+    // Esta lógica será mais robusta na Fase 2 com um mecanismo de "dirty state" ou metadados de título.
+    // Por enquanto, vamos renomear se uma regra se aplicar.
+
+    const startTime = Date.now();
+    this.processing.add(tabId);
+
+    try {
+      this.metrics.totalProcessed++;
+
+      // Verifica cache primeiro
+      const cacheKey = this.generateCacheKey(tab);
+      const cachedResult = this.getCachedResult(cacheKey);
+
+      if (cachedResult) {
+        this.metrics.cacheHits++;
+        Logger.debug(
+          "TabRenamingEngine",
+          `Cache hit para aba ${tabId}: ${cachedResult}`
+        );
+
+        if (cachedResult !== tab.title) {
+          await this.updateTabTitle(tabId, cachedResult);
+          this.metrics.successfulRenames++;
+          return true;
+        }
+        return false;
+      }
+
+      // Encontra regras aplicáveis
+      const applicableRules = this.findApplicableRules(tab);
+      if (applicableRules.length === 0) {
+        Logger.debug(
+          "TabRenamingEngine",
+          `Nenhuma regra aplicável para aba ${tabId}`
+        );
+        return false;
+      }
+
+      // Executa renomeação
+      const newTitle = await this.executeRenamingRules(tab, applicableRules);
+
+      if (newTitle && newTitle.trim() && newTitle.trim() !== tab.title) {
+        // Atualiza título da aba
+        const success = await this.updateTabTitle(tabId, newTitle.trim());
+
+        if (success) {
+          // Armazena no cache
+          this.setCachedResult(cacheKey, newTitle.trim());
+          this.metrics.successfulRenames++;
+
+          Logger.info(
             "TabRenamingEngine",
-            `Aba ${tabId} já está sendo processada`
+            `Aba ${tabId} renomeada: "${tab.title}" → "${newTitle.trim()}"`
           );
-          return false;
+          return true;
         }
+      }
 
-        if (this.tabIdTitleCache.has(tabId)) {
-          const cachedTitle = this.tabIdTitleCache.get(tabId);
-          if (cachedTitle === tab.title) {
-            Logger.debug(
-              "TabRenamingEngine",
-              `TabId cache hit: aba ${tabId} já renomeada para '${cachedTitle}'`
-            );
-            return false;
-          }
-        }
-
-        if (!tab || !tab.url || !tab.url.startsWith("http")) {
-          Logger.debug(
-            "TabRenamingEngine",
-            `Aba ${tabId} não é elegível para renomeação (URL inválida/protegida)`
-          );
-          return false;
-        }
-
-        // TODO: Melhorar lógica de detecção de alterações manuais em fases futuras.
-
-        const startTime = Date.now();
-        this.processing.add(tabId);
-
-        try {
-          this.metrics.totalProcessed++;
-
-          // Verifica cache primeiro
-          const cacheKey = this.generateCacheKey(tab);
-          const cachedResult = this.getCachedResult(cacheKey);
-
-          if (cachedResult) {
-            this.metrics.cacheHits++;
-            Logger.debug(
-              "TabRenamingEngine",
-              `Cache hit para aba ${tabId}: ${cachedResult}`
-            );
-
-            if (cachedResult !== tab.title) {
-              await this.updateTabTitle(tabId, cachedResult);
-              this.metrics.successfulRenames++;
-              // Atualiza cache simples também
-              this.tabIdTitleCache.set(tabId, cachedResult);
-              return true;
-            }
-            // Atualiza cache simples também
-            this.tabIdTitleCache.set(tabId, cachedResult);
-            return false;
-          }
-
-          // Encontra regras aplicáveis
-          const applicableRules = this.findApplicableRules(tab);
-          if (applicableRules.length === 0) {
-            Logger.debug(
-              "TabRenamingEngine",
-              `Nenhuma regra aplicável para aba ${tabId}`
-            );
-            return false;
-          }
-
-          const newTitle = await this.executeRenamingRules(
-            tab,
-            applicableRules
-          );
-
-          if (newTitle && newTitle.trim() && newTitle.trim() !== tab.title) {
-            // Atualiza título da aba
-            const success = await this.updateTabTitle(tabId, newTitle.trim());
-
-            if (success) {
-              // Armazena no cache
-              this.setCachedResult(cacheKey, newTitle.trim());
-              // Atualiza cache simples por tabId
-              this.tabIdTitleCache.set(tabId, newTitle.trim());
-              this.metrics.successfulRenames++;
-
-              Logger.info(
-                "TabRenamingEngine",
-                `Aba ${tabId} renomeada: '${tab.title}' → '${newTitle.trim()}'`
-              );
-              return true;
-            }
-          }
-
-          return false;
-        } catch (error) {
-          this.metrics.failedExtractions++;
-          Logger.error(
-            "TabRenamingEngine",
-            `Erro ao processar aba ${tabId}:`,
-            error
-          );
-          return false;
-        } finally {
-          this.processing.delete(tabId);
-
-          // Atualiza métricas de tempo
-          const processingTime = Date.now() - startTime;
-          this.updateAverageProcessingTime(processingTime);
-        }
-      })(),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Tab renaming timed out after 3s")),
-          TIMEOUT_MS
-        )
-      ),
-    ]).catch((err) => {
+      return false;
+    } catch (error) {
+      this.metrics.failedExtractions++; // Conta como falha de extração/processamento geral
       Logger.error(
         "TabRenamingEngine",
-        `Timeout ou erro crítico ao renomear aba ${tabId}:`,
-        err
+        `Erro ao processar aba ${tabId}:`,
+        error
       );
-      this.processing.delete(tabId);
       return false;
-    });
+    } finally {
+      this.processing.delete(tabId);
+
+      // Atualiza métricas de tempo
+      const processingTime = Date.now() - startTime;
+      this.updateAverageProcessingTime(processingTime);
+    }
   }
 
   /**
@@ -260,14 +223,20 @@ export class TabRenamingEngine {
    */
   findApplicableRules(tab) {
     const applicableRules = [];
+
     for (const rule of this.rules.values()) {
-      if (!rule.enabled) continue;
+      if (!rule.enabled) continue; // Risco: Regras desabilitadas ainda podem ser processadas. Mitigação: Verifica `rule.enabled`.
+
       if (this.matchesConditions(tab, rule)) {
         applicableRules.push(rule);
+
+        // Atualiza estatísticas de uso da regra
         const currentCount = this.metrics.ruleUsageStats.get(rule.id) || 0;
         this.metrics.ruleUsageStats.set(rule.id, currentCount + 1);
       }
     }
+
+    // Ordena por prioridade (menor número = maior prioridade)
     return applicableRules.sort(
       (a, b) => (a.priority || 999) - (b.priority || 999)
     );
@@ -282,14 +251,21 @@ export class TabRenamingEngine {
    */
   matchesConditions(tab, rule) {
     const { conditions, conditionOperator = "AND" } = rule;
+
+    // Valida o novo formato de condições. O formato antigo é considerado inválido aqui.
     if (!Array.isArray(conditions) || conditions.length === 0) {
+      // Não loga como erro, pois pode ser uma regra antiga ou malformada que será ignorada.
       return false;
     }
+
     try {
       const check = (condition) => this.evaluateCondition(tab, condition);
+
       if (conditionOperator === "OR") {
+        // Lógica "OU": pelo menos uma condição deve ser verdadeira.
         return conditions.some(check);
       }
+      // Lógica "E" (padrão): todas as condições devem ser verdadeiras.
       return conditions.every(check);
     } catch (error) {
       Logger.error(
@@ -308,6 +284,7 @@ export class TabRenamingEngine {
    * @returns {boolean} - True se a condição for satisfeita
    */
   evaluateCondition(tab, condition) {
+    // Validação básica da condição
     if (
       !condition ||
       !condition.property ||
@@ -321,17 +298,24 @@ export class TabRenamingEngine {
       );
       return false;
     }
+
+    // Prepara as propriedades da aba para avaliação
     const tabProperties = {
       url: tab.url || "",
       title: tab.title || "",
       hostname: "",
       url_path: "",
     };
+
     try {
       const url = new URL(tab.url);
       tabProperties.hostname = url.hostname;
       tabProperties.url_path = url.pathname;
-    } catch (e) {}
+    } catch (e) {
+      // URL inválida, as propriedades de URL permanecerão vazias. A avaliação pode continuar.
+    }
+
+    // Valida se a propriedade existe no nosso mapa
     if (
       !Object.prototype.hasOwnProperty.call(tabProperties, condition.property)
     ) {
@@ -341,11 +325,15 @@ export class TabRenamingEngine {
       );
       return false;
     }
+
     const propValue = String(tabProperties[condition.property] || "");
     const condValue = String(condition.value || "").trim();
+
+    // Condições com valor vazio são ignoradas
     if (condValue === "") {
       return false;
     }
+
     try {
       switch (condition.operator) {
         case "contains":
@@ -360,11 +348,12 @@ export class TabRenamingEngine {
           return propValue.toLowerCase() === condValue.toLowerCase();
         case "regex":
           try {
+            // Usa o valor original para a regex para preservar maiúsculas/minúsculas se necessário (controlado por flags)
             return new RegExp(condition.value, "i").test(propValue);
           } catch (regexError) {
             Logger.warn(
               "TabRenamingEngine",
-              `Regex inválida na condição: '${condition.value}'`,
+              `Regex inválida na condição: "${condition.value}"`,
               regexError
             );
             return false;
@@ -384,7 +373,7 @@ export class TabRenamingEngine {
           } catch (wildcardError) {
             Logger.warn(
               "TabRenamingEngine",
-              `Padrão wildcard inválido: '${condValue}'`,
+              `Padrão wildcard inválido: "${condValue}"`,
               wildcardError
             );
             return false;
@@ -416,20 +405,36 @@ export class TabRenamingEngine {
   async executeRenamingRules(tab, rules) {
     for (const rule of rules) {
       try {
+        // Risco: Regras com opções 'respectManualChanges' podem sobrescrever títulos manuais.
+        // Mitigação: Verifica a opção 'respectManualChanges'.
         if (
           rule.options?.respectManualChanges &&
           tab.title !== this.getCachedResult(this.generateCacheKey(tab))
         ) {
+          Logger.debug(
+            "TabRenamingEngine",
+            `Regra "${rule.name}" ignorada para aba ${tab.id} devido a 'respectManualChanges'.`
+          );
           continue;
         }
+
         const result = await this.executeRule(tab, rule);
         if (result && result.trim()) {
+          Logger.debug(
+            "TabRenamingEngine",
+            `Regra "${rule.name}" produziu resultado: "${result}"`
+          );
           return result.trim();
         }
       } catch (error) {
+        Logger.debug(
+          "TabRenamingEngine",
+          `Erro ao executar regra "${rule.name}": ${error.message}`
+        );
         continue;
       }
     }
+
     return null;
   }
 
@@ -443,28 +448,55 @@ export class TabRenamingEngine {
     if (!rule.renamingStrategies || rule.renamingStrategies.length === 0) {
       return null;
     }
+
     for (const strategy of rule.renamingStrategies) {
       let result = null;
       try {
         result = await this.executeStrategy(tab, strategy, rule.options);
-      } catch (error) {}
+      } catch (error) {
+        Logger.debug(
+          "TabRenamingEngine",
+          `Estratégia ${strategy.type} falhou com erro: ${error.message}`
+        );
+        // O resultado permanece nulo, o que acionará o fallback.
+      }
+
+      // Se a estratégia principal foi bem-sucedida, retorna o resultado.
       if (result && result.trim()) {
         return result.trim();
       }
+
+      // Se a estratégia falhou (lançou erro ou retornou vazio), tenta o fallback.
       if (strategy.fallback && typeof strategy.fallback === "object") {
+        Logger.debug(
+          "TabRenamingEngine",
+          `Estratégia ${strategy.type} falhou. Tentando fallback: ${strategy.fallback.type}`
+        );
         try {
+          // O fallback agora é um objeto de estratégia completo.
           const fallbackResult = await this.executeStrategy(
             tab,
             strategy.fallback,
             rule.options
           );
+
           if (fallbackResult && fallbackResult.trim()) {
+            Logger.debug(
+              "TabRenamingEngine",
+              `Fallback ${strategy.fallback.type} bem-sucedido.`
+            );
             return fallbackResult.trim();
           }
-        } catch (fallbackError) {}
+        } catch (fallbackError) {
+          Logger.debug(
+            "TabRenamingEngine",
+            `Fallback ${strategy.fallback.type} também falhou: ${fallbackError.message}`
+          );
+        }
       }
     }
-    return null;
+
+    return null; // Retorna nulo se nenhuma estratégia (ou fallback) funcionar.
   }
 
   /**
@@ -572,7 +604,9 @@ export class TabRenamingEngine {
     if (!originalTitle || !Array.isArray(operations)) {
       return originalTitle;
     }
+
     let result = originalTitle;
+
     for (const operation of operations) {
       try {
         switch (operation.action) {
@@ -585,16 +619,19 @@ export class TabRenamingEngine {
               result = result.replace(regex, operation.replacement);
             }
             break;
+
           case TextAction.PREPEND:
             if (operation.text) {
               result = operation.text + result;
             }
             break;
+
           case TextAction.APPEND:
             if (operation.text) {
               result = result + operation.text;
             }
             break;
+
           case TextAction.REMOVE:
             if (operation.pattern) {
               const regex = new RegExp(
@@ -604,6 +641,7 @@ export class TabRenamingEngine {
               result = result.replace(regex, "");
             }
             break;
+
           case TextAction.TRUNCATE:
             if (operation.maxLength && result.length > operation.maxLength) {
               const ellipsis = operation.ellipsis || "...";
@@ -612,6 +650,7 @@ export class TabRenamingEngine {
                 ellipsis;
             }
             break;
+
           case TextAction.EXTRACT:
             if (operation.pattern) {
               const regex = new RegExp(
@@ -628,13 +667,16 @@ export class TabRenamingEngine {
             break;
         }
       } catch (error) {
+        // Risco: Regex inválida ou erro na operação de texto.
+        // Mitigação: Captura o erro e loga, permitindo que as próximas operações ou estratégias continuem.
         Logger.warn(
           "TabRenamingEngine",
           `Erro na operação ${operation.action}: ${error.message}. Operação ignorada.`
         );
       }
     }
-    return sanitizeString(result, getConfig("TAB_RENAMING_MAX_TITLE_LENGTH"));
+
+    return sanitizeString(result, getConfig("TAB_RENAMING_MAX_TITLE_LENGTH")); // Garante que o título final seja sanitizado e limitado
   }
 
   /**
@@ -646,11 +688,17 @@ export class TabRenamingEngine {
     try {
       const url = new URL(tab.url);
       const hostname = url.hostname;
+
+      // Remove www. se presente
       const cleanHostname = hostname.replace(/^www\./, "");
+
+      // Capitaliza primeira letra de cada parte do domínio
       const parts = cleanHostname.split(".");
       const formattedDomain = parts
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(".");
+
+      // Combina com o título original para um nome mais descritivo
       return sanitizeString(
         `[${formattedDomain}] ${tab.title}`,
         getConfig("TAB_RENAMING_MAX_TITLE_LENGTH")
@@ -696,38 +744,11 @@ export class TabRenamingEngine {
 
         Logger.debug(
           "TabRenamingEngine",
-          `Atualizando título da aba ${tabId} para: '${finalTitle}' via injeção de script`
+          `Atualizando título da aba ${tabId} para: "${finalTitle}" via injeção de script`
         );
 
-        // Otimização: só injeta content-script se necessário
-        let contentScriptInjected = false;
-        try {
-          await WrappedBrowserAPI.tabs.sendMessage(tabId, { action: "ping" });
-          contentScriptInjected = true;
-        } catch (e) {
-          contentScriptInjected = false;
-        }
-
-        if (!contentScriptInjected) {
-          try {
-            await browser.scripting.executeScript({
-              target: { tabId: tabId },
-              files: ["content-script.js"],
-            });
-            Logger.debug(
-              "TabRenamingEngine",
-              `content-script.js injetado em tabId ${tabId} (injeção programática)`
-            );
-          } catch (injectErr) {
-            Logger.warn(
-              "TabRenamingEngine",
-              `Falha ao injetar content-script.js em tabId ${tabId}: ${injectErr.message}`
-            );
-            // Não retorna erro aqui, pois pode ser página protegida
-          }
-        }
-
-        // Agora executa o script para alterar o título
+        // Manifest V3 não permite alterar o título diretamente via tabs.update.
+        // A abordagem correta é injetar um script que altere document.title.
         await browser.scripting.executeScript({
           target: { tabId: tabId },
           func: (title) => {
@@ -759,10 +780,15 @@ export class TabRenamingEngine {
    * @returns {string} Chave de cache
    */
   generateCacheKey(tab) {
+    // Risco: Chaves de cache não únicas podem levar a resultados incorretos.
+    // Mitigação: Combina URL e título para maior unicidade.
     try {
       const url = new URL(tab.url);
+      // Inclui hostname, pathname e query params (se relevantes) para maior granularidade
+      // Mas evita fragmentos (#) que não afetam o conteúdo da página
       return `${url.hostname}${url.pathname}${url.search}:${tab.title}`;
     } catch (error) {
+      // Fallback para URLs inválidas
       return `${tab.url}:${tab.title}`;
     }
   }
@@ -802,12 +828,16 @@ export class TabRenamingEngine {
       expires: Date.now() + cacheTTL,
       created: Date.now(),
     });
+    // Risco: Cache pode crescer indefinidamente.
+    // Mitigação: A limpeza periódica e LRU (se implementado) gerenciam isso.
   }
 
   /**
    * Inicia limpeza periódica do cache
    */
   startCacheCleanup() {
+    // Risco: Múltiplos timers de limpeza se chamado várias vezes.
+    // Mitigação: Verifica se o timer já está ativo.
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
     }
@@ -839,12 +869,21 @@ export class TabRenamingEngine {
   cleanupCache() {
     const now = Date.now();
     let removedCount = 0;
+
     for (const [key, cached] of this.cache.entries()) {
       if (now > cached.expires) {
         this.cache.delete(key);
         removedCount++;
       }
     }
+
+    if (removedCount > 0) {
+      Logger.debug(
+        "TabRenamingEngine",
+        `Cache limpo: ${removedCount} entradas expiradas removidas`
+      );
+    }
+
     this.metrics.lastCleanup = now;
   }
 
@@ -889,6 +928,7 @@ export class TabRenamingEngine {
       ruleUsageStats: new Map(),
       lastCleanup: Date.now(),
     };
+
     Logger.info("TabRenamingEngine", "Estatísticas limpas");
   }
 
@@ -897,7 +937,6 @@ export class TabRenamingEngine {
    */
   clearCache() {
     this.cache.clear();
-    this.tabIdTitleCache.clear();
     Logger.info("TabRenamingEngine", "Cache limpo manualmente");
   }
 
@@ -914,12 +953,8 @@ export class TabRenamingEngine {
   }
 }
 
+// Instância global do motor de renomeação
 export const globalTabRenamingEngine = new TabRenamingEngine();
-
-globalTabRenamingEngine.processTabDebounced = debouncePerKey(
-  async (tabId, tab) => globalTabRenamingEngine.processTab(tabId, tab),
-  300
-);
 
 Logger.debug(
   "TabRenamingEngine",

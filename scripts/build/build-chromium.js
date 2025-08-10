@@ -12,10 +12,36 @@ fs.ensureDirSync(buildDir);
 fs.copyFileSync(manifestSrc, manifestDest);
 
 // Copiar arquivos essenciais
+const essentialJs = [
+  "background.js",
+  "app-state.js",
+  "context-menu-manager.js",
+  "grouping-logic.js",
+  "logger.js",
+  "settings-manager.js",
+  "initialization-cache.js",
+  "module-loader.js",
+  "cache-warmer.js",
+  "worker-manager.js",
+  "performance-config.js",
+  "performance-monitor.js",
+  "performance-optimizations.js",
+  "performance-validator.js",
+  "performance-worker.js",
+  "validation-utils.js",
+  "tab-renaming-engine.js",
+  "learning-engine.js",
+  "adaptive-error-handler.js",
+  "adaptive-memory-manager.js",
+  "browser-api-wrapper.js",
+  "api-rate-limiter.js",
+  "parallel-batch-processor.js",
+  "intelligent-cache-manager.js",
+];
+
 const copyOperations = [
-  fs.copy(
-    path.resolve(__dirname, "../../background.js"),
-    path.join(buildDir, "background.js")
+  ...essentialJs.map((js) =>
+    fs.copy(path.resolve(__dirname, `../../${js}`), path.join(buildDir, js))
   ),
   fs.copy(
     path.resolve(__dirname, "../../content-script.js"),
@@ -28,6 +54,11 @@ const copyOperations = [
   ),
   fs.copy(path.resolve(__dirname, "../../help"), path.join(buildDir, "help")),
   fs.copy(path.resolve(__dirname, "../../icons"), path.join(buildDir, "icons")),
+  fs.copy(
+    path.resolve(__dirname, "../../vendor"),
+    path.join(buildDir, "vendor")
+  ),
+  fs.copy(path.resolve(__dirname, "../../src"), path.join(buildDir, "src")),
 ];
 
 Promise.all(copyOperations)

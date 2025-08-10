@@ -20,7 +20,8 @@
     "summary": "node scripts/utils/generate-summary.js",
     "docs": "node scripts/utils/generate-docs.js",
     "clean:legacy": "node scripts/utils/remove-legacy-scripts.js",
-    "ci": "npm run clean:legacy && npm run validate && npm run build && npm run package && npm run changelog && npm run summary && npm run docs"
+    "ci": "npm run clean:legacy && npm run validate && npm run build && npm run package && npm run changelog && npm run summary && npm run docs",
+    "build:tailwind": "npx tailwindcss -c tailwind.config.js -i ./src/input.css -o ./src/tailwind.css --minify"
   },
   "keywords": [
     "browser-extension",

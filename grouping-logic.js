@@ -6,23 +6,14 @@
 import Logger from "./logger.js";
 import {
   settings,
-  smartNameCache,
   saveSmartNameCache,
   getSmartNameFromLegacyCache,
   setSmartNameInLegacyCache,
-  invalidateCacheByDomainChange,
 } from "./settings-manager.js";
 import { pendingAutomaticGroups, injectionFailureMap } from "./app-state.js";
-import {
-  handleTabOperation,
-  handleGroupOperation,
-  withErrorHandling,
-} from "./adaptive-error-handler.js";
+import { withErrorHandling } from "./adaptive-error-handler.js";
 import { getConfig } from "./performance-config.js";
-import {
-  globalTabParallelProcessor,
-  globalWindowDataProcessor,
-} from "./parallel-batch-processor.js";
+import { globalTabParallelProcessor } from "./parallel-batch-processor.js";
 import {
   validateCondition,
   validateTabObject,
@@ -46,7 +37,7 @@ let colorIndex = 0;
 
 /**
  * Limpa e formata um nome de domínio para ser usado como título de grupo.
- * Remove "www.", TLDs comuns e capitaliza cada parte.
+ * Remove 'www.', TLDs comuns e capitaliza cada parte.
  * @param {string} domain - O domínio a ser sanitizado.
  * @returns {string} O nome de domínio formatado.
  */
@@ -176,7 +167,7 @@ function evaluateCondition(tab, condition) {
         } catch (regexError) {
           Logger.error(
             "evaluateCondition",
-            `Regex inválida: "${condValue}". Erro: ${regexError.message}`
+            `Regex inválida: '${condValue}'. Erro: ${regexError.message}`
           );
           return false;
         }
@@ -194,7 +185,7 @@ function evaluateCondition(tab, condition) {
         } catch (wildcardError) {
           Logger.error(
             "evaluateCondition",
-            `Wildcard inválido: "${condValue}". Erro: ${wildcardError.message}`
+            `Wildcard inválido: '${condValue}'. Erro: ${wildcardError.message}`
           );
           return false;
         }
@@ -208,7 +199,7 @@ function evaluateCondition(tab, condition) {
   } catch (e) {
     Logger.error(
       "evaluateCondition",
-      `Erro inesperado ao avaliar condição: propriedade="${condition.property}", operador="${condition.operator}", valor="${condValue}"`,
+      `Erro inesperado ao avaliar condição: propriedade='${condition.property}', operador='${condition.operator}', valor='${condValue}'`,
       e
     );
     return false;
@@ -272,12 +263,12 @@ function evaluateRule(tab, rule) {
 
   try {
     if (operator === "AND") {
-      // Avaliação "preguiçosa": para na primeira condição falsa.
+      // Avaliação 'preguiçosa': para na primeira condição falsa.
       return conditions.every((condition) => evaluateCondition(tab, condition));
     }
 
     if (operator === "OR") {
-      // Avaliação "preguiçosa": para na primeira condição verdadeira.
+      // Avaliação 'preguiçosa': para na primeira condição verdadeira.
       return conditions.some((condition) => evaluateCondition(tab, condition));
     }
 
@@ -318,6 +309,10 @@ export function isTabGroupable(tab) {
   // Sanitização e validação da URL
   const sanitizedUrl = sanitizeUrl(tab.url);
   if (!sanitizedUrl || !sanitizedUrl.startsWith("http")) {
+    Logger.debug(
+      "isTabGroupable",
+      `URL com protocolo não suportado para agrupamento: ${tab.url}`
+    );
     return false;
   }
 
@@ -367,49 +362,199 @@ function getHostname(url) {
 }
 
 /**
- * Tenta extrair um nome "inteligente" para o grupo a partir do conteúdo da página.
+ * Tenta extrair um nome 'inteligente' para o grupo a partir do conteúdo da página.
  * Injeta um content script para obter metadados como `og:site_name` ou `<h1>`.
  * @param {browser.tabs.Tab} tab - O objeto da aba.
  * @returns {Promise<string|null>} O nome inteligente extraído ou nulo.
  */
 async function fetchSmartName(tab) {
+  const startTime = Date.now();
   const tabId = tab.id;
+  const url = tab.url;
+  Logger.debug(
+    "fetchSmartName",
+    `Iniciando busca de nome inteligente para tabId=${tabId}`,
+    { url }
+  );
+
   const failureCount = injectionFailureMap.get(tabId) || 0;
   const maxRetries = getConfig("MAX_INJECTION_RETRIES");
 
+  Logger.trace?.(
+    "fetchSmartName",
+    `Iniciando fetchSmartName para tabId=${tabId}, failureCount=${failureCount}, maxRetries=${maxRetries}, url=${url}`
+  );
+
+  // Se circuit breaker ativado, retorna fallback imediato para domínio
   if (failureCount >= maxRetries) {
     Logger.warn(
       "fetchSmartName",
       `Máximo de falhas de injeção para a aba ${tabId} (${maxRetries} tentativas).`
     );
-    return null;
+    Logger.trace?.(
+      "fetchSmartName",
+      `Circuit breaker ativado para tabId=${tabId} após ${failureCount} falhas.`
+    );
+    // Fallback: retorna nome de domínio sanitizado
+    const hostname = getHostname(tab.url);
+    return hostname ? sanitizeDomainName(hostname) : null;
   }
 
   // Enhanced URL validation to prevent injection on protected pages
-  if (!tab.url || !isValidUrlForInjection(tab.url)) {
-    Logger.debug(
+  if (!url || !isValidUrlForInjection(url)) {
+    Logger.warn(
       "fetchSmartName",
-      `URL não suportada para injeção: ${tab.url}`
+      `URL não suportada para injeção (protocolo inválido): ${url}`,
+      { tabId }
     );
-    return null;
+    // Fallback: retorna nome de domínio sanitizado
+    const hostname = getHostname(url);
+    return hostname ? sanitizeDomainName(hostname) : null;
   }
+
+  // Extra diagnostics before injection
+  Logger.debug(
+    "fetchSmartName",
+    `Preparing to inject script: tabId=${tabId}, url=${tab.url}, status=${tab.status}, title=${tab.title}`
+  );
 
   const result = await withErrorHandling(
     async () => {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Script injection timeout")), 5000);
+        setTimeout(
+          () => reject(new Error("Script injection timeout")),
+          getConfig("SCRIPT_INJECTION_TIMEOUT")
+        );
       });
 
       const injectionPromise = browser.scripting.executeScript({
         target: { tabId },
-        files: ["content-script.js"],
+        func: async function () {
+          // Injetado diretamente para evitar complexidades de importação de módulos
+          const getMetaContent = (selector) => {
+            const tag = document.querySelector(selector);
+            return tag ? tag.content.trim() : null;
+          };
+
+          const getSchemaName = () => {
+            try {
+              const schemaScripts = document.querySelectorAll(
+                'script[type="application/ld+json"]'
+              );
+              for (const script of schemaScripts) {
+                const schemaData = JSON.parse(script.textContent);
+                if (typeof schemaData !== "object" || schemaData === null)
+                  continue;
+
+                const graph = schemaData["@graph"] || [schemaData];
+                for (const item of graph) {
+                  if (
+                    item &&
+                    (item["@type"] === "WebSite" ||
+                      item["@type"] === "Organization") &&
+                    item.name
+                  ) {
+                    return item.name;
+                  }
+                }
+              }
+            } catch (e) {
+              // Ignora erros de parsing.
+            }
+            return null;
+          };
+
+          const getManifestName = async () => {
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            if (!manifestLink || !manifestLink.href) return null;
+
+            try {
+              const manifestUrl = new URL(manifestLink.href, document.baseURI);
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+              const response = await fetch(manifestUrl, {
+                signal: controller.signal,
+                cache: "force-cache",
+              });
+
+              clearTimeout(timeoutId);
+
+              if (!response.ok) return null;
+
+              const manifestData = await response.json();
+              const name = (
+                manifestData.short_name ||
+                manifestData.name ||
+                ""
+              ).trim();
+              return name.length > 0 && name.length <= 50 ? name : null;
+            } catch (e) {
+              return null;
+            }
+          };
+
+          const getLogoAltText = (hostname) => {
+            if (!hostname) return null;
+            const logo = document.querySelector(
+              'header a img[alt], a[href="/"] img[alt], [class*="logo"] img[alt]'
+            );
+            if (!logo || !logo.alt) return null;
+
+            const altText = logo.alt.trim();
+            const genericAltTexts = ["logo", "logotipo"];
+            if (genericAltTexts.includes(altText.toLowerCase())) {
+              return null;
+            }
+
+            const domainCore = hostname.split(".")[0].toLowerCase();
+            if (altText.toLowerCase().includes(domainCore)) {
+              return altText;
+            }
+            return null;
+          };
+
+          const h1 = document.querySelector("h1");
+          const hostname = window.location.hostname;
+          const manifestName = await getManifestName();
+
+          return {
+            manifestName: manifestName,
+            appleWebAppTitle: getMetaContent(
+              'meta[name="apple-mobile-web-app-title"]'
+            ),
+            ogSiteName: getMetaContent('meta[property="og:site_name"]'),
+            applicationName: getMetaContent('meta[name="application-name"]'),
+            schemaName: getSchemaName(),
+            ogTitle: getMetaContent('meta[property="og:title"]'),
+            h1Content: h1 ? h1.textContent.trim() : null,
+            twitterSite: getMetaContent('meta[name="twitter:site"]'),
+            twitterAppName:
+              getMetaContent('meta[name="twitter:app:name:iphone"]') ||
+              getMetaContent('meta[name="twitter:app:name:googleplay"]'),
+            dcPublisher: getMetaContent('meta[name="DC.publisher"]'),
+            logoAltText: getLogoAltText(hostname),
+            pageTitle: document.title || null,
+          };
+        },
       });
 
-      const injectionResults = await Promise.race([
-        injectionPromise,
-        timeoutPromise,
-      ]);
+      let injectionResults;
+      try {
+        injectionResults = await Promise.race([
+          injectionPromise,
+          timeoutPromise,
+        ]);
+      } catch (err) {
+        const duration = Date.now() - startTime;
+        Logger.error(
+          "fetchSmartName",
+          `Timeout ou erro na injeção do script para tabId=${tabId} após ${duration}ms. URL: ${url}`,
+          { error: err.message }
+        );
+        throw err;
+      }
 
       if (
         injectionResults &&
@@ -417,6 +562,11 @@ async function fetchSmartName(tab) {
         injectionResults[0].result
       ) {
         const details = injectionResults[0].result;
+        Logger.debug(
+          "fetchSmartName",
+          `Dados extraídos com sucesso para tabId=${tabId}`,
+          { details }
+        );
 
         // 1. Tenta usar os nomes de alta prioridade primeiro.
         const priorityName =
@@ -424,10 +574,22 @@ async function fetchSmartName(tab) {
           details.appleWebAppTitle ||
           details.ogSiteName ||
           details.applicationName ||
+          details.twitterAppName ||
           details.schemaName ||
+          details.logoAltText ||
+          details.dcPublisher ||
+          details.twitterSite ||
           details.ogTitle;
+
         if (priorityName && priorityName.trim()) {
-          return sanitizeString(priorityName.trim(), 50);
+          const name = sanitizeString(priorityName.trim(), 50);
+          const duration = Date.now() - startTime;
+          Logger.info(
+            "fetchSmartName",
+            `Nome inteligente encontrado para tabId=${tabId}: '${name}' (Fonte: Prioritária). Duração: ${duration}ms.`,
+            { url }
+          );
+          return name;
         }
 
         // 2. Valida o h1Content para garantir que ele é relevante para o domínio.
@@ -438,11 +600,41 @@ async function fetchSmartName(tab) {
             const domainCore = hostname.split(".")[0].toLowerCase();
             const h1Lower = details.h1Content.toLowerCase();
             if (h1Lower.includes(domainCore) || h1Lower.length <= 30) {
-              return sanitizeString(details.h1Content.trim(), 50);
+              const name = sanitizeString(details.h1Content.trim(), 50);
+              const duration = Date.now() - startTime;
+              Logger.info(
+                "fetchSmartName",
+                `Nome inteligente encontrado para tabId=${tabId}: '${name}' (Fonte: H1). Duração: ${duration}ms.`,
+                { url }
+              );
+              return name;
             }
           }
         }
+
+        // 3. Fallback para o título da página se não for genérico
+        if (details.pageTitle && details.pageTitle.trim()) {
+          const titleLower = details.pageTitle.toLowerCase();
+          const hostname = getHostname(tab.url);
+          if (hostname && !titleLower.includes(hostname)) {
+            const name = sanitizeString(details.pageTitle.trim(), 50);
+            const duration = Date.now() - startTime;
+            Logger.info(
+              "fetchSmartName",
+              `Nome inteligente encontrado para tabId=${tabId}: '${name}' (Fonte: Título). Duração: ${duration}ms.`,
+              { url }
+            );
+            return name;
+          }
+        }
       }
+
+      const duration = Date.now() - startTime;
+      Logger.warn(
+        "fetchSmartName",
+        `Nenhum nome inteligente encontrado para tabId=${tabId} após extração. Duração: ${duration}ms.`,
+        { url }
+      );
       return null;
     },
     {
@@ -450,12 +642,19 @@ async function fetchSmartName(tab) {
       maxRetries: 1,
       criticalOperation: false,
       fallback: () => {
-        // Fallback: incrementa contador de falhas e retorna null
+        const duration = Date.now() - startTime;
+        Logger.warn(
+          "fetchSmartName",
+          `Falha na extração do nome inteligente para tabId=${tabId}. Usando fallback. Duração: ${duration}ms.`,
+          { url }
+        );
+        // Fallback: incrementa contador de falhas e retorna nome de domínio sanitizado
         injectionFailureMap.set(
           tabId,
           (injectionFailureMap.get(tabId) || 0) + 1
         );
-        return null;
+        const hostname = getHostname(url);
+        return hostname ? sanitizeDomainName(hostname) : null;
       },
     }
   );
@@ -494,6 +693,10 @@ function isValidUrlForInjection(url) {
 
   const lowerUrl = url.toLowerCase();
   if (protectedSchemes.some((scheme) => lowerUrl.startsWith(scheme))) {
+    Logger.debug(
+      "isValidUrlForInjection",
+      `URL bloqueada por esquema protegido: ${url}`
+    );
     return false;
   }
 
@@ -584,7 +787,7 @@ export async function getFinalGroupName(tab) {
 
 /**
  * Obtém a próxima cor disponível da paleta de cores para novos grupos.
- * @returns {string} Uma string de cor (ex: "blue").
+ * @returns {string} Uma string de cor (ex: 'blue').
  */
 export function getNextColor() {
   const color = colors[colorIndex];
@@ -670,17 +873,42 @@ async function batchProcessGroupNamesParallel(tabs) {
     "batchProcessGroupNamesParallel",
     `Processando nomes para ${tabs.length} abas em paralelo`
   );
+  Logger.trace?.(
+    "batchProcessGroupNamesParallel",
+    `IDs das abas: ${tabs.map((t) => t.id).join(", ")}`
+  );
+
+  // Adaptive: Se mais de 20 abas, reduz itemConcurrency para evitar timeouts/circuit breaker
+  const adaptiveItemConcurrency = tabs.length > 20 ? 2 : 3;
+  const adaptiveSubBatchDelay = tabs.length > 20 ? 100 : 50;
 
   // Usa o processador paralelo para obter nomes de grupos
   const tabIdToGroupName =
     await globalTabParallelProcessor.processGroupNamesParallel(
       tabs,
-      getFinalGroupName
+      async (tab) => {
+        Logger.trace?.(
+          "batchProcessGroupNamesParallel",
+          `Processando nome para tabId=${tab.id}, url=${tab.url}`
+        );
+        return getFinalGroupName(tab);
+      },
+      {
+        itemConcurrency: adaptiveItemConcurrency,
+        subBatchDelay: adaptiveSubBatchDelay,
+        retries: 1,
+      }
     );
 
   Logger.debug(
     "batchProcessGroupNamesParallel",
     `${tabIdToGroupName.size} nomes de grupos processados`
+  );
+  Logger.trace?.(
+    "batchProcessGroupNamesParallel",
+    `Mapeamento tabId->groupName: ${JSON.stringify(
+      Array.from(tabIdToGroupName.entries())
+    )}`
   );
   return tabIdToGroupName;
 }
@@ -775,7 +1003,7 @@ async function executeGroupOperation(operation) {
   return await withErrorHandling(
     async () => {
       switch (operation.type) {
-        case "addToExisting":
+        case "addToExisting": {
           await browser.tabs.group({
             groupId: operation.groupId,
             tabIds: operation.tabIds,
@@ -785,8 +1013,8 @@ async function executeGroupOperation(operation) {
             action: "added_to_existing",
             groupId: operation.groupId,
           };
-
-        case "createNew":
+        }
+        case "createNew": {
           // Registra intenção de grupo automático
           pendingAutomaticGroups.set(operation.tabIds[0], {
             tabIds: operation.tabIds,
@@ -809,6 +1037,7 @@ async function executeGroupOperation(operation) {
           });
 
           return { success: true, action: "created_new", groupId: newGroupId };
+        }
 
         default:
           throw new Error(`Tipo de operação desconhecido: ${operation.type}`);
@@ -822,7 +1051,7 @@ async function executeGroupOperation(operation) {
       fallback: async () => {
         Logger.warn(
           "groupOperation",
-          `Fallback para operação ${operation.type} do grupo "${operation.groupName}"`
+          `Fallback para operação ${operation.type} do grupo '${operation.groupName}'`
         );
         if (operation.type === "createNew") {
           pendingAutomaticGroups.delete(operation.tabIds[0]);
@@ -848,10 +1077,20 @@ export async function processTabQueue(tabIds) {
     "processTabQueue",
     `Iniciando processamento para ${tabIds.length} abas.`
   );
+  Logger.trace?.(
+    "processTabQueue",
+    `IDs das abas recebidas: ${tabIds.join(", ")}`
+  );
 
   try {
     // Otimização: Processar tabs em lotes para reduzir chamadas de API
     const tabsToProcess = await batchGetTabs(tabIds);
+    Logger.trace?.(
+      "processTabQueue",
+      `Abas válidas para processamento: ${tabsToProcess
+        .map((t) => t.id)
+        .join(", ")}`
+    );
     if (tabsToProcess.length === 0) return;
 
     const tabsByWindow = groupTabsByWindow(tabsToProcess);
@@ -859,10 +1098,30 @@ export async function processTabQueue(tabIds) {
     // Processa cada janela com otimizações de batching
     for (const windowIdStr in tabsByWindow) {
       const windowId = parseInt(windowIdStr, 10);
+      const batchStartTime = Date.now();
+      const tabsInWindow = tabsByWindow[windowId];
+
+      Logger.info(
+        "processTabQueue",
+        `Iniciando lote de agrupamento para janela ${windowId} com ${tabsInWindow.length} abas.`
+      );
+      Logger.trace?.(
+        "processTabQueue",
+        `Processando janela windowId=${windowId} com ${tabsInWindow.length} abas`
+      );
 
       // Obtém dados da janela em paralelo
       const { allTabsInWindow, allGroupsInWindow } = await batchGetWindowData(
         windowId
+      );
+
+      Logger.trace?.(
+        "processTabQueue",
+        `allTabsInWindow: ${allTabsInWindow
+          .map((t) => t.id)
+          .join(", ")}, allGroupsInWindow: ${allGroupsInWindow
+          .map((g) => g.id)
+          .join(", ")}`
       );
 
       const groupTitleToIdMap = new Map(
@@ -875,9 +1134,17 @@ export async function processTabQueue(tabIds) {
       // Processa nomes de grupos em lote
       const tabIdToGroupName = await batchProcessGroupNames(allTabsInWindow);
 
+      Logger.trace?.(
+        "processTabQueue",
+        `tabIdToGroupName: ${JSON.stringify(
+          Array.from(tabIdToGroupName.entries())
+        )}`
+      );
+
       const groupNameCounts = new Map();
       for (const name of tabIdToGroupName.values()) {
-        if (name) groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
+        if (name)
+          groupNameCounts.set(name, (groupNameCounts.get(name) || 0) + 1);
       }
 
       const tabsToGroup = new Map();
@@ -886,6 +1153,10 @@ export async function processTabQueue(tabIds) {
 
         const finalGroupName = tabIdToGroupName.get(tab.id);
         if (!finalGroupName) {
+          Logger.trace?.(
+            "processTabQueue",
+            `Aba ${tab.id} não recebeu nome de grupo final. groupId atual: ${tab.groupId}`
+          );
           if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
           continue;
         }
@@ -909,6 +1180,10 @@ export async function processTabQueue(tabIds) {
         const totalMatchingTabs = groupNameCounts.get(finalGroupName) || 0;
 
         if (totalMatchingTabs < minTabsRequired) {
+          Logger.trace?.(
+            "processTabQueue",
+            `Grupo '${finalGroupName}' não atingiu minTabsRequired (${totalMatchingTabs} < ${minTabsRequired})`
+          );
           if (tab.groupId) await browser.tabs.ungroup([tab.id]).catch(() => {});
           continue;
         }
@@ -919,8 +1194,19 @@ export async function processTabQueue(tabIds) {
         tabsToGroup.get(finalGroupName).push(tab.id);
       }
 
+      Logger.trace?.(
+        "processTabQueue",
+        `tabsToGroup: ${JSON.stringify(Array.from(tabsToGroup.entries()))}`
+      );
+
       // Executa operações de agrupamento em lote otimizado
       await batchGroupOperations(tabsToGroup, windowId, groupTitleToIdMap);
+
+      const batchDuration = Date.now() - batchStartTime;
+      Logger.info(
+        "processTabQueue",
+        `Lote de agrupamento para janela ${windowId} concluído em ${batchDuration}ms.`
+      );
     }
 
     // TASK-A-001: Log de performance e validação
@@ -929,15 +1215,24 @@ export async function processTabQueue(tabIds) {
 
     // Registra métrica de performance para validação
     try {
-      const { recordPerformanceMetric } = await import("./performance-validator.js");
+      const { recordPerformanceMetric } = await import(
+        "./performance-validator.js"
+      );
       recordPerformanceMetric("processTabQueue", duration, tabIds.length, {
         tabsProcessed: tabsToProcess.length,
         windowsProcessed: Object.keys(tabsByWindow).length,
-        groupsCreated: Array.from(tabsByWindow).reduce((sum, [, tabs]) => sum + tabs.length, 0)
+        groupsCreated: Array.from(tabsByWindow).reduce(
+          (sum, [, tabs]) => sum + tabs.length,
+          0
+        ),
       });
     } catch (e) {
       // Falha silenciosa se o validador não estiver disponível
-      Logger.debug("processTabQueue", "Performance validator não disponível:", e.message);
+      Logger.debug(
+        "processTabQueue",
+        "Performance validator não disponível:",
+        e.message
+      );
     }
 
     if (duration > logThreshold) {
@@ -955,7 +1250,7 @@ export async function processTabQueue(tabIds) {
     // TASK-A-001: Validação de metas de performance
     const target100 = getConfig("PERFORMANCE_TARGET_100_TABS");
     const target200 = getConfig("PERFORMANCE_TARGET_200_TABS");
-    
+
     if (tabIds.length <= 100 && duration > target100) {
       Logger.warn(
         "processTabQueue",
@@ -972,7 +1267,6 @@ export async function processTabQueue(tabIds) {
         `✅ Meta de performance atingida: ${duration}ms ≤ ${target100}ms para ${tabIds.length} abas`
       );
     }
-
   } catch (error) {
     const duration = Date.now() - startTime;
     Logger.error(
@@ -980,18 +1274,21 @@ export async function processTabQueue(tabIds) {
       `Erro durante processamento de ${tabIds.length} abas após ${duration}ms:`,
       error
     );
-    
+    Logger.trace?.("processTabQueue", `Stack trace: ${error.stack}`);
+
     // Registra erro na validação de performance
     try {
-      const { recordPerformanceMetric } = await import("./performance-validator.js");
+      const { recordPerformanceMetric } = await import(
+        "./performance-validator.js"
+      );
       recordPerformanceMetric("processTabQueue", duration, tabIds.length, {
         error: error.message,
-        failed: true
+        failed: true,
       });
     } catch (e) {
       // Falha silenciosa
     }
-    
+
     throw error; // Re-throw para manter comportamento original
   }
 }
