@@ -10,6 +10,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ### Fixed
 
 - Corrige o contador de abas do grupo que não era atualizado quando uma nova aba era criada.
+- Restaura o agrupamento automático de abas que foi quebrado pela correção anterior.
 
 ## [3.11.0] - 2025-08-10 - TASK-A-004: Tab Renaming Engine Performance Optimizations
 

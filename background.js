@@ -672,6 +672,7 @@ async function scheduleQueueProcessing() {
  */
 function handleTabCreated(tab) {
   Logger.debug("handleTabCreated", `Aba ${tab.id} criada.`, { tab });
+
   if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
     Logger.info(
       "handleTabCreated",
@@ -679,7 +680,18 @@ function handleTabCreated(tab) {
     );
     scheduleTitleUpdate(tab.groupId);
   }
-  scheduleSuggestionCheck(); // Verifica sugestões após criar aba
+
+  // Aciona o processamento de agrupamento automático para a nova aba
+  if (settings.autoGroupingEnabled && tab.url && tab.url.startsWith("http")) {
+    Logger.debug(
+      "handleTabCreated",
+      `Adicionando nova aba ${tab.id} à fila de processamento`
+    );
+    tabProcessingQueue.add(tab.id);
+    scheduleQueueProcessing();
+  }
+
+  scheduleSuggestionCheck();
 }
 
 function handleTabUpdated(tabId, changeInfo, tab) {
@@ -917,7 +929,7 @@ function toggleListeners(enable) {
         // A extensão continuará a funcionar, embora receba mais eventos do que o necessário.
         Logger.warn(
           "toggleListeners",
-          'Otimização do listener "onUpdated" não suportada pelo navegador. A usar fallback compatível.'
+          "Otimização do listener 'onUpdated' não suportada pelo navegador. A usar fallback compatível."
         );
         // O erro 'e' só é relevante para depuração, por isso não o mostramos nos níveis de log normais.
         Logger.debug("toggleListeners", "Detalhes do erro de filtro:", e);
