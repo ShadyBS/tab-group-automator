@@ -681,16 +681,7 @@ function handleTabCreated(tab) {
     scheduleTitleUpdate(tab.groupId);
   }
 
-  // Aciona o processamento de agrupamento automático para a nova aba
-  if (settings.autoGroupingEnabled && tab.url && tab.url.startsWith("http")) {
-    Logger.debug(
-      "handleTabCreated",
-      `Adicionando nova aba ${tab.id} à fila de processamento`
-    );
-    tabProcessingQueue.add(tab.id);
-    scheduleQueueProcessing();
-  }
-
+  // O agrupamento automático agora é acionado pelo handleTabUpdated quando o status é 'complete'
   scheduleSuggestionCheck();
 }
 

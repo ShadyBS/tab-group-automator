@@ -9,6 +9,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ### Fixed
 
+- Corrige definitivamente o agrupamento automático de novas abas, movendo a lógica para o evento `tabs.onUpdated` para evitar condições de corrida com a URL da aba.
 - Corrige o contador de abas do grupo que não era atualizado quando uma nova aba era criada.
 - Restaura o agrupamento automático de abas que foi quebrado pela correção anterior.
 
