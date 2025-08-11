@@ -5,6 +5,12 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## [Unreleased]
+
+### Fixed
+
+- Corrige o contador de abas do grupo que não era atualizado quando uma nova aba era criada.
+
 ## [3.11.0] - 2025-08-10 - TASK-A-004: Tab Renaming Engine Performance Optimizations
 
 ### 🚀 TASK-A-004: Tab Renaming Engine Performance Optimizations

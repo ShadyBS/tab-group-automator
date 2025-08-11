@@ -665,6 +665,23 @@ async function scheduleQueueProcessing() {
  * @param {browser.tabs.Tab} tab - O estado atual da aba.
  */
 // CORRIGIDO: A função agora reage a mudanças de título em abas já carregadas.
+/**
+ * Lida com o evento de criação de uma nova aba (onCreated).
+ * Agenda a atualização do título do grupo se a nova aba for criada dentro de um.
+ * @param {browser.tabs.Tab} tab - O objeto da aba que foi criada.
+ */
+function handleTabCreated(tab) {
+  Logger.debug("handleTabCreated", `Aba ${tab.id} criada.`, { tab });
+  if (tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
+    Logger.info(
+      "handleTabCreated",
+      `Nova aba ${tab.id} criada no grupo ${tab.groupId}. Agendando atualização de título.`
+    );
+    scheduleTitleUpdate(tab.groupId);
+  }
+  scheduleSuggestionCheck(); // Verifica sugestões após criar aba
+}
+
 function handleTabUpdated(tabId, changeInfo, tab) {
   Logger.debug("handleTabUpdated", `Aba ${tabId} atualizada.`, {
     changeInfo,
@@ -868,6 +885,9 @@ function handleTabRemoved(tabId, removeInfo) {
  */
 // CORRIGIDO: Adiciona 'title' às propriedades que o listener de onUpdated observa.
 function toggleListeners(enable) {
+  // Adiciona verificações para o novo listener
+  const hasCreatedListener =
+    browser.tabs.onCreated.hasListener(handleTabCreated);
   // Adiciona verificações de segurança para garantir que as APIs existem antes de usá-las.
   // Isto previne falhas se as permissões estiverem em falta ou se o browser não suportar a API.
   if (!browser.tabs || !browser.tabs.onUpdated || !browser.tabs.onRemoved) {
