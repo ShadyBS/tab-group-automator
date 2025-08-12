@@ -3,7 +3,7 @@
  * @description Configurações de performance centralizadas e tunáveis para otimizar operações.
  */
 
-import Logger from "./logger.js";
+import Logger from './logger.js';
 
 // Configurações padrão de performance otimizadas para TASK-A-001
 const DEFAULT_PERFORMANCE_CONFIG = {
@@ -36,6 +36,11 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   CACHE_OPTIMIZATION_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // ms - Mantido (7 dias)
   CACHE_DOMAIN_CHANGE_THRESHOLD: 3, // Mantido
   CACHE_VERSION_CHECK_ENABLED: true, // Mantido
+
+  // --- OTIMIZAÇÃO: Configurações específicas para cache de nomes inteligentes ---
+  SMART_NAME_CACHE_TTL: 24 * 60 * 60 * 1000, // ms - TTL para nomes extraídos com sucesso (24h)
+  SMART_NAME_FALLBACK_TTL: 2 * 60 * 60 * 1000, // ms - TTL para fallbacks de domínio (2h)
+  SMART_NAME_CACHE_ENABLED: true, // Ativa/desativa cache de nomes inteligentes
 
   // --- Configurações de Gerenciamento Adaptativo de Memória ---
   ADAPTIVE_MEMORY_ENABLED: true, // Mantido
@@ -112,6 +117,200 @@ const DEFAULT_PERFORMANCE_CONFIG = {
   SUGGESTION_CONFIDENCE_THRESHOLD: 0.7, // Threshold de confiança para sugestões
 };
 
+// --- FEATURE FLAGS para Otimizações de Performance ---
+export const FEATURE_FLAGS = {
+  smartNameCaching: {
+    key: 'smartNameCaching',
+    name: 'Cache de Nomes Inteligentes',
+    description:
+      'Ativa o cache da função fetchSmartName para melhorar performance',
+    defaultValue: true,
+    category: 'performance',
+  },
+  selectiveProcessing: {
+    key: 'selectiveProcessing',
+    name: 'Processamento Seletivo',
+    description:
+      'Refatoração da processTabQueue para processar apenas abas necessárias',
+    defaultValue: true,
+    category: 'performance',
+  },
+  batchedStorage: {
+    key: 'batchedStorage',
+    name: 'Armazenamento em Lote',
+    description: 'Otimização do chrome.storage.local com operações em lote',
+    defaultValue: true,
+    category: 'performance',
+  },
+};
+
+// Estado atual das feature flags
+let currentFeatureFlags = {};
+
+// Inicializa feature flags com valores padrão
+function initializeFeatureFlags() {
+  currentFeatureFlags = {};
+  for (const [flagKey, flagConfig] of Object.entries(FEATURE_FLAGS)) {
+    currentFeatureFlags[flagKey] = flagConfig.defaultValue;
+  }
+}
+
+/**
+ * Verifica se uma feature flag está habilitada
+ * @param {string} flagKey - Chave da feature flag
+ * @returns {boolean} True se a flag estiver habilitada
+ */
+export function isFeatureEnabled(flagKey) {
+  if (!(flagKey in FEATURE_FLAGS)) {
+    Logger.warn(
+      'PerformanceConfig',
+      `Feature flag desconhecida: ${flagKey}. Retornando false.`
+    );
+    return false;
+  }
+
+  return currentFeatureFlags[flagKey] !== undefined
+    ? currentFeatureFlags[flagKey]
+    : FEATURE_FLAGS[flagKey].defaultValue;
+}
+
+/**
+ * Define o estado de uma feature flag
+ * @param {string} flagKey - Chave da feature flag
+ * @param {boolean} enabled - Novo estado da flag
+ */
+export function setFeatureFlag(flagKey, enabled) {
+  if (!(flagKey in FEATURE_FLAGS)) {
+    Logger.warn(
+      'PerformanceConfig',
+      `Tentativa de definir feature flag desconhecida: ${flagKey}`
+    );
+    return false;
+  }
+
+  const oldValue = currentFeatureFlags[flagKey];
+  currentFeatureFlags[flagKey] = Boolean(enabled);
+
+  Logger.debug(
+    'PerformanceConfig',
+    `Feature flag ${flagKey} alterada: ${oldValue} → ${enabled}`
+  );
+  return true;
+}
+
+/**
+ * Obtém todas as feature flags e seus estados
+ * @returns {object} Objeto com estado de todas as flags
+ */
+export function getAllFeatureFlags() {
+  const result = {};
+  for (const flagKey of Object.keys(FEATURE_FLAGS)) {
+    result[flagKey] = isFeatureEnabled(flagKey);
+  }
+  return result;
+}
+
+/**
+ * Atualiza múltiplas feature flags de uma vez
+ * @param {object} flagUpdates - Objeto com as atualizações das flags
+ */
+export function updateFeatureFlags(flagUpdates) {
+  const validUpdates = {};
+  const invalidKeys = [];
+
+  for (const [flagKey, enabled] of Object.entries(flagUpdates)) {
+    if (flagKey in FEATURE_FLAGS) {
+      validUpdates[flagKey] = enabled;
+    } else {
+      invalidKeys.push(flagKey);
+    }
+  }
+
+  if (invalidKeys.length > 0) {
+    Logger.warn(
+      'PerformanceConfig',
+      `Feature flags inválidas ignoradas: ${invalidKeys.join(', ')}`
+    );
+  }
+
+  Object.assign(currentFeatureFlags, validUpdates);
+  Logger.info(
+    'PerformanceConfig',
+    `${Object.keys(validUpdates).length} feature flags atualizadas.`,
+    validUpdates
+  );
+}
+
+/**
+ * Reseta todas as feature flags para valores padrão
+ */
+export function resetFeatureFlags() {
+  initializeFeatureFlags();
+  Logger.info(
+    'PerformanceConfig',
+    'Feature flags resetadas para valores padrão.'
+  );
+}
+
+/**
+ * Carrega feature flags das configurações da extensão
+ * @param {object} settings - Settings da extensão
+ */
+export function loadFeatureFlagsFromSettings(settings) {
+  if (!settings || !settings.featureFlags) {
+    Logger.debug(
+      'PerformanceConfig',
+      'Nenhuma feature flag encontrada nas settings.'
+    );
+    return;
+  }
+
+  const flagsToLoad = settings.featureFlags;
+  const validFlags = {};
+
+  for (const [flagKey, enabled] of Object.entries(flagsToLoad)) {
+    if (flagKey in FEATURE_FLAGS && typeof enabled === 'boolean') {
+      validFlags[flagKey] = enabled;
+    } else {
+      Logger.warn(
+        'PerformanceConfig',
+        `Feature flag inválida nas settings: ${flagKey}. Usando padrão.`
+      );
+    }
+  }
+
+  if (Object.keys(validFlags).length > 0) {
+    updateFeatureFlags(validFlags);
+    Logger.info(
+      'PerformanceConfig',
+      `Feature flags carregadas das settings: ${Object.keys(validFlags).join(
+        ', '
+      )}`
+    );
+  }
+}
+
+/**
+ * Obtém feature flags para salvar nas settings
+ * @returns {object} Feature flags para salvar
+ */
+export function getFeatureFlagsForSettings() {
+  const flags = getAllFeatureFlags();
+  const defaultFlags = {};
+
+  // Só salva flags que foram alteradas do padrão
+  for (const [flagKey, enabled] of Object.entries(flags)) {
+    if (enabled !== FEATURE_FLAGS[flagKey].defaultValue) {
+      defaultFlags[flagKey] = enabled;
+    }
+  }
+
+  return Object.keys(defaultFlags).length > 0 ? defaultFlags : undefined;
+}
+
+// Inicializa feature flags
+initializeFeatureFlags();
+
 // Configurações atuais (podem ser modificadas)
 let currentConfig = { ...DEFAULT_PERFORMANCE_CONFIG };
 
@@ -124,7 +323,7 @@ export function getConfig(key) {
   const value = currentConfig[key];
   if (value === undefined) {
     Logger.warn(
-      "PerformanceConfig",
+      'PerformanceConfig',
       `Configuração desconhecida: ${key}. Usando valor padrão.`
     );
     return DEFAULT_PERFORMANCE_CONFIG[key];
@@ -140,7 +339,7 @@ export function getConfig(key) {
 export function setConfig(key, value) {
   if (!(key in DEFAULT_PERFORMANCE_CONFIG)) {
     Logger.warn(
-      "PerformanceConfig",
+      'PerformanceConfig',
       `Tentativa de definir configuração desconhecida: ${key}`
     );
     return false;
@@ -150,7 +349,7 @@ export function setConfig(key, value) {
   currentConfig[key] = value;
 
   Logger.debug(
-    "PerformanceConfig",
+    'PerformanceConfig',
     `Configuração ${key} alterada: ${oldValue} → ${value}`
   );
   return true;
@@ -174,14 +373,14 @@ export function updateConfig(configUpdates) {
 
   if (invalidKeys.length > 0) {
     Logger.warn(
-      "PerformanceConfig",
-      `Chaves de configuração inválidas ignoradas: ${invalidKeys.join(", ")}`
+      'PerformanceConfig',
+      `Chaves de configuração inválidas ignoradas: ${invalidKeys.join(', ')}`
     );
   }
 
   Object.assign(currentConfig, validUpdates);
   Logger.info(
-    "PerformanceConfig",
+    'PerformanceConfig',
     `${Object.keys(validUpdates).length} configurações atualizadas.`,
     validUpdates
   );
@@ -193,8 +392,8 @@ export function updateConfig(configUpdates) {
 export function resetConfig() {
   currentConfig = { ...DEFAULT_PERFORMANCE_CONFIG };
   Logger.info(
-    "PerformanceConfig",
-    "Configurações resetadas para valores padrão."
+    'PerformanceConfig',
+    'Configurações resetadas para valores padrão.'
   );
 }
 
@@ -239,20 +438,20 @@ export function validateConfigValue(key, value) {
   }
 
   // Validações específicas para configurações numéricas
-  if (defaultType === "number") {
+  if (defaultType === 'number') {
     if (value < 0) return false;
 
     // Limites específicos para alguns valores
     switch (key) {
-      case "BATCH_SIZE":
-      case "API_BATCH_SIZE":
+      case 'BATCH_SIZE':
+      case 'API_BATCH_SIZE':
         return value >= 1 && value <= 1000;
-      case "MAX_INJECTION_RETRIES":
-      case "API_RETRY_COUNT":
+      case 'MAX_INJECTION_RETRIES':
+      case 'API_RETRY_COUNT':
         return value >= 0 && value <= 10;
-      case "MAX_CONCURRENT_OPERATIONS":
+      case 'MAX_CONCURRENT_OPERATIONS':
         return value >= 1 && value <= 50;
-      case "MAX_OPERATIONS_PER_SECOND":
+      case 'MAX_OPERATIONS_PER_SECOND':
         return value >= 1 && value <= 1000;
       default:
         return value <= 60000; // Máximo 60 segundos para delays
@@ -269,8 +468,8 @@ export function validateConfigValue(key, value) {
 export function loadConfigFromSettings(settings) {
   if (!settings || !settings.performanceConfig) {
     Logger.debug(
-      "PerformanceConfig",
-      "Nenhuma configuração de performance encontrada nas settings."
+      'PerformanceConfig',
+      'Nenhuma configuração de performance encontrada nas settings.'
     );
     return;
   }
@@ -283,7 +482,7 @@ export function loadConfigFromSettings(settings) {
       validConfig[key] = value;
     } else {
       Logger.warn(
-        "PerformanceConfig",
+        'PerformanceConfig',
         `Valor inválido para ${key}: ${value}. Usando padrão.`
       );
     }
@@ -292,9 +491,9 @@ export function loadConfigFromSettings(settings) {
   if (Object.keys(validConfig).length > 0) {
     updateConfig(validConfig);
     Logger.info(
-      "PerformanceConfig",
+      'PerformanceConfig',
       `Configurações carregadas das settings: ${Object.keys(validConfig).join(
-        ", "
+        ', '
       )}`
     );
   }
@@ -342,7 +541,7 @@ export class ConfigurableThrottler {
 
   async throttle() {
     const now = Date.now();
-    const delay = getConfig("THROTTLE_DELAY");
+    const delay = getConfig('THROTTLE_DELAY');
     const timeSinceLastExecution = now - this.lastExecution;
 
     if (timeSinceLastExecution < delay) {
@@ -365,7 +564,7 @@ export class ConfigurableRateLimiter {
 
   async checkRate() {
     const now = Date.now();
-    const maxOpsPerSecond = getConfig("MAX_OPERATIONS_PER_SECOND");
+    const maxOpsPerSecond = getConfig('MAX_OPERATIONS_PER_SECOND');
 
     // Remove operações antigas (mais de 1 segundo)
     this.operations = this.operations.filter((time) => now - time < 1000);
@@ -388,6 +587,6 @@ export const globalRateLimiter = new ConfigurableRateLimiter();
 export { DEFAULT_PERFORMANCE_CONFIG };
 
 Logger.debug(
-  "PerformanceConfig",
-  "Módulo de configuração de performance inicializado."
+  'PerformanceConfig',
+  'Módulo de configuração de performance inicializado.'
 );

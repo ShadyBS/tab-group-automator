@@ -1,19 +1,19 @@
 // scripts/utils/changelog-generator.js
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 function generateReleaseNotes() {
-  const changelogPath = path.join(process.cwd(), "CHANGELOG.md");
+  const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');
   if (!fs.existsSync(changelogPath)) {
-    console.error("CHANGELOG.md not found.");
+    console.error('CHANGELOG.md not found.');
     process.exit(1);
   }
-  const changelog = fs.readFileSync(changelogPath, "utf8");
+  const changelog = fs.readFileSync(changelogPath, 'utf8');
   const match = changelog.match(
     /##\s*\[?([\d.]+)\]?\s*-\s*\d{4}-\d{2}-\d{2}([\s\S]*?)(?=##|$)/
   );
   if (!match) {
-    console.error("No release entry found in CHANGELOG.md.");
+    console.error('No release entry found in CHANGELOG.md.');
     process.exit(1);
   }
   const version = match[1];

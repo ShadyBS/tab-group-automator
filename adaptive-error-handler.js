@@ -3,64 +3,64 @@
  * @description Sistema avançado de tratamento de erros com estratégias contextuais e algoritmos de backoff adaptativos.
  */
 
-import Logger from "./logger.js";
-import { getConfig } from "./performance-config.js";
+import Logger from './logger.js';
+import { getConfig } from './performance-config.js';
 
 // Tipos de erro expandidos e categorizados
 export const ErrorType = {
   // Erros de entidade não encontrada
-  TAB_NOT_FOUND: "TAB_NOT_FOUND",
-  GROUP_NOT_FOUND: "GROUP_NOT_FOUND",
-  WINDOW_NOT_FOUND: "WINDOW_NOT_FOUND",
+  TAB_NOT_FOUND: 'TAB_NOT_FOUND',
+  GROUP_NOT_FOUND: 'GROUP_NOT_FOUND',
+  WINDOW_NOT_FOUND: 'WINDOW_NOT_FOUND',
 
   // Erros de permissão e acesso
-  PERMISSION_DENIED: "PERMISSION_DENIED",
-  ACCESS_DENIED: "ACCESS_DENIED",
-  INSUFFICIENT_PERMISSIONS: "INSUFFICIENT_PERMISSIONS",
+  PERMISSION_DENIED: 'PERMISSION_DENIED',
+  ACCESS_DENIED: 'ACCESS_DENIED',
+  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
 
   // Erros de API e rede
-  API_UNAVAILABLE: "API_UNAVAILABLE",
-  NETWORK_ERROR: "NETWORK_ERROR",
-  TIMEOUT_ERROR: "TIMEOUT_ERROR",
-  RATE_LIMITED: "RATE_LIMITED",
+  API_UNAVAILABLE: 'API_UNAVAILABLE',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
+  RATE_LIMITED: 'RATE_LIMITED',
 
   // Erros de armazenamento
-  STORAGE_ERROR: "STORAGE_ERROR",
-  QUOTA_EXCEEDED: "QUOTA_EXCEEDED",
-  STORAGE_UNAVAILABLE: "STORAGE_UNAVAILABLE",
+  STORAGE_ERROR: 'STORAGE_ERROR',
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  STORAGE_UNAVAILABLE: 'STORAGE_UNAVAILABLE',
 
   // Erros de script e injeção
-  SCRIPT_INJECTION_FAILED: "SCRIPT_INJECTION_FAILED",
-  CONTENT_SCRIPT_ERROR: "CONTENT_SCRIPT_ERROR",
+  SCRIPT_INJECTION_FAILED: 'SCRIPT_INJECTION_FAILED',
+  CONTENT_SCRIPT_ERROR: 'CONTENT_SCRIPT_ERROR',
 
   // Erros transitórios
-  TRANSIENT_ERROR: "TRANSIENT_ERROR",
-  TEMPORARY_UNAVAILABLE: "TEMPORARY_UNAVAILABLE",
+  TRANSIENT_ERROR: 'TRANSIENT_ERROR',
+  TEMPORARY_UNAVAILABLE: 'TEMPORARY_UNAVAILABLE',
 
   // Erros de validação
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  INVALID_ARGUMENT: "INVALID_ARGUMENT",
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  INVALID_ARGUMENT: 'INVALID_ARGUMENT',
 
   // Erros desconhecidos
-  UNKNOWN: "UNKNOWN",
+  UNKNOWN: 'UNKNOWN',
 };
 
 // Estratégias de recuperação expandidas
 export const RecoveryStrategy = {
-  IMMEDIATE_RETRY: "IMMEDIATE_RETRY", // Retry imediato para erros transitórios
-  LINEAR_BACKOFF: "LINEAR_BACKOFF", // Backoff linear para erros de rede
-  EXPONENTIAL_BACKOFF: "EXPONENTIAL_BACKOFF", // Backoff exponencial para erros persistentes
-  FIBONACCI_BACKOFF: "FIBONACCI_BACKOFF", // Backoff fibonacci para casos especiais
-  JITTERED_BACKOFF: "JITTERED_BACKOFF", // Backoff com jitter para evitar thundering herd
-  SKIP: "SKIP", // Pular operação
-  FALLBACK: "FALLBACK", // Usar fallback
-  ABORT: "ABORT", // Abortar operação
-  CIRCUIT_BREAKER: "CIRCUIT_BREAKER", // Circuit breaker para falhas repetidas
+  IMMEDIATE_RETRY: 'IMMEDIATE_RETRY', // Retry imediato para erros transitórios
+  LINEAR_BACKOFF: 'LINEAR_BACKOFF', // Backoff linear para erros de rede
+  EXPONENTIAL_BACKOFF: 'EXPONENTIAL_BACKOFF', // Backoff exponencial para erros persistentes
+  FIBONACCI_BACKOFF: 'FIBONACCI_BACKOFF', // Backoff fibonacci para casos especiais
+  JITTERED_BACKOFF: 'JITTERED_BACKOFF', // Backoff com jitter para evitar thundering herd
+  SKIP: 'SKIP', // Pular operação
+  FALLBACK: 'FALLBACK', // Usar fallback
+  ABORT: 'ABORT', // Abortar operação
+  CIRCUIT_BREAKER: 'CIRCUIT_BREAKER', // Circuit breaker para falhas repetidas
 };
 
 // Algoritmos de backoff
 export const BackoffAlgorithm = {
-  IMMEDIATE: (attempt) => 0,
+  IMMEDIATE: () => 0,
   LINEAR: (attempt, baseDelay = 1000) => baseDelay * attempt,
   EXPONENTIAL: (attempt, baseDelay = 1000) => baseDelay * Math.pow(2, attempt),
   FIBONACCI: (attempt, baseDelay = 1000) => {
@@ -183,11 +183,11 @@ export class AdaptiveErrorHandler {
 
     // Configurações contextuais
     this.contextualConfigs = new Map([
-      ["critical", { multiplier: 1.5, maxRetries: 5 }],
-      ["background", { multiplier: 1.0, maxRetries: 3 }],
-      ["user-initiated", { multiplier: 0.8, maxRetries: 4 }],
-      ["batch-operation", { multiplier: 1.2, maxRetries: 2 }],
-      ["memory-cleanup", { multiplier: 0.5, maxRetries: 1 }],
+      ['critical', { multiplier: 1.5, maxRetries: 5 }],
+      ['background', { multiplier: 1.0, maxRetries: 3 }],
+      ['user-initiated', { multiplier: 0.8, maxRetries: 4 }],
+      ['batch-operation', { multiplier: 1.2, maxRetries: 2 }],
+      ['memory-cleanup', { multiplier: 0.5, maxRetries: 1 }],
     ]);
 
     // Circuit breaker para falhas repetidas
@@ -209,106 +209,106 @@ export class AdaptiveErrorHandler {
    * @returns {ErrorType} O tipo de erro classificado.
    */
   classifyError(error) {
-    const message = error.message?.toLowerCase() || "";
-    const stack = error.stack?.toLowerCase() || "";
+    const message = error.message?.toLowerCase() || '';
+    const stack = error.stack?.toLowerCase() || '';
 
     // Erros de entidade não encontrada
     if (
-      message.includes("no tab with id") ||
-      message.includes("tab not found")
+      message.includes('no tab with id') ||
+      message.includes('tab not found')
     ) {
       return ErrorType.TAB_NOT_FOUND;
     }
     if (
-      message.includes("no group with id") ||
-      message.includes("invalid tab group id")
+      message.includes('no group with id') ||
+      message.includes('invalid tab group id')
     ) {
       return ErrorType.GROUP_NOT_FOUND;
     }
     if (
-      message.includes("no window with id") ||
-      message.includes("window not found")
+      message.includes('no window with id') ||
+      message.includes('window not found')
     ) {
       return ErrorType.WINDOW_NOT_FOUND;
     }
 
     // Erros de permissão
     if (
-      message.includes("permission denied") ||
-      message.includes("access denied")
+      message.includes('permission denied') ||
+      message.includes('access denied')
     ) {
       return ErrorType.PERMISSION_DENIED;
     }
-    if (message.includes("insufficient permissions")) {
+    if (message.includes('insufficient permissions')) {
       return ErrorType.INSUFFICIENT_PERMISSIONS;
     }
-    if (message.includes("cannot access")) {
+    if (message.includes('cannot access')) {
       return ErrorType.ACCESS_DENIED;
     }
 
     // Erros de API e rede
     if (
-      message.includes("network error") ||
-      message.includes("connection failed")
+      message.includes('network error') ||
+      message.includes('connection failed')
     ) {
       return ErrorType.NETWORK_ERROR;
     }
-    if (message.includes("timeout") || message.includes("timed out")) {
+    if (message.includes('timeout') || message.includes('timed out')) {
       return ErrorType.TIMEOUT_ERROR;
     }
     if (
-      message.includes("rate limit") ||
-      message.includes("too many requests")
+      message.includes('rate limit') ||
+      message.includes('too many requests')
     ) {
       return ErrorType.RATE_LIMITED;
     }
     if (
-      message.includes("api unavailable") ||
-      message.includes("service unavailable")
+      message.includes('api unavailable') ||
+      message.includes('service unavailable')
     ) {
       return ErrorType.API_UNAVAILABLE;
     }
 
     // Erros de armazenamento
     if (
-      message.includes("quota exceeded") ||
-      message.includes("storage quota")
+      message.includes('quota exceeded') ||
+      message.includes('storage quota')
     ) {
       return ErrorType.QUOTA_EXCEEDED;
     }
     if (
-      message.includes("storage error") ||
-      message.includes("storage unavailable")
+      message.includes('storage error') ||
+      message.includes('storage unavailable')
     ) {
       return ErrorType.STORAGE_ERROR;
     }
 
     // Erros de script
     if (
-      message.includes("script injection") ||
-      message.includes("injection failed")
+      message.includes('script injection') ||
+      message.includes('injection failed')
     ) {
       return ErrorType.SCRIPT_INJECTION_FAILED;
     }
     if (
-      message.includes("content script") ||
-      stack.includes("content-script")
+      message.includes('content script') ||
+      stack.includes('content-script')
     ) {
       return ErrorType.CONTENT_SCRIPT_ERROR;
     }
 
     // Erros transitórios
-    if (message.includes("temporary") || message.includes("transient")) {
+    if (message.includes('temporary') || message.includes('transient')) {
       return ErrorType.TRANSIENT_ERROR;
     }
-    if (message.includes("temporarily unavailable")) {
+    if (message.includes('temporarily unavailable')) {
       return ErrorType.TEMPORARY_UNAVAILABLE;
     }
 
     // Erros de validação
     if (
-      message.includes("validation") ||
-      message.includes("invalid argument")
+      message.includes('validation') ||
+      message.includes('invalid argument')
     ) {
       return ErrorType.VALIDATION_ERROR;
     }
@@ -329,7 +329,7 @@ export class AdaptiveErrorHandler {
 
     const contextConfig =
       this.contextualConfigs.get(context) ||
-      this.contextualConfigs.get("background");
+      this.contextualConfigs.get('background');
 
     return {
       strategy: baseConfig.strategy,
@@ -337,8 +337,8 @@ export class AdaptiveErrorHandler {
         baseConfig.maxRetries * contextConfig.multiplier,
         10
       ),
-      baseDelay: getConfig("ERROR_RETRY_BASE_DELAY") || 1000,
-      maxDelay: getConfig("ERROR_RETRY_MAX_DELAY") || 30000,
+      baseDelay: getConfig('ERROR_RETRY_BASE_DELAY') || 1000,
+      maxDelay: getConfig('ERROR_RETRY_MAX_DELAY') || 30000,
     };
   }
 
@@ -390,8 +390,8 @@ export class AdaptiveErrorHandler {
     };
 
     const now = Date.now();
-    const threshold = getConfig("CIRCUIT_BREAKER_THRESHOLD") || 5;
-    const resetTime = getConfig("CIRCUIT_BREAKER_RESET_TIME") || 60000; // 1 minuto
+    const threshold = getConfig('CIRCUIT_BREAKER_THRESHOLD') || 5;
+    const resetTime = getConfig('CIRCUIT_BREAKER_RESET_TIME') || 60000; // 1 minuto
 
     // Reset circuit breaker se passou tempo suficiente
     if (now - breaker.lastFailure > resetTime) {
@@ -405,7 +405,7 @@ export class AdaptiveErrorHandler {
     if (breaker.failures >= threshold) {
       this.errorStats.circuitBreakerTrips++;
       Logger.warn(
-        "AdaptiveErrorHandler",
+        'AdaptiveErrorHandler',
         `Circuit breaker ativado para ${key} após ${breaker.failures} falhas`
       );
       return true;
@@ -429,7 +429,7 @@ export class AdaptiveErrorHandler {
    */
   async executeWithAdaptiveHandling(operation, options = {}) {
     const {
-      context = "background",
+      context = 'background',
       fallback = null,
       criticalOperation = false,
       customRetries = null,
@@ -440,6 +440,7 @@ export class AdaptiveErrorHandler {
     let lastError = null;
     let attempt = 0;
 
+    // eslint-disable-next-line no-constant-condition -- intentional infinite retry loop, exited by break/throw
     while (true) {
       try {
         const result = await operation();
@@ -448,7 +449,7 @@ export class AdaptiveErrorHandler {
         if (attempt > 0) {
           this.errorStats.recoverySuccesses++;
           Logger.debug(
-            "AdaptiveErrorHandler",
+            'AdaptiveErrorHandler',
             `Recuperação bem-sucedida após ${attempt} tentativas em ${context}`
           );
         }
@@ -478,7 +479,7 @@ export class AdaptiveErrorHandler {
         // Verifica circuit breaker
         if (this.shouldTripCircuitBreaker(context, errorType)) {
           Logger.error(
-            "AdaptiveErrorHandler",
+            'AdaptiveErrorHandler',
             `Circuit breaker ativo - abortando operação em ${context}`
           );
           throw new Error(`Circuit breaker ativo para ${context}-${errorType}`);
@@ -486,13 +487,13 @@ export class AdaptiveErrorHandler {
 
         const strategyConfig = this.getStrategyConfig(
           errorType,
-          criticalOperation ? "critical" : context
+          criticalOperation ? 'critical' : context
         );
         const maxRetries =
           customRetries !== null ? customRetries : strategyConfig.maxRetries;
 
         Logger.debug(
-          "AdaptiveErrorHandler",
+          'AdaptiveErrorHandler',
           `Tentativa ${
             attempt + 1
           } falhou em ${context}. Tipo: ${errorType}, Estratégia: ${
@@ -504,7 +505,7 @@ export class AdaptiveErrorHandler {
         // Verifica se deve continuar tentando
         if (attempt >= maxRetries) {
           Logger.error(
-            "AdaptiveErrorHandler",
+            'AdaptiveErrorHandler',
             `Todas as ${maxRetries + 1} tentativas falharam em ${context}`,
             lastError
           );
@@ -515,14 +516,14 @@ export class AdaptiveErrorHandler {
         switch (strategyConfig.strategy) {
           case RecoveryStrategy.SKIP:
             Logger.info(
-              "AdaptiveErrorHandler",
+              'AdaptiveErrorHandler',
               `Pulando operação em ${context} - ${errorType}`
             );
             return null;
 
           case RecoveryStrategy.ABORT:
             Logger.error(
-              "AdaptiveErrorHandler",
+              'AdaptiveErrorHandler',
               `Abortando operação em ${context} - ${errorType}`,
               error
             );
@@ -531,14 +532,14 @@ export class AdaptiveErrorHandler {
           case RecoveryStrategy.FALLBACK:
             if (fallback) {
               Logger.warn(
-                "AdaptiveErrorHandler",
+                'AdaptiveErrorHandler',
                 `Usando fallback em ${context} - ${errorType}`
               );
               try {
                 return await fallback();
               } catch (fallbackError) {
                 Logger.error(
-                  "AdaptiveErrorHandler",
+                  'AdaptiveErrorHandler',
                   `Fallback também falhou em ${context}`,
                   fallbackError
                 );
@@ -550,7 +551,7 @@ export class AdaptiveErrorHandler {
 
           case RecoveryStrategy.CIRCUIT_BREAKER:
             Logger.warn(
-              "AdaptiveErrorHandler",
+              'AdaptiveErrorHandler',
               `Circuit breaker ativado para ${context}`
             );
             throw new Error(`Circuit breaker ativo para ${context}`);
@@ -566,7 +567,7 @@ export class AdaptiveErrorHandler {
 
         if (delay > 0) {
           Logger.debug(
-            "AdaptiveErrorHandler",
+            'AdaptiveErrorHandler',
             `Aguardando ${delay}ms antes da próxima tentativa...`
           );
           await new Promise((resolve) => setTimeout(resolve, delay));
@@ -726,6 +727,6 @@ export async function handleCriticalOperation(
 }
 
 Logger.debug(
-  "AdaptiveErrorHandler",
-  "Sistema de tratamento adaptativo de erros inicializado."
+  'AdaptiveErrorHandler',
+  'Sistema de tratamento adaptativo de erros inicializado.'
 );

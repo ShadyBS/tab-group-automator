@@ -4,7 +4,7 @@
  * Implementa cache inteligente com TTL, versionamento e validação
  */
 
-import Logger from "./logger.js";
+import Logger from './logger.js';
 
 /**
  * Sistema de cache de inicialização para otimizar performance de startup
@@ -28,36 +28,36 @@ class InitializationCache {
       const cacheData = cached[this.cacheKey];
       
       if (!cacheData) {
-        Logger.debug("InitializationCache", "Nenhum cache de inicialização encontrado");
+        Logger.debug('InitializationCache', 'Nenhum cache de inicialização encontrado');
         return null;
       }
       
       // Verifica se o cache expirou
       if (this.isCacheExpired(cacheData)) {
-        Logger.info("InitializationCache", "Cache de inicialização expirado, limpando...");
+        Logger.info('InitializationCache', 'Cache de inicialização expirado, limpando...');
         await this.clearCache();
         return null;
       }
       
       // Verifica versão do cache
       if (cacheData.version !== this.CACHE_VERSION) {
-        Logger.info("InitializationCache", `Versão do cache incompatível (${cacheData.version} vs ${this.CACHE_VERSION}), limpando...`);
+        Logger.info('InitializationCache', `Versão do cache incompatível (${cacheData.version} vs ${this.CACHE_VERSION}), limpando...`);
         await this.clearCache();
         return null;
       }
       
       // Valida integridade dos dados
       if (!this.validateCacheData(cacheData.data)) {
-        Logger.warn("InitializationCache", "Dados do cache corrompidos, limpando...");
+        Logger.warn('InitializationCache', 'Dados do cache corrompidos, limpando...');
         await this.clearCache();
         return null;
       }
       
-      Logger.info("InitializationCache", "Cache de inicialização válido encontrado");
+      Logger.info('InitializationCache', 'Cache de inicialização válido encontrado');
       this.recordCacheHit();
       return cacheData.data;
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao obter cache de inicialização:", error);
+      Logger.error('InitializationCache', 'Erro ao obter cache de inicialização:', error);
       return null;
     }
   }
@@ -71,7 +71,7 @@ class InitializationCache {
     try {
       // Valida dados antes de cachear
       if (!this.validateCacheData(data)) {
-        Logger.error("InitializationCache", "Dados inválidos para cache, não salvando");
+        Logger.error('InitializationCache', 'Dados inválidos para cache, não salvando');
         return false;
       }
       
@@ -86,11 +86,11 @@ class InitializationCache {
         [this.cacheKey]: cacheData
       });
       
-      Logger.info("InitializationCache", "Dados de inicialização salvos no cache");
+      Logger.info('InitializationCache', 'Dados de inicialização salvos no cache');
       this.recordCacheSave();
       return true;
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao salvar cache de inicialização:", error);
+      Logger.error('InitializationCache', 'Erro ao salvar cache de inicialização:', error);
       return false;
     }
   }
@@ -117,20 +117,20 @@ class InitializationCache {
     const requiredFields = ['settings', 'modules', 'timestamp'];
     for (const field of requiredFields) {
       if (!(field in data)) {
-        Logger.debug("InitializationCache", `Campo obrigatório ausente: ${field}`);
+        Logger.debug('InitializationCache', `Campo obrigatório ausente: ${field}`);
         return false;
       }
     }
     
     // Valida settings
     if (!data.settings || typeof data.settings !== 'object') {
-      Logger.debug("InitializationCache", "Settings inválidas no cache");
+      Logger.debug('InitializationCache', 'Settings inválidas no cache');
       return false;
     }
     
     // Valida módulos
     if (!data.modules || typeof data.modules !== 'object') {
-      Logger.debug("InitializationCache", "Módulos inválidos no cache");
+      Logger.debug('InitializationCache', 'Módulos inválidos no cache');
       return false;
     }
     
@@ -160,9 +160,9 @@ class InitializationCache {
   async clearCache() {
     try {
       await browser.storage.local.remove([this.cacheKey]);
-      Logger.info("InitializationCache", "Cache de inicialização limpo");
+      Logger.info('InitializationCache', 'Cache de inicialização limpo');
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao limpar cache:", error);
+      Logger.error('InitializationCache', 'Erro ao limpar cache:', error);
     }
   }
 
@@ -202,7 +202,7 @@ class InitializationCache {
         [this.metricsKey]: metrics
       });
     } catch (error) {
-      Logger.debug("InitializationCache", "Erro ao atualizar métricas:", error);
+      Logger.debug('InitializationCache', 'Erro ao atualizar métricas:', error);
     }
   }
 
@@ -227,7 +227,7 @@ class InitializationCache {
       
       return metrics;
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao obter métricas:", error);
+      Logger.error('InitializationCache', 'Erro ao obter métricas:', error);
       return { hits: 0, saves: 0, misses: 0, errors: 0, hitRate: 0 };
     }
   }
@@ -250,9 +250,9 @@ class InitializationCache {
         [this.metricsKey]: resetMetrics
       });
       
-      Logger.info("InitializationCache", "Métricas do cache resetadas");
+      Logger.info('InitializationCache', 'Métricas do cache resetadas');
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao resetar métricas:", error);
+      Logger.error('InitializationCache', 'Erro ao resetar métricas:', error);
     }
   }
 
@@ -263,7 +263,7 @@ class InitializationCache {
   async invalidateCache() {
     await this.clearCache();
     await this.updateMetrics('misses', 1);
-    Logger.info("InitializationCache", "Cache invalidado manualmente");
+    Logger.info('InitializationCache', 'Cache invalidado manualmente');
   }
 
   /**
@@ -285,7 +285,7 @@ class InitializationCache {
         metrics
       };
     } catch (error) {
-      Logger.error("InitializationCache", "Erro ao obter status:", error);
+      Logger.error('InitializationCache', 'Erro ao obter status:', error);
       return {
         hasCache: false,
         isValid: false,

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-"use strict";
+'use strict';
 
 if (
-  typeof globalThis.browser === "undefined" &&
-  typeof globalThis.chrome !== "undefined"
+  typeof globalThis.browser === 'undefined' &&
+  typeof globalThis.chrome !== 'undefined'
 ) {
   // Em Manifest V3, o script de fundo é um Service Worker (módulo ES),
   // onde `var` no escopo superior não cria uma variável global.

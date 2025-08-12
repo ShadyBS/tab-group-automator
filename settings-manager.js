@@ -2,28 +2,32 @@
  * @file settings-manager.js
  * @description Gere as configurações da extensão e o armazenamento, com suporte para sincronização.
  */
-import Logger from "./logger.js";
+import Logger from './logger.js';
 import {
   withErrorHandling,
   handleCriticalOperation,
-} from "./adaptive-error-handler.js";
-import { getConfig } from "./performance-config.js";
+} from './adaptive-error-handler.js';
+import {
+  getConfig,
+  loadFeatureFlagsFromSettings,
+  getFeatureFlagsForSettings,
+} from './performance-config.js';
 import {
   validateSettings,
   validateCustomRule,
   sanitizeString,
-} from "./validation-utils.js";
+} from './validation-utils.js';
 import {
   globalIntelligentCache,
   getSmartNameFromCache,
   setSmartNameInCache,
   invalidateSmartNameCache,
   getSmartNameCacheStats,
-} from "./intelligent-cache-manager.js";
+} from './intelligent-cache-manager.js';
 
 export const DEFAULT_SETTINGS = {
   autoGroupingEnabled: true,
-  groupingMode: "smart",
+  groupingMode: 'smart',
   minTabsForAutoGroup: 2, // Substituído suppressSingleTabGroups
   autoCollapseTimeout: 0,
   uncollapseOnActivate: true,
@@ -34,55 +38,56 @@ export const DEFAULT_SETTINGS = {
   showTabCount: true,
   syncEnabled: false,
   manualGroupIds: [],
-  logLevel: "INFO",
-  theme: "auto",
+  logLevel: 'INFO',
+  theme: 'auto',
   domainSanitizationTlds: [
-    ".rs.gov.br",
-    ".sp.gov.br",
-    ".rj.gov.br",
-    ".com.br",
-    ".net.br",
-    ".org.br",
-    ".gov.br",
-    ".edu.br",
-    ".gov.uk",
-    ".ac.uk",
-    ".co.uk",
-    ".gov.au",
-    ".com.au",
-    ".com",
-    ".org",
-    ".net",
-    ".dev",
-    ".io",
-    ".gov",
-    ".edu",
-    ".co",
-    ".app",
-    ".xyz",
-    ".info",
-    ".biz",
-    ".br",
-    ".rs",
-    ".uk",
-    ".de",
-    ".jp",
-    ".fr",
-    ".au",
-    ".us",
+    '.rs.gov.br',
+    '.sp.gov.br',
+    '.rj.gov.br',
+    '.com.br',
+    '.net.br',
+    '.org.br',
+    '.gov.br',
+    '.edu.br',
+    '.gov.uk',
+    '.ac.uk',
+    '.co.uk',
+    '.gov.au',
+    '.com.au',
+    '.com',
+    '.org',
+    '.net',
+    '.dev',
+    '.io',
+    '.gov',
+    '.edu',
+    '.co',
+    '.app',
+    '.xyz',
+    '.info',
+    '.biz',
+    '.br',
+    '.rs',
+    '.uk',
+    '.de',
+    '.jp',
+    '.fr',
+    '.au',
+    '.us',
   ],
   titleSanitizationNoise: [
-    "login",
-    "sign in",
-    "dashboard",
-    "homepage",
-    "painel",
+    'login',
+    'sign in',
+    'dashboard',
+    'homepage',
+    'painel',
   ],
-  titleDelimiters: "|–—:·»«-",
+  titleDelimiters: '|–—:·»«-',
   tabRenamingEnabled: false, // NOVO: Habilita/desabilita a renomeação automática de abas
   tabRenamingRules: [], // NOVO: Array para armazenar as regras de renomeação
   learningEnabled: true, // NOVO: Controla se o aprendizado está ativo
   learningDataRetentionDays: 30, // NOVO: Dias para manter dados
+  featureFlags: undefined, // NOVO: Feature flags de performance (undefined = usar padrões)
 };
 
 // Objetos em memória
@@ -107,10 +112,10 @@ function getStorage(useSync) {
  */
 function migrateRuleToNewFormat(oldRule) {
   // Validação básica da regra antiga
-  if (!oldRule || typeof oldRule !== "object" || Array.isArray(oldRule)) {
+  if (!oldRule || typeof oldRule !== 'object' || Array.isArray(oldRule)) {
     Logger.error(
-      "MigrateRule",
-      "Regra inválida para migração: deve ser um objeto"
+      'MigrateRule',
+      'Regra inválida para migração: deve ser um objeto'
     );
     return null;
   }
@@ -123,25 +128,25 @@ function migrateRuleToNewFormat(oldRule) {
       return oldRule;
     } else {
       Logger.warn(
-        "MigrateRule",
-        `Regra existente com formato inválido: ${validation.errors.join("; ")}`
+        'MigrateRule',
+        `Regra existente com formato inválido: ${validation.errors.join('; ')}`
       );
       // Continua com a migração para tentar corrigir
     }
   }
 
-  const ruleName = sanitizeString(oldRule.name || "Regra sem nome", 50);
-  Logger.info("MigrateRule", `Migrando regra antiga: "${ruleName}"`);
+  const ruleName = sanitizeString(oldRule.name || 'Regra sem nome', 50);
+  Logger.info('MigrateRule', `Migrando regra antiga: '${ruleName}'`);
 
   const newRule = {
     name: ruleName,
-    color: oldRule.color || "grey",
+    color: oldRule.color || 'grey',
     minTabs:
-      typeof oldRule.minTabs === "number" && oldRule.minTabs > 0
+      typeof oldRule.minTabs === 'number' && oldRule.minTabs > 0
         ? oldRule.minTabs
         : 1,
     conditionGroup: {
-      operator: "OR", // Múltiplos padrões no formato antigo funcionam como 'OU'
+      operator: 'OR', // Múltiplos padrões no formato antigo funcionam como 'OU'
       conditions: [],
     },
   };
@@ -152,19 +157,19 @@ function migrateRuleToNewFormat(oldRule) {
     oldRule.patterns.length > 0
   ) {
     const propertyMap = {
-      "url-wildcard": { property: "url", operator: "wildcard" },
-      "url-regex": { property: "url", operator: "regex" },
-      "title-match": { property: "title", operator: "contains" },
+      'url-wildcard': { property: 'url', operator: 'wildcard' },
+      'url-regex': { property: 'url', operator: 'regex' },
+      'title-match': { property: 'title', operator: 'contains' },
     };
 
     const mapping = propertyMap[oldRule.type] || {
-      property: "url",
-      operator: "contains",
+      property: 'url',
+      operator: 'contains',
     };
 
     newRule.conditionGroup.conditions = oldRule.patterns
       .filter(
-        (pattern) => typeof pattern === "string" && pattern.trim().length > 0
+        (pattern) => typeof pattern === 'string' && pattern.trim().length > 0
       )
       .map((pattern) => ({
         property: mapping.property,
@@ -177,15 +182,15 @@ function migrateRuleToNewFormat(oldRule) {
   const validation = validateCustomRule(newRule);
   if (!validation.isValid) {
     Logger.error(
-      "MigrateRule",
-      `Falha na migração da regra "${ruleName}": ${validation.errors.join(
-        "; "
+      'MigrateRule',
+      `Falha na migração da regra '${ruleName}': ${validation.errors.join(
+        '; '
       )}`
     );
     return null;
   }
 
-  Logger.info("MigrateRule", `Regra "${ruleName}" migrada com sucesso`);
+  Logger.info('MigrateRule', `Regra '${ruleName}' migrada com sucesso`);
   return newRule;
 }
 
@@ -200,10 +205,10 @@ export async function loadSettings() {
       // Primeiro verifica se há configurações no sync
       const syncData = await withErrorHandling(
         async () => {
-          return await browser.storage.sync.get("settings");
+          return await browser.storage.sync.get('settings');
         },
         {
-          context: "load-sync-settings",
+          context: 'load-sync-settings',
           maxRetries: 2,
           criticalOperation: false,
           fallback: () => ({ settings: null }),
@@ -211,26 +216,26 @@ export async function loadSettings() {
       );
 
       let loadedSettings = null;
-      let settingsSource = "default";
+      let settingsSource = 'default';
 
       if (syncData && syncData.settings) {
         Logger.info(
-          "SettingsManager",
-          "A carregar configurações do armazenamento sync."
+          'SettingsManager',
+          'A carregar configurações do armazenamento sync.'
         );
         loadedSettings = syncData.settings;
-        settingsSource = "sync";
+        settingsSource = 'sync';
       } else {
         Logger.info(
-          "SettingsManager",
-          "Sem configurações no sync, a tentar armazenamento local."
+          'SettingsManager',
+          'Sem configurações no sync, a tentar armazenamento local.'
         );
         const localData = await withErrorHandling(
           async () => {
-            return await browser.storage.local.get("settings");
+            return await browser.storage.local.get('settings');
           },
           {
-            context: "load-local-settings",
+            context: 'load-local-settings',
             maxRetries: 3,
             criticalOperation: false,
             fallback: () => ({ settings: null }),
@@ -239,7 +244,7 @@ export async function loadSettings() {
 
         if (localData && localData.settings) {
           loadedSettings = localData.settings;
-          settingsSource = "local";
+          settingsSource = 'local';
         }
       }
 
@@ -249,10 +254,15 @@ export async function loadSettings() {
       let settingsWereMigrated = false;
 
       // **SCRIPT DE MIGRAÇÃO DE suppressSingleTabGroups**
-      if (settings.hasOwnProperty("suppressSingleTabGroups")) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          settings,
+          'suppressSingleTabGroups'
+        )
+      ) {
         Logger.warn(
-          "SettingsManager",
-          "Detectado formato de 'suppressSingleTabGroups' antigo. Migrando..."
+          'SettingsManager',
+          'Detectado formato de "suppressSingleTabGroups" antigo. Migrando...'
         );
         settings.minTabsForAutoGroup = settings.suppressSingleTabGroups ? 2 : 1;
         delete settings.suppressSingleTabGroups;
@@ -267,8 +277,8 @@ export async function loadSettings() {
         !settings.customRules[0].conditionGroup
       ) {
         Logger.warn(
-          "SettingsManager",
-          "Detectado formato de regras de agrupamento antigo. Iniciando migração..."
+          'SettingsManager',
+          'Detectado formato de regras de agrupamento antigo. Iniciando migração...'
         );
 
         const migratedRules = settings.customRules
@@ -277,7 +287,7 @@ export async function loadSettings() {
 
         if (migratedRules.length !== settings.customRules.length) {
           Logger.warn(
-            "SettingsManager",
+            'SettingsManager',
             `${
               settings.customRules.length - migratedRules.length
             } regras foram removidas durante a migração devido a erros`
@@ -287,7 +297,7 @@ export async function loadSettings() {
         settings.customRules = migratedRules;
         settingsWereMigrated = true;
         Logger.info(
-          "SettingsManager",
+          'SettingsManager',
           `Migração de regras de agrupamento concluída. ${migratedRules.length} regras migradas com sucesso.`
         );
       }
@@ -298,15 +308,15 @@ export async function loadSettings() {
         Array.isArray(settings.tabRenamingRules)
       ) {
         const { validateTabRenamingRule } = await import(
-          "./validation-utils.js"
+          './validation-utils.js'
         );
         settings.tabRenamingRules = settings.tabRenamingRules.filter((rule) => {
           const validation = validateTabRenamingRule(rule);
           if (!validation.isValid) {
             Logger.warn(
-              "SettingsManager",
+              'SettingsManager',
               `Regra de renomeação inválida encontrada e removida durante o carregamento: ${validation.errors.join(
-                "; "
+                '; '
               )}`,
               rule
             );
@@ -317,22 +327,25 @@ export async function loadSettings() {
         settings.tabRenamingRules = []; // Garante que seja um array
       }
 
+      // Carrega feature flags de performance
+      loadFeatureFlagsFromSettings(settings);
+
       // Se qualquer migração ocorreu, salva as configurações imediatamente.
       if (settingsWereMigrated) {
         await updateSettings(settings);
         Logger.info(
-          "SettingsManager",
-          "Configurações migradas foram guardadas."
+          'SettingsManager',
+          'Configurações migradas foram guardadas.'
         );
       }
 
       // Carrega cache de nomes inteligentes (legado, será migrado para IntelligentCacheManager)
       const cacheData = await withErrorHandling(
         async () => {
-          return await browser.storage.local.get("smartNameCache");
+          return await browser.storage.local.get('smartNameCache');
         },
         {
-          context: "load-smart-cache",
+          context: 'load-smart-cache',
           maxRetries: 2,
           criticalOperation: false,
           fallback: () => ({ smartNameCache: null }),
@@ -344,17 +357,17 @@ export async function loadSettings() {
       }
 
       Logger.info(
-        "SettingsManager",
+        'SettingsManager',
         `Configurações carregadas de ${settingsSource}.`
       );
       return { success: true, source: settingsSource };
     },
-    "loadSettings",
+    'loadSettings',
     async () => {
       // Fallback crítico: usar configurações padrão
       Logger.error(
-        "SettingsManager",
-        "Usando configurações padrão devido a falhas críticas."
+        'SettingsManager',
+        'Usando configurações padrão devido a falhas críticas.'
       );
       settings = { ...DEFAULT_SETTINGS };
       smartNameCache = new Map();
@@ -374,11 +387,11 @@ export async function updateSettings(newSettings) {
   // Validação das novas configurações
   if (
     !newSettings ||
-    typeof newSettings !== "object" ||
+    typeof newSettings !== 'object' ||
     Array.isArray(newSettings)
   ) {
-    Logger.error("updateSettings", "newSettings deve ser um objeto válido");
-    throw new Error("Configurações inválidas fornecidas");
+    Logger.error('updateSettings', 'newSettings deve ser um objeto válido');
+    throw new Error('Configurações inválidas fornecidas');
   }
 
   const oldSettings = { ...settings };
@@ -391,24 +404,37 @@ export async function updateSettings(newSettings) {
   const validation = validateSettings(mergedSettings);
   if (!validation.isValid) {
     Logger.error(
-      "updateSettings",
-      `Configurações inválidas: ${validation.errors.join("; ")}`
+      'updateSettings',
+      `Configurações inválidas: ${validation.errors.join('; ')}`
     );
-    throw new Error(`Configurações inválidas: ${validation.errors.join("; ")}`);
+    throw new Error(`Configurações inválidas: ${validation.errors.join('; ')}`);
   }
 
   settings = mergedSettings;
+
+  // Atualiza feature flags se foram fornecidas
+  if (newSettings.featureFlags) {
+    loadFeatureFlagsFromSettings(newSettings);
+  }
+
   const newSyncStatus = settings.syncEnabled;
 
   const targetStorage = getStorage(newSyncStatus);
 
   return await withErrorHandling(
     async () => {
-      await targetStorage.set({ settings });
+      // Inclui feature flags nas configurações a serem salvas
+      const settingsToSave = { ...settings };
+      const featureFlags = getFeatureFlagsForSettings();
+      if (featureFlags) {
+        settingsToSave.featureFlags = featureFlags;
+      }
+
+      await targetStorage.set({ settings: settingsToSave });
       Logger.info(
-        "SettingsManager",
+        'SettingsManager',
         `Configurações guardadas no armazenamento ${
-          newSyncStatus ? "sync" : "local"
+          newSyncStatus ? 'sync' : 'local'
         }.`
       );
 
@@ -417,16 +443,16 @@ export async function updateSettings(newSettings) {
         await withErrorHandling(
           async () => {
             const sourceStorage = getStorage(oldSyncStatus);
-            await sourceStorage.remove("settings");
+            await sourceStorage.remove('settings');
             Logger.info(
-              "SettingsManager",
+              'SettingsManager',
               `Configurações removidas do armazenamento ${
-                oldSyncStatus ? "sync" : "local"
+                oldSyncStatus ? 'sync' : 'local'
               }.`
             );
           },
           {
-            context: "remove-old-settings",
+            context: 'remove-old-settings',
             maxRetries: 2,
             criticalOperation: false,
           }
@@ -436,15 +462,15 @@ export async function updateSettings(newSettings) {
       return { oldSettings, newSettings: settings };
     },
     {
-      context: `updateSettings-${newSyncStatus ? "sync" : "local"}`,
+      context: `updateSettings-${newSyncStatus ? 'sync' : 'local'}`,
       maxRetries: 3,
-      retryDelay: getConfig("STORAGE_RETRY_DELAY"),
+      retryDelay: getConfig('STORAGE_RETRY_DELAY'),
       criticalOperation: true,
       fallback: async () => {
         // Rollback: restaura configurações antigas
         Logger.warn(
-          "SettingsManager",
-          "Revertendo para configurações anteriores devido a falhas."
+          'SettingsManager',
+          'Revertendo para configurações anteriores devido a falhas.'
         );
         settings = oldSettings;
         return { oldSettings, newSettings: oldSettings, rollback: true };
@@ -468,27 +494,27 @@ export function saveSmartNameCache() {
           smartNameCache: Object.fromEntries(smartNameCache),
         });
         Logger.debug(
-          "SettingsManager",
+          'SettingsManager',
           `Cache de nomes inteligentes salvo com ${smartNameCache.size} entradas.`
         );
         return { success: true, cacheSize: smartNameCache.size };
       },
       {
-        context: "save-smart-cache",
+        context: 'save-smart-cache',
         maxRetries: 3,
-        retryDelay: getConfig("CACHE_CLEANUP_RETRY_DELAY"),
+        retryDelay: getConfig('CACHE_CLEANUP_RETRY_DELAY'),
         criticalOperation: false,
         fallback: () => {
           Logger.warn(
-            "SettingsManager",
-            "Falha ao salvar cache de nomes inteligentes - continuando sem salvar."
+            'SettingsManager',
+            'Falha ao salvar cache de nomes inteligentes - continuando sem salvar.'
           );
           return { success: false, fallback: true };
         },
       }
     );
     saveCacheTimeout = null;
-  }, getConfig("CACHE_SAVE_DELAY"));
+  }, getConfig('CACHE_SAVE_DELAY'));
 }
 
 /**
@@ -500,7 +526,7 @@ export function clearSmartNameCache() {
     clearTimeout(saveCacheTimeout);
     saveCacheTimeout = null;
   }
-  browser.storage.local.remove("smartNameCache");
+  browser.storage.local.remove('smartNameCache');
 }
 
 /**
@@ -508,15 +534,14 @@ export function clearSmartNameCache() {
  * @param {number} maxAge - Idade máxima em milissegundos (padrão: 24 horas)
  * @returns {number} Número de entradas removidas
  */
-export function cleanupOldCacheEntries(maxAge = 24 * 60 * 60 * 1000) {
+export function cleanupOldCacheEntries() {
   if (!smartNameCache || smartNameCache.size === 0) return 0;
 
   let removedCount = 0;
-  const now = Date.now();
 
   // Como o Map não armazena timestamps, usamos uma estratégia de LRU aproximada
   // removendo entradas antigas quando o cache excede um tamanho razoável
-  const maxCacheSize = getConfig("MAX_CACHE_SIZE");
+  const maxCacheSize = getConfig('MAX_CACHE_SIZE');
 
   if (smartNameCache.size > maxCacheSize) {
     const excess = smartNameCache.size - maxCacheSize;
@@ -529,7 +554,7 @@ export function cleanupOldCacheEntries(maxAge = 24 * 60 * 60 * 1000) {
     }
 
     Logger.debug(
-      "SettingsManager",
+      'SettingsManager',
       `Cache limpo: ${removedCount} entradas antigas removidas. Tamanho atual: ${smartNameCache.size}`
     );
   }
@@ -560,7 +585,7 @@ export function getCacheStats() {
  */
 export async function migrateLegacyCacheToIntelligent() {
   if (!smartNameCache || smartNameCache.size === 0) {
-    Logger.debug("SettingsManager", "Nenhum cache legado para migrar");
+    Logger.debug('SettingsManager', 'Nenhum cache legado para migrar');
     return { migrated: 0 };
   }
 
@@ -568,18 +593,18 @@ export async function migrateLegacyCacheToIntelligent() {
   const now = Date.now();
 
   Logger.info(
-    "SettingsManager",
+    'SettingsManager',
     `Iniciando migração de ${smartNameCache.size} entradas do cache legado`
   );
 
   for (const [hostname, name] of smartNameCache.entries()) {
-    if (typeof hostname === "string" && typeof name === "string") {
+    if (typeof hostname === 'string' && typeof name === 'string') {
       setSmartNameInCache(hostname, name, {
-        source: "legacy_migration",
+        source: 'legacy_migration',
         confidence: 0.8, // Confiança menor para dados migrados
         metadata: {
           migratedAt: now,
-          originalSource: "legacy",
+          originalSource: 'legacy',
         },
       });
       migratedCount++;
@@ -590,7 +615,7 @@ export async function migrateLegacyCacheToIntelligent() {
   smartNameCache.clear();
 
   Logger.info(
-    "SettingsManager",
+    'SettingsManager',
     `Migração concluída: ${migratedCount} entradas migradas para cache inteligente`
   );
   return { migrated: migratedCount };
@@ -621,7 +646,7 @@ export function getSmartNameFromLegacyCache(hostname) {
 export function setSmartNameInLegacyCache(hostname, name, options = {}) {
   // Define no cache inteligente
   setSmartNameInCache(hostname, name, {
-    source: options.source || "grouping_logic",
+    source: options.source || 'grouping_logic',
     confidence: options.confidence || 1.0,
     ttl: options.ttl,
     metadata: options.metadata || {},
@@ -635,11 +660,11 @@ export function setSmartNameInLegacyCache(hostname, name, options = {}) {
  * Invalida o cache para um domínio específico quando ocorrem mudanças (ex: conteúdo, URL).
  * Afeta tanto o cache inteligente quanto o legado.
  * @param {string} hostname - O hostname cujo cache deve ser invalidado.
- * @param {string} [changeType="content"] - O tipo de mudança que acionou a invalidação.
+ * @param {string} [changeType='content'] - O tipo de mudança que acionou a invalidação.
  */
 export function invalidateCacheByDomainChange(
   hostname,
-  changeType = "content"
+  changeType = 'content'
 ) {
   // Invalida no cache inteligente
   if (globalIntelligentCache) {
@@ -647,9 +672,9 @@ export function invalidateCacheByDomainChange(
   }
 
   // Remove do cache legado também
-  const domainParts = hostname.split(".");
+  const domainParts = hostname.split('.');
   const domain =
-    domainParts.length > 2 ? domainParts.slice(-2).join(".") : hostname;
+    domainParts.length > 2 ? domainParts.slice(-2).join('.') : hostname;
 
   for (const key of smartNameCache.keys()) {
     if (key.includes(domain)) {
@@ -658,7 +683,7 @@ export function invalidateCacheByDomainChange(
   }
 
   Logger.debug(
-    "SettingsManager",
+    'SettingsManager',
     `Cache invalidado para domínio: ${hostname} (tipo: ${changeType})`
   );
 }
@@ -707,7 +732,7 @@ export function clearAllCaches() {
   // Limpa cache legado local
   clearSmartNameCache();
 
-  Logger.info("SettingsManager", "Todos os caches foram limpos");
+  Logger.info('SettingsManager', 'Todos os caches foram limpos');
 }
 
 /**

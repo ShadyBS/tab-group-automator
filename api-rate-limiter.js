@@ -3,9 +3,8 @@
  * @description Sistema centralizado de rate limiting e throttling para APIs do navegador com filas e priorização.
  */
 
-import Logger from "./logger.js";
-import { withErrorHandling } from "./adaptive-error-handler.js";
-import { getConfig } from "./performance-config.js";
+import Logger from './logger.js';
+import { getConfig } from './performance-config.js';
 
 /**
  * Tipos de operação com diferentes prioridades e limites
@@ -14,73 +13,73 @@ export const API_OPERATION_TYPES = {
   // Operações críticas - alta prioridade
   CRITICAL_TAB_GET: {
     priority: 1,
-    category: "tabs",
-    operation: "get",
+    category: 'tabs',
+    operation: 'get',
     critical: true,
   },
   CRITICAL_GROUP_GET: {
     priority: 1,
-    category: "tabGroups",
-    operation: "get",
+    category: 'tabGroups',
+    operation: 'get',
     critical: true,
   },
 
   // Operações de usuário - prioridade média-alta
   USER_TAB_GROUP: {
     priority: 2,
-    category: "tabs",
-    operation: "group",
+    category: 'tabs',
+    operation: 'group',
     userInitiated: true,
   },
   USER_TAB_UNGROUP: {
     priority: 2,
-    category: "tabs",
-    operation: "ungroup",
+    category: 'tabs',
+    operation: 'ungroup',
     userInitiated: true,
   },
   USER_GROUP_UPDATE: {
     priority: 2,
-    category: "tabGroups",
-    operation: "update",
+    category: 'tabGroups',
+    operation: 'update',
     userInitiated: true,
   },
 
   // Operações de query - prioridade média
-  TAB_QUERY: { priority: 3, category: "tabs", operation: "query" },
-  GROUP_QUERY: { priority: 3, category: "tabGroups", operation: "query" },
-  WINDOW_QUERY: { priority: 3, category: "windows", operation: "getAll" },
+  TAB_QUERY: { priority: 3, category: 'tabs', operation: 'query' },
+  GROUP_QUERY: { priority: 3, category: 'tabGroups', operation: 'query' },
+  WINDOW_QUERY: { priority: 3, category: 'windows', operation: 'getAll' },
 
   // Operações automáticas - prioridade baixa
   AUTO_TAB_GROUP: {
     priority: 4,
-    category: "tabs",
-    operation: "group",
+    category: 'tabs',
+    operation: 'group',
     automated: true,
   },
   AUTO_TAB_UNGROUP: {
     priority: 4,
-    category: "tabs",
-    operation: "ungroup",
+    category: 'tabs',
+    operation: 'ungroup',
     automated: true,
   },
   AUTO_GROUP_UPDATE: {
     priority: 4,
-    category: "tabGroups",
-    operation: "update",
+    category: 'tabGroups',
+    operation: 'update',
     automated: true,
   },
 
   // Operações de storage - prioridade baixa
-  STORAGE_GET: { priority: 5, category: "storage", operation: "get" },
-  STORAGE_SET: { priority: 5, category: "storage", operation: "set" },
+  STORAGE_GET: { priority: 5, category: 'storage', operation: 'get' },
+  STORAGE_SET: { priority: 5, category: 'storage', operation: 'set' },
 
   // Operações de background - prioridade muito baixa
   BACKGROUND_CLEANUP: {
     priority: 6,
-    category: "background",
-    operation: "cleanup",
+    category: 'background',
+    operation: 'cleanup',
   },
-  BACKGROUND_SYNC: { priority: 6, category: "background", operation: "sync" },
+  BACKGROUND_SYNC: { priority: 6, category: 'background', operation: 'sync' },
 };
 
 /**
@@ -203,7 +202,7 @@ export class APIRateLimiter {
     // Inicia limpeza periódica
     this.startPeriodicCleanup();
 
-    Logger.info("APIRateLimiter", "Sistema de rate limiting inicializado");
+    Logger.info('APIRateLimiter', 'Sistema de rate limiting inicializado');
   }
 
   /**
@@ -274,7 +273,7 @@ export class APIRateLimiter {
     );
 
     Logger.debug(
-      "APIRateLimiter",
+      'APIRateLimiter',
       `Operação enfileirada: ${operation.category} (fila: ${queue.length})`
     );
   }
@@ -323,7 +322,7 @@ export class APIRateLimiter {
       ) {
         operation.retryCount++;
         Logger.debug(
-          "APIRateLimiter",
+          'APIRateLimiter',
           `Retry ${operation.retryCount}/${operation.maxRetries} para operação ${operation.id}`
         );
 
@@ -347,12 +346,12 @@ export class APIRateLimiter {
    */
   async executeWithTimeout(operation) {
     const timeout =
-      operation.context.timeout || getConfig("API_TIMEOUT") || 10000;
+      operation.context.timeout || getConfig('API_TIMEOUT') || 10000;
 
     return Promise.race([
       operation.apiCall(),
       new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("API_TIMEOUT")), timeout);
+        setTimeout(() => reject(new Error('API_TIMEOUT')), timeout);
       }),
     ]);
   }
@@ -361,7 +360,7 @@ export class APIRateLimiter {
    * Inicia o processamento periódico das filas de operações.
    */
   startQueueProcessing() {
-    const processInterval = getConfig("API_QUEUE_PROCESS_INTERVAL") || 50;
+    const processInterval = getConfig('API_QUEUE_PROCESS_INTERVAL') || 50;
 
     setInterval(() => {
       this.processQueues();
@@ -408,9 +407,9 @@ export class APIRateLimiter {
       if (operation.isExpired) {
         queue.splice(i, 1);
         this.stats.queuedRequests--;
-        operation.reject(new Error("OPERATION_EXPIRED"));
+        operation.reject(new Error('OPERATION_EXPIRED'));
         Logger.debug(
-          "APIRateLimiter",
+          'APIRateLimiter',
           `Operação expirada removida: ${operation.id}`
         );
       }
@@ -419,7 +418,7 @@ export class APIRateLimiter {
     const removedCount = expiredCount - queue.length;
     if (removedCount > 0) {
       Logger.debug(
-        "APIRateLimiter",
+        'APIRateLimiter',
         `${removedCount} operações expiradas removidas`
       );
     }
@@ -429,7 +428,7 @@ export class APIRateLimiter {
    * Inicia um temporizador para limpeza periódica de recursos internos.
    */
   startPeriodicCleanup() {
-    const cleanupInterval = getConfig("API_CLEANUP_INTERVAL") || 60000; // 1 minuto
+    const cleanupInterval = getConfig('API_CLEANUP_INTERVAL') || 60000; // 1 minuto
 
     setInterval(() => {
       this.performCleanup();
@@ -443,7 +442,7 @@ export class APIRateLimiter {
     let totalCleaned = 0;
 
     // Limpa filas
-    for (const [category, queue] of this.queues.entries()) {
+    for (const [, queue] of this.queues.entries()) {
       const beforeSize = queue.length;
       this.removeExpiredOperations(queue);
       totalCleaned += beforeSize - queue.length;
@@ -456,7 +455,7 @@ export class APIRateLimiter {
 
     if (totalCleaned > 0) {
       Logger.debug(
-        "APIRateLimiter",
+        'APIRateLimiter',
         `Limpeza periódica: ${totalCleaned} operações removidas`
       );
     }
@@ -478,7 +477,7 @@ export class APIRateLimiter {
     categoryStats.avgWaitTime = (categoryStats.avgWaitTime + waitTime) / 2;
 
     Logger.debug(
-      "APIRateLimiter",
+      'APIRateLimiter',
       `Operação concluída: ${operation.id} (${duration}ms)`
     );
   }
@@ -494,7 +493,7 @@ export class APIRateLimiter {
     categoryStats.failed++;
 
     Logger.debug(
-      "APIRateLimiter",
+      'APIRateLimiter',
       `Operação falhou: ${operation.id} - ${error.message}`
     );
   }
@@ -518,10 +517,10 @@ export class APIRateLimiter {
    */
   shouldRetry(error) {
     const retryableErrors = [
-      "API_TIMEOUT",
-      "NETWORK_ERROR",
-      "RATE_LIMITED",
-      "TEMPORARY_UNAVAILABLE",
+      'API_TIMEOUT',
+      'NETWORK_ERROR',
+      'RATE_LIMITED',
+      'TEMPORARY_UNAVAILABLE',
     ];
 
     return retryableErrors.some(
@@ -536,7 +535,7 @@ export class APIRateLimiter {
    * @returns {number} O tempo de espera em milissegundos.
    */
   calculateRetryDelay(retryCount) {
-    const baseDelay = getConfig("ERROR_RETRY_BASE_DELAY") || 1000;
+    const baseDelay = getConfig('ERROR_RETRY_BASE_DELAY') || 1000;
     return Math.min(baseDelay * Math.pow(2, retryCount - 1), 10000);
   }
 
@@ -575,12 +574,12 @@ export class APIRateLimiter {
   clearAllQueues() {
     let totalCleared = 0;
 
-    for (const [category, queue] of this.queues.entries()) {
+    for (const [, queue] of this.queues.entries()) {
       const queueSize = queue.length;
 
       // Rejeita todas as operações pendentes
       queue.forEach((operation) => {
-        operation.reject(new Error("QUEUE_CLEARED"));
+        operation.reject(new Error('QUEUE_CLEARED'));
       });
 
       queue.length = 0;
@@ -589,7 +588,7 @@ export class APIRateLimiter {
     }
 
     Logger.info(
-      "APIRateLimiter",
+      'APIRateLimiter',
       `Todas as filas foram limpas: ${totalCleared} operações canceladas`
     );
     return totalCleared;
@@ -603,7 +602,7 @@ export class APIRateLimiter {
     const rateLimiter = this.rateLimiters.get(category);
     if (rateLimiter) {
       rateLimiter.pause();
-      Logger.info("APIRateLimiter", `Categoria ${category} pausada`);
+      Logger.info('APIRateLimiter', `Categoria ${category} pausada`);
     }
   }
 
@@ -615,7 +614,7 @@ export class APIRateLimiter {
     const rateLimiter = this.rateLimiters.get(category);
     if (rateLimiter) {
       rateLimiter.resume();
-      Logger.info("APIRateLimiter", `Categoria ${category} resumida`);
+      Logger.info('APIRateLimiter', `Categoria ${category} resumida`);
     }
   }
 }
@@ -805,20 +804,20 @@ export const RateLimitedAPI = {
   tabs: {
     get: (tabId, context = {}) =>
       executeTabsOperation(
-        "CRITICAL_TAB_GET",
+        'CRITICAL_TAB_GET',
         () => browser.tabs.get(tabId),
         context
       ),
     query: (queryInfo, context = {}) =>
       executeTabsOperation(
-        "TAB_QUERY",
+        'TAB_QUERY',
         () => browser.tabs.query(queryInfo),
         context
       ),
     group: (options, context = {}) => {
       const operationType = context.userInitiated
-        ? "USER_TAB_GROUP"
-        : "AUTO_TAB_GROUP";
+        ? 'USER_TAB_GROUP'
+        : 'AUTO_TAB_GROUP';
       return executeTabsOperation(
         operationType,
         () => browser.tabs.group(options),
@@ -827,8 +826,8 @@ export const RateLimitedAPI = {
     },
     ungroup: (tabIds, context = {}) => {
       const operationType = context.userInitiated
-        ? "USER_TAB_UNGROUP"
-        : "AUTO_TAB_UNGROUP";
+        ? 'USER_TAB_UNGROUP'
+        : 'AUTO_TAB_UNGROUP';
       return executeTabsOperation(
         operationType,
         () => browser.tabs.ungroup(tabIds),
@@ -841,20 +840,20 @@ export const RateLimitedAPI = {
   tabGroups: {
     get: (groupId, context = {}) =>
       executeTabGroupsOperation(
-        "CRITICAL_GROUP_GET",
+        'CRITICAL_GROUP_GET',
         () => browser.tabGroups.get(groupId),
         context
       ),
     query: (queryInfo, context = {}) =>
       executeTabGroupsOperation(
-        "GROUP_QUERY",
+        'GROUP_QUERY',
         () => browser.tabGroups.query(queryInfo),
         context
       ),
     update: (groupId, updateProperties, context = {}) => {
       const operationType = context.userInitiated
-        ? "USER_GROUP_UPDATE"
-        : "AUTO_GROUP_UPDATE";
+        ? 'USER_GROUP_UPDATE'
+        : 'AUTO_GROUP_UPDATE';
       return executeTabGroupsOperation(
         operationType,
         () => browser.tabGroups.update(groupId, updateProperties),
@@ -867,7 +866,7 @@ export const RateLimitedAPI = {
   windows: {
     getAll: (getInfo, context = {}) =>
       executeWindowsOperation(
-        "WINDOW_QUERY",
+        'WINDOW_QUERY',
         () => browser.windows.getAll(getInfo),
         context
       ),
@@ -878,13 +877,13 @@ export const RateLimitedAPI = {
     local: {
       get: (keys, context = {}) =>
         executeStorageOperation(
-          "STORAGE_GET",
+          'STORAGE_GET',
           () => browser.storage.local.get(keys),
           context
         ),
       set: (items, context = {}) =>
         executeStorageOperation(
-          "STORAGE_SET",
+          'STORAGE_SET',
           () => browser.storage.local.set(items),
           context
         ),
@@ -892,13 +891,13 @@ export const RateLimitedAPI = {
     sync: {
       get: (keys, context = {}) =>
         executeStorageOperation(
-          "STORAGE_GET",
+          'STORAGE_GET',
           () => browser.storage.sync.get(keys),
           context
         ),
       set: (items, context = {}) =>
         executeStorageOperation(
-          "STORAGE_SET",
+          'STORAGE_SET',
           () => browser.storage.sync.set(items),
           context
         ),
@@ -907,6 +906,6 @@ export const RateLimitedAPI = {
 };
 
 Logger.debug(
-  "APIRateLimiter",
-  "Sistema de rate limiting de APIs inicializado."
+  'APIRateLimiter',
+  'Sistema de rate limiting de APIs inicializado.'
 );

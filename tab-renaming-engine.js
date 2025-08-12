@@ -3,11 +3,11 @@
  * Motor principal para renomeação automática de abas baseada em regras configuráveis.
  */
 
-import Logger from "./logger.js";
-import { withErrorHandling } from "./adaptive-error-handler.js";
-import { getConfig } from "./performance-config.js";
-import { validateTabRenamingRule, sanitizeString } from "./validation-utils.js";
-import { WrappedBrowserAPI } from "./browser-api-wrapper.js"; // Importa o wrapper da API do navegador
+import Logger from './logger.js';
+import { withErrorHandling } from './adaptive-error-handler.js';
+import { getConfig } from './performance-config.js';
+import { validateTabRenamingRule, sanitizeString } from './validation-utils.js';
+import { WrappedBrowserAPI } from './browser-api-wrapper.js'; // Importa o wrapper da API do navegador
 
 function debouncePerKey(fn, delay) {
   const timers = new Map();
@@ -28,27 +28,27 @@ function debouncePerKey(fn, delay) {
 }
 
 export const RenamingState = {
-  IDLE: "IDLE",
-  PROCESSING: "PROCESSING",
-  SUCCESS: "SUCCESS",
-  FAILED: "FAILED",
-  CACHED: "CACHED",
+  IDLE: 'IDLE',
+  PROCESSING: 'PROCESSING',
+  SUCCESS: 'SUCCESS',
+  FAILED: 'FAILED',
+  CACHED: 'CACHED',
 };
 
 export const StrategyType = {
-  CSS_EXTRACT: "css_extract",
-  TITLE_MANIPULATION: "title_manipulation",
-  DOMAIN_BASED: "domain_based",
-  ORIGINAL_TITLE: "original_title",
+  CSS_EXTRACT: 'css_extract',
+  TITLE_MANIPULATION: 'title_manipulation',
+  DOMAIN_BASED: 'domain_based',
+  ORIGINAL_TITLE: 'original_title',
 };
 
 export const TextAction = {
-  REPLACE: "replace",
-  PREPEND: "prepend",
-  APPEND: "append",
-  REMOVE: "remove",
-  TRUNCATE: "truncate",
-  EXTRACT: "extract",
+  REPLACE: 'replace',
+  PREPEND: 'prepend',
+  APPEND: 'append',
+  REMOVE: 'remove',
+  TRUNCATE: 'truncate',
+  EXTRACT: 'extract',
 };
 
 export class TabRenamingEngine {
@@ -73,8 +73,8 @@ export class TabRenamingEngine {
     this.cleanupIntervalId = null;
 
     Logger.info(
-      "TabRenamingEngine",
-      "Motor de renomeação de abas inicializado"
+      'TabRenamingEngine',
+      'Motor de renomeação de abas inicializado'
     );
   }
 
@@ -86,7 +86,7 @@ export class TabRenamingEngine {
     this.rules.clear();
 
     if (!Array.isArray(rules)) {
-      Logger.warn("TabRenamingEngine", "Regras devem ser um array");
+      Logger.warn('TabRenamingEngine', 'Regras devem ser um array');
       return;
     }
 
@@ -103,16 +103,16 @@ export class TabRenamingEngine {
         validRules++;
       } else {
         Logger.warn(
-          "TabRenamingEngine",
+          'TabRenamingEngine',
           `Regra inválida '${
-            rule.name || "Sem Nome"
-          }': ${validation.errors.join(", ")}`
+            rule.name || 'Sem Nome'
+          }': ${validation.errors.join(', ')}`
         );
       }
     }
 
     Logger.info(
-      "TabRenamingEngine",
+      'TabRenamingEngine',
       `${validRules} regras carregadas de ${rules.length} fornecidas`
     );
   }
@@ -129,7 +129,7 @@ export class TabRenamingEngine {
       (async () => {
         if (this.processing.has(tabId)) {
           Logger.debug(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Aba ${tabId} já está sendo processada`
           );
           return false;
@@ -139,16 +139,16 @@ export class TabRenamingEngine {
           const cachedTitle = this.tabIdTitleCache.get(tabId);
           if (cachedTitle === tab.title) {
             Logger.debug(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `TabId cache hit: aba ${tabId} já renomeada para '${cachedTitle}'`
             );
             return false;
           }
         }
 
-        if (!tab || !tab.url || !tab.url.startsWith("http")) {
+        if (!tab || !tab.url || !tab.url.startsWith('http')) {
           Logger.debug(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Aba ${tabId} não é elegível para renomeação (URL inválida/protegida)`
           );
           return false;
@@ -169,7 +169,7 @@ export class TabRenamingEngine {
           if (cachedResult) {
             this.metrics.cacheHits++;
             Logger.debug(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `Cache hit para aba ${tabId}: ${cachedResult}`
             );
 
@@ -189,7 +189,7 @@ export class TabRenamingEngine {
           const applicableRules = this.findApplicableRules(tab);
           if (applicableRules.length === 0) {
             Logger.debug(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `Nenhuma regra aplicável para aba ${tabId}`
             );
             return false;
@@ -212,7 +212,7 @@ export class TabRenamingEngine {
               this.metrics.successfulRenames++;
 
               Logger.info(
-                "TabRenamingEngine",
+                'TabRenamingEngine',
                 `Aba ${tabId} renomeada: '${tab.title}' → '${newTitle.trim()}'`
               );
               return true;
@@ -223,7 +223,7 @@ export class TabRenamingEngine {
         } catch (error) {
           this.metrics.failedExtractions++;
           Logger.error(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Erro ao processar aba ${tabId}:`,
             error
           );
@@ -238,13 +238,13 @@ export class TabRenamingEngine {
       })(),
       new Promise((_, reject) =>
         setTimeout(
-          () => reject(new Error("Tab renaming timed out after 3s")),
+          () => reject(new Error('Tab renaming timed out after 3s')),
           TIMEOUT_MS
         )
       ),
     ]).catch((err) => {
       Logger.error(
-        "TabRenamingEngine",
+        'TabRenamingEngine',
         `Timeout ou erro crítico ao renomear aba ${tabId}:`,
         err
       );
@@ -281,19 +281,19 @@ export class TabRenamingEngine {
    * @returns {boolean} True se as condições da regra forem atendidas
    */
   matchesConditions(tab, rule) {
-    const { conditions, conditionOperator = "AND" } = rule;
+    const { conditions, conditionOperator = 'AND' } = rule;
     if (!Array.isArray(conditions) || conditions.length === 0) {
       return false;
     }
     try {
       const check = (condition) => this.evaluateCondition(tab, condition);
-      if (conditionOperator === "OR") {
+      if (conditionOperator === 'OR') {
         return conditions.some(check);
       }
       return conditions.every(check);
     } catch (error) {
       Logger.error(
-        "TabRenamingEngine",
+        'TabRenamingEngine',
         `Erro inesperado ao avaliar condições para a aba ${tab.id}:`,
         error
       );
@@ -315,75 +315,77 @@ export class TabRenamingEngine {
       condition.value === undefined
     ) {
       Logger.warn(
-        "TabRenamingEngine",
-        "Ignorando condição incompleta:",
+        'TabRenamingEngine',
+        'Ignorando condição incompleta:',
         condition
       );
       return false;
     }
     const tabProperties = {
-      url: tab.url || "",
-      title: tab.title || "",
-      hostname: "",
-      url_path: "",
+      url: tab.url || '',
+      title: tab.title || '',
+      hostname: '',
+      url_path: '',
     };
     try {
       const url = new URL(tab.url);
       tabProperties.hostname = url.hostname;
       tabProperties.url_path = url.pathname;
-    } catch (e) {}
+    } catch (e) {
+      // no-op: ignore URL parsing errors
+    }
     if (
       !Object.prototype.hasOwnProperty.call(tabProperties, condition.property)
     ) {
       Logger.warn(
-        "TabRenamingEngine",
+        'TabRenamingEngine',
         `Propriedade inválida na condição: ${condition.property}`
       );
       return false;
     }
-    const propValue = String(tabProperties[condition.property] || "");
-    const condValue = String(condition.value || "").trim();
-    if (condValue === "") {
+    const propValue = String(tabProperties[condition.property] || '');
+    const condValue = String(condition.value || '').trim();
+    if (condValue === '') {
       return false;
     }
     try {
       switch (condition.operator) {
-        case "contains":
+        case 'contains':
           return propValue.toLowerCase().includes(condValue.toLowerCase());
-        case "not_contains":
+        case 'not_contains':
           return !propValue.toLowerCase().includes(condValue.toLowerCase());
-        case "starts_with":
+        case 'starts_with':
           return propValue.toLowerCase().startsWith(condValue.toLowerCase());
-        case "ends_with":
+        case 'ends_with':
           return propValue.toLowerCase().endsWith(condValue.toLowerCase());
-        case "equals":
+        case 'equals':
           return propValue.toLowerCase() === condValue.toLowerCase();
-        case "regex":
+        case 'regex':
           try {
-            return new RegExp(condition.value, "i").test(propValue);
+            return new RegExp(condition.value, 'i').test(propValue);
           } catch (regexError) {
             Logger.warn(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `Regex inválida na condição: '${condition.value}'`,
               regexError
             );
             return false;
           }
-        case "wildcard":
+        case 'wildcard':
           try {
             const wildcardRegex = new RegExp(
-              "^" +
+              '^' +
                 condValue
-                  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-                  .replace(/\\\*/g, ".*")
-                  .replace(/\\\?/g, ".") +
-                "$",
-              "i"
+                  .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                  .replace(/\\\*/g, '.*')
+                  .replace(/\\\?/g, '.') +
+                '$',
+              'i'
             );
             return wildcardRegex.test(propValue);
           } catch (wildcardError) {
             Logger.warn(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `Padrão wildcard inválido: '${condValue}'`,
               wildcardError
             );
@@ -391,15 +393,15 @@ export class TabRenamingEngine {
           }
         default:
           Logger.warn(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Operador desconhecido na condição: ${condition.operator}`
           );
           return false;
       }
     } catch (error) {
       Logger.error(
-        "TabRenamingEngine",
-        "Erro ao avaliar condição:",
+        'TabRenamingEngine',
+        'Erro ao avaliar condição:',
         error,
         condition
       );
@@ -447,11 +449,13 @@ export class TabRenamingEngine {
       let result = null;
       try {
         result = await this.executeStrategy(tab, strategy, rule.options);
-      } catch (error) {}
+      } catch (error) {
+        // no-op: ignore strategy execution errors
+      }
       if (result && result.trim()) {
         return result.trim();
       }
-      if (strategy.fallback && typeof strategy.fallback === "object") {
+      if (strategy.fallback && typeof strategy.fallback === 'object') {
         try {
           const fallbackResult = await this.executeStrategy(
             tab,
@@ -461,7 +465,9 @@ export class TabRenamingEngine {
           if (fallbackResult && fallbackResult.trim()) {
             return fallbackResult.trim();
           }
-        } catch (fallbackError) {}
+        } catch (fallbackError) {
+          // no-op: ignore fallback strategy errors
+        }
       }
     }
     return null;
@@ -493,7 +499,7 @@ export class TabRenamingEngine {
 
       default:
         Logger.warn(
-          "TabRenamingEngine",
+          'TabRenamingEngine',
           `Tipo de estratégia desconhecido: ${strategy.type}`
         );
         return null;
@@ -515,18 +521,18 @@ export class TabRenamingEngine {
         // Adiciona um atraso para garantir que a página esteja renderizada
         if (options.waitForLoad) {
           await new Promise((resolve) =>
-            setTimeout(resolve, getConfig("TAB_RENAMING_DELAY"))
+            setTimeout(resolve, getConfig('TAB_RENAMING_DELAY'))
           );
         }
 
         const timeoutMs =
-          options.retryDelay || getConfig("TAB_RENAMING_TIMEOUT");
+          options.retryDelay || getConfig('TAB_RENAMING_TIMEOUT');
 
         // Envia mensagem para o content-script para extrair o conteúdo
         const extractedContentPromise = WrappedBrowserAPI.tabs.sendMessage(
           tab.id,
           {
-            action: "extractContent",
+            action: 'extractContent',
             selector: strategy.selector,
             attribute: strategy.attribute,
           }
@@ -534,7 +540,7 @@ export class TabRenamingEngine {
 
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(
-            () => reject(new Error("Content script extraction timed out")),
+            () => reject(new Error('Content script extraction timed out')),
             timeoutMs
           )
         );
@@ -548,12 +554,12 @@ export class TabRenamingEngine {
       },
       {
         context: `css-extraction-${tab.id}`,
-        maxRetries: options.retryAttempts || getConfig("API_RETRY_COUNT"),
-        retryDelay: getConfig("INJECTION_RETRY_DELAY"),
+        maxRetries: options.retryAttempts || getConfig('API_RETRY_COUNT'),
+        retryDelay: getConfig('INJECTION_RETRY_DELAY'),
         criticalOperation: false,
         fallback: () => {
           Logger.warn(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Falha na extração CSS para aba ${tab.id}.`
           );
           return null;
@@ -580,7 +586,7 @@ export class TabRenamingEngine {
             if (operation.pattern && operation.replacement !== undefined) {
               const regex = new RegExp(
                 operation.pattern,
-                operation.flags || ""
+                operation.flags || ''
               );
               result = result.replace(regex, operation.replacement);
             }
@@ -599,14 +605,14 @@ export class TabRenamingEngine {
             if (operation.pattern) {
               const regex = new RegExp(
                 operation.pattern,
-                operation.flags || ""
+                operation.flags || ''
               );
-              result = result.replace(regex, "");
+              result = result.replace(regex, '');
             }
             break;
           case TextAction.TRUNCATE:
             if (operation.maxLength && result.length > operation.maxLength) {
-              const ellipsis = operation.ellipsis || "...";
+              const ellipsis = operation.ellipsis || '...';
               result =
                 result.substring(0, operation.maxLength - ellipsis.length) +
                 ellipsis;
@@ -616,7 +622,7 @@ export class TabRenamingEngine {
             if (operation.pattern) {
               const regex = new RegExp(
                 operation.pattern,
-                operation.flags || ""
+                operation.flags || ''
               );
               const match = result.match(regex);
               if (match) {
@@ -629,12 +635,12 @@ export class TabRenamingEngine {
         }
       } catch (error) {
         Logger.warn(
-          "TabRenamingEngine",
+          'TabRenamingEngine',
           `Erro na operação ${operation.action}: ${error.message}. Operação ignorada.`
         );
       }
     }
-    return sanitizeString(result, getConfig("TAB_RENAMING_MAX_TITLE_LENGTH"));
+    return sanitizeString(result, getConfig('TAB_RENAMING_MAX_TITLE_LENGTH'));
   }
 
   /**
@@ -646,23 +652,23 @@ export class TabRenamingEngine {
     try {
       const url = new URL(tab.url);
       const hostname = url.hostname;
-      const cleanHostname = hostname.replace(/^www\./, "");
-      const parts = cleanHostname.split(".");
+      const cleanHostname = hostname.replace(/^www\./, '');
+      const parts = cleanHostname.split('.');
       const formattedDomain = parts
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(".");
+        .join('.');
       return sanitizeString(
         `[${formattedDomain}] ${tab.title}`,
-        getConfig("TAB_RENAMING_MAX_TITLE_LENGTH")
+        getConfig('TAB_RENAMING_MAX_TITLE_LENGTH')
       );
     } catch (error) {
       Logger.warn(
-        "TabRenamingEngine",
+        'TabRenamingEngine',
         `Erro na nomeação baseada em domínio: ${error.message}. Usando título original.`
       );
       return sanitizeString(
         tab.title,
-        getConfig("TAB_RENAMING_MAX_TITLE_LENGTH")
+        getConfig('TAB_RENAMING_MAX_TITLE_LENGTH')
       );
     }
   }
@@ -681,28 +687,28 @@ export class TabRenamingEngine {
         // Valida o novo título
         if (
           !newTitle ||
-          typeof newTitle !== "string" ||
+          typeof newTitle !== 'string' ||
           newTitle.trim().length === 0
         ) {
-          throw new Error("Título inválido ou vazio após processamento.");
+          throw new Error('Título inválido ou vazio após processamento.');
         }
 
         // Limita o comprimento do título
-        const maxLength = getConfig("TAB_RENAMING_MAX_TITLE_LENGTH");
+        const maxLength = getConfig('TAB_RENAMING_MAX_TITLE_LENGTH');
         const finalTitle =
           newTitle.length > maxLength
-            ? newTitle.substring(0, maxLength - 3) + "..."
+            ? newTitle.substring(0, maxLength - 3) + '...'
             : newTitle;
 
         Logger.debug(
-          "TabRenamingEngine",
+          'TabRenamingEngine',
           `Atualizando título da aba ${tabId} para: '${finalTitle}' via injeção de script`
         );
 
         // Otimização: só injeta content-script se necessário
         let contentScriptInjected = false;
         try {
-          await WrappedBrowserAPI.tabs.sendMessage(tabId, { action: "ping" });
+          await WrappedBrowserAPI.tabs.sendMessage(tabId, { action: 'ping' });
           contentScriptInjected = true;
         } catch (e) {
           contentScriptInjected = false;
@@ -712,15 +718,15 @@ export class TabRenamingEngine {
           try {
             await browser.scripting.executeScript({
               target: { tabId: tabId },
-              files: ["content-script.js"],
+              files: ['content-script.js'],
             });
             Logger.debug(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `content-script.js injetado em tabId ${tabId} (injeção programática)`
             );
           } catch (injectErr) {
             Logger.warn(
-              "TabRenamingEngine",
+              'TabRenamingEngine',
               `Falha ao injetar content-script.js em tabId ${tabId}: ${injectErr.message}`
             );
             // Não retorna erro aqui, pois pode ser página protegida
@@ -740,11 +746,11 @@ export class TabRenamingEngine {
       },
       {
         context: `updateTabTitle-${tabId}`,
-        maxRetries: getConfig("API_RETRY_COUNT"), // Reutiliza a configuração de retry da API
+        maxRetries: getConfig('API_RETRY_COUNT'), // Reutiliza a configuração de retry da API
         criticalOperation: false,
         fallback: () => {
           Logger.warn(
-            "TabRenamingEngine",
+            'TabRenamingEngine',
             `Falha ao atualizar título da aba ${tabId} via injeção de script.`
           );
           return false;
@@ -780,7 +786,7 @@ export class TabRenamingEngine {
     if (now > cached.expires) {
       this.cache.delete(key);
       Logger.debug(
-        "TabRenamingEngine",
+        'TabRenamingEngine',
         `Entrada de cache expirada removida para chave: ${key}`
       );
       return null;
@@ -796,7 +802,7 @@ export class TabRenamingEngine {
    * @param {number} ttl - Time to live em ms
    */
   setCachedResult(key, value, ttl = null) {
-    const cacheTTL = ttl || getConfig("TAB_RENAMING_CACHE_TTL");
+    const cacheTTL = ttl || getConfig('TAB_RENAMING_CACHE_TTL');
     this.cache.set(key, {
       value,
       expires: Date.now() + cacheTTL,
@@ -813,11 +819,11 @@ export class TabRenamingEngine {
     }
     this.cleanupIntervalId = setInterval(() => {
       this.cleanupCache();
-    }, getConfig("TAB_RENAMING_CACHE_CLEANUP_INTERVAL"));
+    }, getConfig('TAB_RENAMING_CACHE_CLEANUP_INTERVAL'));
     Logger.info(
-      "TabRenamingEngine",
+      'TabRenamingEngine',
       `Limpeza automática do cache iniciada (intervalo: ${getConfig(
-        "TAB_RENAMING_CACHE_CLEANUP_INTERVAL"
+        'TAB_RENAMING_CACHE_CLEANUP_INTERVAL'
       )}ms)`
     );
   }
@@ -829,7 +835,7 @@ export class TabRenamingEngine {
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
       this.cleanupIntervalId = null;
-      Logger.info("TabRenamingEngine", "Limpeza automática do cache parada.");
+      Logger.info('TabRenamingEngine', 'Limpeza automática do cache parada.');
     }
   }
 
@@ -838,11 +844,9 @@ export class TabRenamingEngine {
    */
   cleanupCache() {
     const now = Date.now();
-    let removedCount = 0;
     for (const [key, cached] of this.cache.entries()) {
       if (now > cached.expires) {
         this.cache.delete(key);
-        removedCount++;
       }
     }
     this.metrics.lastCleanup = now;
@@ -863,15 +867,15 @@ export class TabRenamingEngine {
           ? (
               (this.metrics.cacheHits / this.metrics.totalProcessed) *
               100
-            ).toFixed(2) + "%"
-          : "0%",
+            ).toFixed(2) + '%'
+          : '0%',
       successRate:
         this.metrics.totalProcessed > 0
           ? (
               (this.metrics.successfulRenames / this.metrics.totalProcessed) *
               100
-            ).toFixed(2) + "%"
-          : "0%",
+            ).toFixed(2) + '%'
+          : '0%',
     };
   }
 
@@ -889,7 +893,7 @@ export class TabRenamingEngine {
       ruleUsageStats: new Map(),
       lastCleanup: Date.now(),
     };
-    Logger.info("TabRenamingEngine", "Estatísticas limpas");
+    Logger.info('TabRenamingEngine', 'Estatísticas limpas');
   }
 
   /**
@@ -898,7 +902,7 @@ export class TabRenamingEngine {
   clearCache() {
     this.cache.clear();
     this.tabIdTitleCache.clear();
-    Logger.info("TabRenamingEngine", "Cache limpo manualmente");
+    Logger.info('TabRenamingEngine', 'Cache limpo manualmente');
   }
 
   /**
@@ -922,6 +926,6 @@ globalTabRenamingEngine.processTabDebounced = debouncePerKey(
 );
 
 Logger.debug(
-  "TabRenamingEngine",
-  "Motor de renomeação de abas inicializado e pronto para uso"
+  'TabRenamingEngine',
+  'Motor de renomeação de abas inicializado e pronto para uso'
 );

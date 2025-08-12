@@ -3,9 +3,8 @@
  * @description Sistema avançado de gerenciamento de memória com intervalos adaptativos e detecção de pressão de memória.
  */
 
-import Logger from "./logger.js";
-import { getConfig } from "./performance-config.js";
-import { withErrorHandling } from "./adaptive-error-handler.js";
+import Logger from './logger.js';
+import { withErrorHandling } from './adaptive-error-handler.js';
 
 // Limites de tamanho para estruturas de dados (configuráveis)
 const MEMORY_LIMITS = {
@@ -161,7 +160,7 @@ export class AdaptiveMemoryManager {
     // Verifica se houve mudança significativa
     if (Math.abs(newInterval - this.currentInterval) > 1000) {
       Logger.debug(
-        "AdaptiveMemoryManager",
+        'AdaptiveMemoryManager',
         `Adaptando intervalo: ${Math.round(
           this.currentInterval / 1000
         )}s → ${Math.round(newInterval / 1000)}s (pressão: ${(
@@ -186,13 +185,13 @@ export class AdaptiveMemoryManager {
    */
   getCleanupStrategy(pressure) {
     if (pressure >= ADAPTIVE_CONFIG.EMERGENCY_THRESHOLD) {
-      return "emergency";
+      return 'emergency';
     } else if (pressure >= ADAPTIVE_CONFIG.HIGH_PRESSURE_THRESHOLD) {
-      return "high";
+      return 'high';
     } else if (pressure >= ADAPTIVE_CONFIG.MEDIUM_PRESSURE_THRESHOLD) {
-      return "medium";
+      return 'medium';
     } else {
-      return "low";
+      return 'low';
     }
   }
 
@@ -215,7 +214,7 @@ export class AdaptiveMemoryManager {
     let totalCleaned = 0;
 
     Logger.info(
-      "AdaptiveMemoryManager",
+      'AdaptiveMemoryManager',
       `Iniciando limpeza ${strategy} (pressão: ${(
         currentPressure * 100
       ).toFixed(1)}%, agressividade: ${(config.aggressiveness * 100).toFixed(
@@ -241,11 +240,11 @@ export class AdaptiveMemoryManager {
 
       // Soma resultados bem-sucedidos
       results.forEach((result, index) => {
-        if (result.status === "fulfilled" && typeof result.value === "number") {
+        if (result.status === 'fulfilled' && typeof result.value === 'number') {
           totalCleaned += result.value;
-        } else if (result.status === "rejected") {
+        } else if (result.status === 'rejected') {
           Logger.warn(
-            "AdaptiveMemoryManager",
+            'AdaptiveMemoryManager',
             `Falha na limpeza ${index}:`,
             result.reason
           );
@@ -264,7 +263,7 @@ export class AdaptiveMemoryManager {
       this.stats.totalCleaned += totalCleaned;
       this.stats.cleanupCycles++;
 
-      if (strategy === "emergency") {
+      if (strategy === 'emergency') {
         this.stats.emergencyCleanups++;
       }
 
@@ -295,7 +294,7 @@ export class AdaptiveMemoryManager {
       this.lastCleanupStats = cleanupStats;
 
       Logger.info(
-        "AdaptiveMemoryManager",
+        'AdaptiveMemoryManager',
         `Limpeza ${strategy} concluída: ${totalCleaned} entradas removidas em ${duration}ms, pressão reduzida em ${(
           pressureReduction * 100
         ).toFixed(1)}%`,
@@ -305,8 +304,8 @@ export class AdaptiveMemoryManager {
       return cleanupStats;
     } catch (error) {
       Logger.error(
-        "AdaptiveMemoryManager",
-        "Erro durante limpeza adaptativa:",
+        'AdaptiveMemoryManager',
+        'Erro durante limpeza adaptativa:',
         error
       );
       return { strategy, cleaned: totalCleaned, error: error.message };
@@ -361,7 +360,7 @@ export class AdaptiveMemoryManager {
             oldEntries.forEach(([tabId]) => tabGroupMap.delete(tabId));
             removedCount += excess;
             Logger.debug(
-              "AdaptiveMemoryManager",
+              'AdaptiveMemoryManager',
               `Limite adaptativo do tabGroupMap aplicado. Removidas ${excess} entradas antigas.`
             );
           }
@@ -369,7 +368,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupTabGroupMapAdaptive",
+          context: 'cleanupTabGroupMapAdaptive',
           maxRetries: 2,
           criticalOperation: false,
         }
@@ -418,7 +417,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupTitleUpdatersAdaptive",
+          context: 'cleanupTitleUpdatersAdaptive',
           maxRetries: 1,
           criticalOperation: false,
         }
@@ -471,7 +470,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupGroupActivityAdaptive",
+          context: 'cleanupGroupActivityAdaptive',
           maxRetries: 1,
           criticalOperation: false,
         }
@@ -528,7 +527,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupSingleTabTimestampsAdaptive",
+          context: 'cleanupSingleTabTimestampsAdaptive',
           maxRetries: 1,
           criticalOperation: false,
         }
@@ -598,7 +597,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupInjectionFailuresAdaptive",
+          context: 'cleanupInjectionFailuresAdaptive',
           maxRetries: 1,
           criticalOperation: false,
         }
@@ -651,7 +650,7 @@ export class AdaptiveMemoryManager {
           return removedCount;
         },
         {
-          context: "cleanupPendingGroupsAdaptive",
+          context: 'cleanupPendingGroupsAdaptive',
           maxRetries: 1,
           criticalOperation: false,
         }
@@ -702,7 +701,7 @@ export class AdaptiveMemoryManager {
         try {
           // Calcula pressão atual e adapta intervalo
           const currentPressure = this.calculateMemoryPressure(maps);
-          const newInterval = this.adaptCleanupInterval(currentPressure);
+          this.adaptCleanupInterval(currentPressure);
 
           // Executa limpeza adaptativa
           await this.performAdaptiveCleanup(maps);
@@ -711,8 +710,8 @@ export class AdaptiveMemoryManager {
           scheduleNextCleanup();
         } catch (error) {
           Logger.error(
-            "AdaptiveMemoryManager",
-            "Erro no ciclo de limpeza adaptativa:",
+            'AdaptiveMemoryManager',
+            'Erro no ciclo de limpeza adaptativa:',
             error
           );
           // Reagenda com intervalo padrão em caso de erro
@@ -725,7 +724,7 @@ export class AdaptiveMemoryManager {
     scheduleNextCleanup();
 
     Logger.info(
-      "AdaptiveMemoryManager",
+      'AdaptiveMemoryManager',
       `Gerenciamento adaptativo de memória iniciado (intervalo inicial: ${Math.round(
         this.currentInterval / 1000
       )}s)`
@@ -740,8 +739,8 @@ export class AdaptiveMemoryManager {
       clearTimeout(this.cleanupInterval);
       this.cleanupInterval = null;
       Logger.info(
-        "AdaptiveMemoryManager",
-        "Gerenciamento adaptativo de memória parado."
+        'AdaptiveMemoryManager',
+        'Gerenciamento adaptativo de memória parado.'
       );
     }
   }
@@ -753,10 +752,10 @@ export class AdaptiveMemoryManager {
    */
   async emergencyCleanup(maps) {
     Logger.warn(
-      "AdaptiveMemoryManager",
-      "Executando limpeza de emergência adaptativa..."
+      'AdaptiveMemoryManager',
+      'Executando limpeza de emergência adaptativa...'
     );
-    return await this.performAdaptiveCleanup(maps, "emergency");
+    return await this.performAdaptiveCleanup(maps, 'emergency');
   }
 
   /**
@@ -856,6 +855,6 @@ export function isMemoryLimitExceeded(maps) {
 export { MEMORY_LIMITS, ADAPTIVE_CONFIG as CLEANUP_CONFIG };
 
 Logger.debug(
-  "AdaptiveMemoryManager",
-  "Sistema de gerenciamento adaptativo de memória inicializado."
+  'AdaptiveMemoryManager',
+  'Sistema de gerenciamento adaptativo de memória inicializado.'
 );

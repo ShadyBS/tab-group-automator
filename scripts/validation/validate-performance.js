@@ -1,11 +1,11 @@
 // scripts/validation/validate-performance.js
-const fs = require("fs");
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 
 function validatePerformance() {
-  const distPath = path.join(process.cwd(), "dist");
+  const distPath = path.join(process.cwd(), 'dist');
   if (!fs.existsSync(distPath)) {
-    console.warn("dist/ directory not found. Skipping performance validation.");
+    console.warn('dist/ directory not found. Skipping performance validation.');
     process.exit(0);
   }
   let totalSize = 0;
@@ -23,7 +23,7 @@ function validatePerformance() {
     console.error(`Build size ${totalSize} exceeds 10MB limit.`);
     process.exit(1);
   }
-  console.log("Performance validation passed.");
+  console.log('Performance validation passed.');
 }
 
 validatePerformance();

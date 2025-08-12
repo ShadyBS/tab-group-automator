@@ -7,6 +7,19 @@
     <link rel="stylesheet" href="../vendor/tailwind.css" />
     <style>
       /* Estilos para customizar a aparência da página de ajuda e dos elementos <details> */
+      .step-visual {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 6rem;
+        padding: 1.5rem 1rem;
+        width: 100%;
+        margin-bottom: 1rem;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        box-sizing: border-box;
+        flex-shrink: 0;
+      }
       body {
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -111,66 +124,50 @@
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           <!-- Passo 1 -->
-          <div
-            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
-          >
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col h-full">
             <div
-              class="mx-auto rounded-lg mb-4 bg-indigo-500 text-white flex items-center justify-center h-32 w-64"
+              class="step-visual bg-indigo-500 text-white"
               style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);"
             >
-              <span class="text-lg font-bold">1. Ativação Rápida</span>
+              <span class="text-lg font-bold w-full text-center">1. Ativação Rápida</span>
             </div>
-            <div class="flex-grow">
-              <h3
-                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
-              >
+            <div class="flex-grow flex flex-col justify-between">
+              <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">
                 Ativação Rápida
               </h3>
               <p class="text-slate-600 dark:text-slate-400">
-                O agrupamento já está ativo! Controle tudo a partir do ícone na
-                barra de ferramentas.
+                O agrupamento já está ativo! Controle tudo a partir do ícone na barra de ferramentas.
               </p>
             </div>
           </div>
           <!-- Passo 2 -->
-          <div
-            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
-          <div
-              class="mx-auto rounded-lg mb-4 bg-green-500 text-white flex items-center justify-center h-32 w-64"
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col h-full">
+            <div
+              class="step-visual bg-green-500 text-white"
               style="background: linear-gradient(135deg, #34d399 0%, #10b981 100%);"
             >
-              <span class="text-lg font-bold">2. Veja a Magia</span>
+              <span class="text-lg font-bold w-full text-center">2. Veja a Magia</span>
             </div>
-            <div class="flex-grow">
-              <h3
-                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
-              >
+            <div class="flex-grow flex flex-col justify-between">
+              <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">
                 Veja a Magia Acontecer
               </h3>
               <p class="text-slate-600 dark:text-slate-400">
-                Abra algumas abas do mesmo site (ex: `wikipedia.org`) e veja-as
-                se agrupando sozinhas.
+                Abra algumas abas do mesmo site (ex: <code>wikipedia.org</code>) e veja-as se agrupando sozinhas.
               </p>
             </div>
           </div>
           <!-- Passo 3 -->
-          <div
-            class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col"
-          >
-            <img
-              src="https://placehold.co/400x250/f59e0b/ffffff?text=3.+Liberte+o+Poder"
-              alt="Imagem do menu de contexto"
-              class="mx-auto rounded-lg mb-4"
-            />
-            <div class="flex-grow">
-              <h3
-                class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100"
-              >
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg flex flex-col h-full">
+            <div class="step-visual" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);">
+              <span class="text-lg font-bold w-full text-center">3. Liberte o Poder</span>
+            </div>
+            <div class="flex-grow flex flex-col justify-between">
+              <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-slate-100">
                 Liberte o Poder
               </h3>
               <p class="text-slate-600 dark:text-slate-400">
-                Clique com o botão direito em uma aba para criar regras
-                personalizadas e muito mais.
+                Clique com o botão direito em uma aba para criar regras personalizadas e muito mais.
               </p>
             </div>
           </div>

@@ -3,9 +3,9 @@
  * @description Sistema avançado de cache com invalidação, versionamento e TTL para nomes inteligentes.
  */
 
-import Logger from "./logger.js";
-import { withErrorHandling } from "./adaptive-error-handler.js";
-import { getConfig } from "./performance-config.js";
+import Logger from './logger.js';
+import { withErrorHandling } from './adaptive-error-handler.js';
+import { getConfig } from './performance-config.js';
 
 /**
  * Estrutura de entrada do cache inteligente
@@ -26,17 +26,17 @@ import { getConfig } from "./performance-config.js";
  */
 export class IntelligentCacheManager {
   constructor(options = {}) {
-    this.cacheName = options.cacheName || "smartNameCache";
-    this.maxSize = options.maxSize || getConfig("MAX_CACHE_SIZE") || 2000;
+    this.cacheName = options.cacheName || 'smartNameCache';
+    this.maxSize = options.maxSize || getConfig('MAX_CACHE_SIZE') || 2000;
     this.defaultTTL =
       options.defaultTTL ||
-      getConfig("CACHE_DEFAULT_TTL") ||
+      getConfig('CACHE_DEFAULT_TTL') ||
       24 * 60 * 60 * 1000; // 24h
     this.cleanupInterval =
       options.cleanupInterval ||
-      getConfig("CACHE_CLEANUP_INTERVAL") ||
+      getConfig('CACHE_CLEANUP_INTERVAL') ||
       5 * 60 * 1000; // 5min
-    this.version = options.version || "1.0.0";
+    this.version = options.version || '1.0.0';
 
     // Cache em memória
     this.cache = new Map();
@@ -62,7 +62,7 @@ export class IntelligentCacheManager {
 
     // Configurações de persistência
     this.persistenceEnabled = options.persistenceEnabled !== false;
-    this.saveDelay = options.saveDelay || getConfig("CACHE_SAVE_DELAY") || 2000;
+    this.saveDelay = options.saveDelay || getConfig('CACHE_SAVE_DELAY') || 2000;
 
     this.startAutomaticCleanup();
   }
@@ -86,7 +86,7 @@ export class IntelligentCacheManager {
       this.cache.delete(key);
       this.stats.misses++;
       this.stats.evictions++;
-      Logger.debug("IntelligentCache", `Entrada expirada removida: ${key}`);
+      Logger.debug('IntelligentCache', `Entrada expirada removida: ${key}`);
       return null;
     }
 
@@ -95,7 +95,7 @@ export class IntelligentCacheManager {
     entry.accessCount++;
     this.stats.hits++;
 
-    Logger.debug("IntelligentCache", `Cache hit para: ${key}`);
+    Logger.debug('IntelligentCache', `Cache hit para: ${key}`);
     return entry.value;
   }
 
@@ -123,7 +123,7 @@ export class IntelligentCacheManager {
       domainHash,
       metadata: {
         ...metadata,
-        source: options.source || "unknown",
+        source: options.source || 'unknown',
         confidence: options.confidence || 1.0,
       },
     };
@@ -139,7 +139,7 @@ export class IntelligentCacheManager {
     this.scheduleSave();
 
     Logger.debug(
-      "IntelligentCache",
+      'IntelligentCache',
       `Entrada adicionada: ${key} (TTL: ${ttl}ms)`
     );
   }
@@ -153,7 +153,7 @@ export class IntelligentCacheManager {
     const deleted = this.cache.delete(key);
     if (deleted) {
       this.scheduleSave();
-      Logger.debug("IntelligentCache", `Entrada removida: ${key}`);
+      Logger.debug('IntelligentCache', `Entrada removida: ${key}`);
     }
     return deleted;
   }
@@ -174,8 +174,8 @@ export class IntelligentCacheManager {
    */
   createDomainHash(key) {
     // Extrai domínio principal para agrupamento
-    const parts = key.split(".");
-    const domain = parts.length > 2 ? parts.slice(-2).join(".") : key;
+    const parts = key.split('.');
+    const domain = parts.length > 2 ? parts.slice(-2).join('.') : key;
     return domain.toLowerCase();
   }
 
@@ -199,7 +199,7 @@ export class IntelligentCacheManager {
     if (oldestKey) {
       this.cache.delete(oldestKey);
       this.stats.evictions++;
-      Logger.debug("IntelligentCache", `LRU eviction: ${oldestKey}`);
+      Logger.debug('IntelligentCache', `LRU eviction: ${oldestKey}`);
     }
   }
 
@@ -223,7 +223,7 @@ export class IntelligentCacheManager {
       this.stats.cleanups++;
       this.stats.lastCleanup = now;
       Logger.debug(
-        "IntelligentCache",
+        'IntelligentCache',
         `Limpeza: ${removedCount} entradas expiradas removidas`
       );
     }
@@ -285,7 +285,7 @@ export class IntelligentCacheManager {
       this.stats.invalidations += invalidatedCount;
       this.scheduleSave();
       Logger.info(
-        "IntelligentCache",
+        'IntelligentCache',
         `Invalidação: ${invalidatedCount} entradas removidas`,
         criteria
       );
@@ -299,7 +299,7 @@ export class IntelligentCacheManager {
    * @param {string} hostname - O hostname que sofreu uma mudança.
    * @param {string} [changeType='content'] - O tipo de mudança (ex: 'content', 'url').
    */
-  invalidateByDomainChange(hostname, changeType = "content") {
+  invalidateByDomainChange(hostname, changeType = 'content') {
     const domainHash = this.createDomainHash(hostname);
 
     // Registra mudança para análise de padrões
@@ -324,7 +324,7 @@ export class IntelligentCacheManager {
     if (recentChanges.length >= 3) {
       const invalidated = this.invalidate({ domain: domainHash });
       Logger.info(
-        "IntelligentCache",
+        'IntelligentCache',
         `Invalidação por mudanças frequentes em ${domainHash}: ${invalidated} entradas`
       );
     }
@@ -340,7 +340,7 @@ export class IntelligentCacheManager {
 
     const invalidated = this.invalidate({ version: oldVersion });
     Logger.info(
-      "IntelligentCache",
+      'IntelligentCache',
       `Versão atualizada de ${oldVersion} para ${newVersion}. ${invalidated} entradas invalidadas`
     );
   }
@@ -359,7 +359,7 @@ export class IntelligentCacheManager {
     }, this.cleanupInterval);
 
     Logger.debug(
-      "IntelligentCache",
+      'IntelligentCache',
       `Limpeza automática iniciada (intervalo: ${this.cleanupInterval}ms)`
     );
   }
@@ -371,7 +371,7 @@ export class IntelligentCacheManager {
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
-      Logger.debug("IntelligentCache", "Limpeza automática parada");
+      Logger.debug('IntelligentCache', 'Limpeza automática parada');
     }
   }
 
@@ -397,7 +397,7 @@ export class IntelligentCacheManager {
     if (optimizedCount > 0) {
       this.stats.evictions += optimizedCount;
       Logger.debug(
-        "IntelligentCache",
+        'IntelligentCache',
         `Otimização: ${optimizedCount} entradas pouco usadas removidas`
       );
     }
@@ -440,19 +440,19 @@ export class IntelligentCacheManager {
         });
 
         Logger.debug(
-          "IntelligentCache",
+          'IntelligentCache',
           `Cache salvo: ${this.cache.size} entradas`
         );
         return { success: true, size: this.cache.size };
       },
       {
-        context: "intelligent-cache-save",
+        context: 'intelligent-cache-save',
         maxRetries: 3,
         criticalOperation: false,
         fallback: () => {
           Logger.warn(
-            "IntelligentCache",
-            "Falha ao salvar cache - continuando em memória"
+            'IntelligentCache',
+            'Falha ao salvar cache - continuando em memória'
           );
           return { success: false, fallback: true };
         },
@@ -474,8 +474,8 @@ export class IntelligentCacheManager {
 
         if (!cacheData) {
           Logger.debug(
-            "IntelligentCache",
-            "Nenhum cache encontrado no armazenamento"
+            'IntelligentCache',
+            'Nenhum cache encontrado no armazenamento'
           );
           return { success: true, loaded: 0 };
         }
@@ -483,7 +483,7 @@ export class IntelligentCacheManager {
         // Verifica compatibilidade de versão
         if (cacheData.version !== this.version) {
           Logger.info(
-            "IntelligentCache",
+            'IntelligentCache',
             `Versão do cache incompatível (${cacheData.version} vs ${this.version}). Iniciando com cache vazio.`
           );
           return { success: true, loaded: 0, versionMismatch: true };
@@ -491,7 +491,6 @@ export class IntelligentCacheManager {
 
         // Carrega entradas válidas
         let loadedCount = 0;
-        const now = Date.now();
 
         for (const [key, entry] of Object.entries(cacheData.entries || {})) {
           // Verifica se entrada não está expirada
@@ -507,7 +506,7 @@ export class IntelligentCacheManager {
         }
 
         Logger.info(
-          "IntelligentCache",
+          'IntelligentCache',
           `Cache carregado: ${loadedCount} entradas válidas de ${
             Object.keys(cacheData.entries || {}).length
           } totais`
@@ -515,13 +514,13 @@ export class IntelligentCacheManager {
         return { success: true, loaded: loadedCount };
       },
       {
-        context: "intelligent-cache-load",
+        context: 'intelligent-cache-load',
         maxRetries: 2,
         criticalOperation: false,
         fallback: () => {
           Logger.warn(
-            "IntelligentCache",
-            "Falha ao carregar cache - iniciando com cache vazio"
+            'IntelligentCache',
+            'Falha ao carregar cache - iniciando com cache vazio'
           );
           return { success: false, fallback: true, loaded: 0 };
         },
@@ -549,7 +548,7 @@ export class IntelligentCacheManager {
       browser.storage.local.remove(this.cacheName);
     }
 
-    Logger.info("IntelligentCache", "Cache completamente limpo");
+    Logger.info('IntelligentCache', 'Cache completamente limpo');
   }
 
   /**
@@ -630,7 +629,7 @@ export class IntelligentCacheManager {
         cleanupInterval: this.cleanupInterval,
       },
       stats: this.getDetailedStats(),
-      entries: Array.from(this.cache.entries()).map(([key, entry]) => ({
+      entries: Array.from(this.cache.entries()).map(([key]) => ({
         key,
         ...this.getEntryInfo(key),
       })),
@@ -650,14 +649,14 @@ export class IntelligentCacheManager {
     }
 
     this.clear();
-    Logger.debug("IntelligentCache", "Cache destruído");
+    Logger.debug('IntelligentCache', 'Cache destruído');
   }
 }
 
 // Instância global do cache inteligente
 export const globalIntelligentCache = new IntelligentCacheManager({
-  cacheName: "intelligentSmartNameCache",
-  version: "1.0.0",
+  cacheName: 'intelligentSmartNameCache',
+  version: '1.0.0',
 });
 
 // Funções de compatibilidade com o sistema anterior
@@ -688,10 +687,10 @@ export function getSmartNameCacheStats() {
 
 // Inicialização automática
 globalIntelligentCache.load().then(() => {
-  Logger.info("IntelligentCache", "Sistema de cache inteligente inicializado");
+  Logger.info('IntelligentCache', 'Sistema de cache inteligente inicializado');
 });
 
 Logger.debug(
-  "IntelligentCacheManager",
-  "Sistema de cache inteligente com TTL e invalidação inicializado."
+  'IntelligentCacheManager',
+  'Sistema de cache inteligente com TTL e invalidação inicializado.'
 );

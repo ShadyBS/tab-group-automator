@@ -4,8 +4,8 @@
  * Implementa cache warming baseado em padrões de uso e prioridades
  */
 
-import Logger from "./logger.js";
-import moduleLoader from "./module-loader.js";
+import Logger from './logger.js';
+import moduleLoader from './module-loader.js';
 
 /**
  * Sistema de cache warming inteligente
@@ -15,8 +15,8 @@ class CacheWarmer {
   constructor() {
     this.warmingInProgress = false;
     this.warmingQueue = new Set();
-    this.usagePatternsKey = "usage_patterns";
-    this.warmingMetricsKey = "warming_metrics";
+    this.usagePatternsKey = 'usage_patterns';
+    this.warmingMetricsKey = 'warming_metrics';
     this.lastWarmingTime = 0;
     this.warmingCooldown = 5 * 60 * 1000; // 5 minutos entre warmings
   }
@@ -29,20 +29,20 @@ class CacheWarmer {
   async warmCache(force = false) {
     // Verifica cooldown
     if (!force && this.isInCooldown()) {
-      Logger.debug("CacheWarmer", "Cache warming em cooldown, pulando...");
-      return { skipped: true, reason: "cooldown" };
+      Logger.debug('CacheWarmer', 'Cache warming em cooldown, pulando...');
+      return { skipped: true, reason: 'cooldown' };
     }
 
     if (this.warmingInProgress) {
-      Logger.debug("CacheWarmer", "Cache warming já em progresso");
-      return { skipped: true, reason: "in_progress" };
+      Logger.debug('CacheWarmer', 'Cache warming já em progresso');
+      return { skipped: true, reason: 'in_progress' };
     }
 
     this.warmingInProgress = true;
     const startTime = performance.now();
 
     try {
-      Logger.info("CacheWarmer", "Iniciando cache warming inteligente...");
+      Logger.info('CacheWarmer', 'Iniciando cache warming inteligente...');
 
       // Obtém padrões de uso
       const usagePatterns = await this.getUsagePatterns();
@@ -60,7 +60,7 @@ class CacheWarmer {
       this.lastWarmingTime = Date.now();
 
       Logger.info(
-        "CacheWarmer",
+        'CacheWarmer',
         `Cache warming concluído em ${totalTime.toFixed(2)}ms`,
         warmingResult
       );
@@ -73,7 +73,7 @@ class CacheWarmer {
         ...warmingResult,
       };
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro durante cache warming:", error);
+      Logger.error('CacheWarmer', 'Erro durante cache warming:', error);
       return { success: false, error: error.message };
     } finally {
       this.warmingInProgress = false;
@@ -98,12 +98,12 @@ class CacheWarmer {
       const patterns = stored[this.usagePatternsKey] || {};
 
       Logger.debug(
-        "CacheWarmer",
+        'CacheWarmer',
         `Padrões de uso carregados: ${Object.keys(patterns).length} módulos`
       );
       return patterns;
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao obter padrões de uso:", error);
+      Logger.error('CacheWarmer', 'Erro ao obter padrões de uso:', error);
       return {};
     }
   }
@@ -129,7 +129,7 @@ class CacheWarmer {
       }
 
       const modulePattern = patterns[moduleName];
-      const timeSinceLastUse = now - modulePattern.lastUsed;
+      // Removed unused variable 'timeSinceLastUse'
 
       // Atualiza estatísticas
       modulePattern.frequency++;
@@ -148,11 +148,11 @@ class CacheWarmer {
       });
 
       Logger.debug(
-        "CacheWarmer",
+        'CacheWarmer',
         `Uso registrado para ${moduleName}: ${modulePattern.totalUses} usos`
       );
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao registrar uso do módulo:", error);
+      Logger.error('CacheWarmer', 'Erro ao registrar uso do módulo:', error);
     }
   }
 
@@ -167,13 +167,13 @@ class CacheWarmer {
 
     // Define módulos disponíveis para warming
     const availableModules = [
-      "tab-renaming-engine.js",
-      "learning-engine.js",
-      "intelligent-cache-manager.js",
-      "adaptive-error-handler.js",
-      "adaptive-memory-manager.js",
-      "parallel-batch-processor.js",
-      "performance-optimizations.js",
+      'tab-renaming-engine.js',
+      'learning-engine.js',
+      'intelligent-cache-manager.js',
+      'adaptive-error-handler.js',
+      'adaptive-memory-manager.js',
+      'parallel-batch-processor.js',
+      'performance-optimizations.js',
     ];
 
     for (const module of availableModules) {
@@ -215,15 +215,15 @@ class CacheWarmer {
       .slice(0, 5)
       .map(([module, score]) => {
         Logger.debug(
-          "CacheWarmer",
+          'CacheWarmer',
           `Módulo ${module} score: ${score.toFixed(1)}`
         );
         return module;
       });
 
     Logger.info(
-      "CacheWarmer",
-      `Módulos prioritários calculados: ${sortedModules.join(", ")}`
+      'CacheWarmer',
+      `Módulos prioritários calculados: ${sortedModules.join(', ')}`
     );
     return sortedModules;
   }
@@ -244,7 +244,7 @@ class CacheWarmer {
     };
 
     Logger.info(
-      "CacheWarmer",
+      'CacheWarmer',
       `Pré-carregando ${modules.length} módulos prioritários...`
     );
 
@@ -264,7 +264,7 @@ class CacheWarmer {
           // Verifica se já está carregado
           if (moduleLoader.isModuleLoaded(module)) {
             Logger.debug(
-              "CacheWarmer",
+              'CacheWarmer',
               `Módulo ${module} já carregado, pulando...`
             );
             return {
@@ -283,7 +283,7 @@ class CacheWarmer {
           await this.recordModuleUsage(module);
 
           Logger.debug(
-            "CacheWarmer",
+            'CacheWarmer',
             `Módulo ${module} pré-carregado em ${loadTime.toFixed(2)}ms`
           );
 
@@ -296,7 +296,7 @@ class CacheWarmer {
         } catch (error) {
           const loadTime = performance.now() - moduleStartTime;
           Logger.warn(
-            "CacheWarmer",
+            'CacheWarmer',
             `Falha no pré-carregamento de ${module}:`,
             error
           );
@@ -316,7 +316,7 @@ class CacheWarmer {
 
       // Processa resultados do batch
       batchResults.forEach((result) => {
-        if (result.status === "fulfilled") {
+        if (result.status === 'fulfilled') {
           const moduleResult = result.value;
           results.details.push(moduleResult);
           results.loadTimes.push(moduleResult.loadTime);
@@ -330,7 +330,7 @@ class CacheWarmer {
           results.failed++;
           results.details.push({
             success: false,
-            error: result.reason?.message || "Unknown error",
+            error: result.reason?.message || 'Unknown error',
           });
         }
       });
@@ -385,7 +385,7 @@ class CacheWarmer {
         [this.warmingMetricsKey]: metrics,
       });
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao registrar métricas:", error);
+      Logger.error('CacheWarmer', 'Erro ao registrar métricas:', error);
     }
   }
 
@@ -407,7 +407,7 @@ class CacheWarmer {
         }
       );
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao obter métricas:", error);
+      Logger.error('CacheWarmer', 'Erro ao obter métricas:', error);
       return {
         totalWarmings: 0,
         totalModulesWarmed: 0,
@@ -443,14 +443,14 @@ class CacheWarmer {
         });
 
         Logger.info(
-          "CacheWarmer",
+          'CacheWarmer',
           `Removidos ${removedCount} padrões de uso antigos`
         );
       }
 
       return removedCount;
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao limpar padrões antigos:", error);
+      Logger.error('CacheWarmer', 'Erro ao limpar padrões antigos:', error);
       return 0;
     }
   }
@@ -462,9 +462,9 @@ class CacheWarmer {
   async resetUsagePatterns() {
     try {
       await browser.storage.local.remove([this.usagePatternsKey]);
-      Logger.info("CacheWarmer", "Padrões de uso resetados");
+      Logger.info('CacheWarmer', 'Padrões de uso resetados');
     } catch (error) {
-      Logger.error("CacheWarmer", "Erro ao resetar padrões:", error);
+      Logger.error('CacheWarmer', 'Erro ao resetar padrões:', error);
     }
   }
 

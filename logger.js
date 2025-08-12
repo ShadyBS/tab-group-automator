@@ -4,7 +4,7 @@
  */
 
 // Mensagem de depuração para confirmar o carregamento do módulo
-console.log("logger.js loaded");
+console.log('logger.js loaded');
 
 // Define os níveis de log por ordem de severidade.
 const LOG_LEVELS = {
@@ -20,15 +20,15 @@ let currentLogLevel = LOG_LEVELS.INFO;
 
 // Mapeia cada nível para um método e estilo do console para uma saída colorida.
 const levelDetails = {
-  [LOG_LEVELS.DEBUG]: { method: "log", style: "color: #6e6e6e;" },
-  [LOG_LEVELS.INFO]: { method: "info", style: "color: #007bff;" },
+  [LOG_LEVELS.DEBUG]: { method: 'log', style: 'color: #6e6e6e;' },
+  [LOG_LEVELS.INFO]: { method: 'info', style: 'color: #007bff;' },
   [LOG_LEVELS.WARN]: {
-    method: "warn",
-    style: "color: #ffc107; font-weight: bold;",
+    method: 'warn',
+    style: 'color: #ffc107; font-weight: bold;',
   },
   [LOG_LEVELS.ERROR]: {
-    method: "error",
-    style: "color: #dc3545; font-weight: bold;",
+    method: 'error',
+    style: 'color: #dc3545; font-weight: bold;',
   },
 };
 
@@ -46,12 +46,12 @@ function log(level, context, message, ...details) {
 
   // Adiciona um fallback para o caso de um nível de log inválido ser passado,
   // prevenindo uma falha se, por exemplo, log(LOG_LEVELS.NONE) for chamado.
-  const { method, style } = levelDetails[level] || { method: "log", style: "" };
+  const { method, style } = levelDetails[level] || { method: 'log', style: '' };
   const timestamp = new Date().toISOString().slice(11, 23);
 
   // Garante que objetos sejam passados diretamente para o console para inspeção interativa.
   const processedDetails = details.map((detail) => {
-    if (typeof detail === "object" && detail !== null) {
+    if (typeof detail === 'object' && detail !== null) {
       return detail;
     }
     return String(detail);
@@ -71,7 +71,7 @@ export const Logger = {
    * @param {string} levelName - 'DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE'.
    */
   setLevel: (levelName) => {
-    const newLevel = LOG_LEVELS[(levelName || "INFO").toUpperCase()];
+    const newLevel = LOG_LEVELS[(levelName || 'INFO').toUpperCase()];
     if (newLevel !== undefined) {
       currentLogLevel = newLevel;
     }

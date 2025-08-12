@@ -3,9 +3,9 @@
  * @description Wrapper para APIs do navegador com rate limiting automático e fallback para APIs nativas.
  */
 
-import Logger from "./logger.js";
-import { getConfig } from "./performance-config.js";
-import { RateLimitedAPI, globalAPIRateLimiter } from "./api-rate-limiter.js";
+import Logger from './logger.js';
+import { getConfig } from './performance-config.js';
+import { RateLimitedAPI, globalAPIRateLimiter } from './api-rate-limiter.js';
 
 /**
  * Fornece um wrapper transparente sobre as APIs `browser.*` para aplicar
@@ -13,16 +13,16 @@ import { RateLimitedAPI, globalAPIRateLimiter } from "./api-rate-limiter.js";
  */
 class BrowserAPIWrapper {
   constructor() {
-    this.rateLimitingEnabled = getConfig("API_RATE_LIMIT_ENABLED");
+    this.rateLimitingEnabled = getConfig('API_RATE_LIMIT_ENABLED');
     this.fallbackToNative = true;
 
     // Cria proxy para interceptar chamadas
     this.api = this.createAPIProxy();
 
     Logger.debug(
-      "BrowserAPIWrapper",
+      'BrowserAPIWrapper',
       `Rate limiting ${
-        this.rateLimitingEnabled ? "habilitado" : "desabilitado"
+        this.rateLimitingEnabled ? 'habilitado' : 'desabilitado'
       }`
     );
   }
@@ -38,13 +38,13 @@ class BrowserAPIWrapper {
       get(target, prop) {
         // Intercepta APIs específicas
         switch (prop) {
-          case "tabs":
+          case 'tabs':
             return self.createTabsProxy();
-          case "tabGroups":
+          case 'tabGroups':
             return self.createTabGroupsProxy();
-          case "windows":
+          case 'windows':
             return self.createWindowsProxy();
-          case "storage":
+          case 'storage':
             return self.createStorageProxy();
           default:
             // Retorna API nativa para outras propriedades
@@ -64,36 +64,36 @@ class BrowserAPIWrapper {
     return new Proxy(browser.tabs, {
       get(target, prop) {
         switch (prop) {
-          case "get":
+          case 'get':
             return (tabId, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabs.get(tabId, context),
                 () => target.get(tabId),
-                "tabs.get"
+                'tabs.get'
               );
 
-          case "query":
+          case 'query':
             return (queryInfo, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabs.query(queryInfo, context),
                 () => target.query(queryInfo),
-                "tabs.query"
+                'tabs.query'
               );
 
-          case "group":
+          case 'group':
             return (options, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabs.group(options, context),
                 () => target.group(options),
-                "tabs.group"
+                'tabs.group'
               );
 
-          case "ungroup":
+          case 'ungroup':
             return (tabIds, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabs.ungroup(tabIds, context),
                 () => target.ungroup(tabIds),
-                "tabs.ungroup"
+                'tabs.ungroup'
               );
 
           default:
@@ -114,23 +114,23 @@ class BrowserAPIWrapper {
     return new Proxy(browser.tabGroups, {
       get(target, prop) {
         switch (prop) {
-          case "get":
+          case 'get':
             return (groupId, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabGroups.get(groupId, context),
                 () => target.get(groupId),
-                "tabGroups.get"
+                'tabGroups.get'
               );
 
-          case "query":
+          case 'query':
             return (queryInfo, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.tabGroups.query(queryInfo, context),
                 () => target.query(queryInfo),
-                "tabGroups.query"
+                'tabGroups.query'
               );
 
-          case "update":
+          case 'update':
             return (groupId, updateProperties, context = {}) =>
               self.executeWithRateLimit(
                 () =>
@@ -140,7 +140,7 @@ class BrowserAPIWrapper {
                     context
                   ),
                 () => target.update(groupId, updateProperties),
-                "tabGroups.update"
+                'tabGroups.update'
               );
 
           default:
@@ -161,12 +161,12 @@ class BrowserAPIWrapper {
     return new Proxy(browser.windows, {
       get(target, prop) {
         switch (prop) {
-          case "getAll":
+          case 'getAll':
             return (getInfo, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.windows.getAll(getInfo, context),
                 () => target.getAll(getInfo),
-                "windows.getAll"
+                'windows.getAll'
               );
 
           default:
@@ -187,10 +187,10 @@ class BrowserAPIWrapper {
     return new Proxy(browser.storage, {
       get(target, prop) {
         switch (prop) {
-          case "local":
-            return self.createStorageAreaProxy(target.local, "local");
-          case "sync":
-            return self.createStorageAreaProxy(target.sync, "sync");
+          case 'local':
+            return self.createStorageAreaProxy(target.local, 'local');
+          case 'sync':
+            return self.createStorageAreaProxy(target.sync, 'sync');
           default:
             return target[prop];
         }
@@ -210,7 +210,7 @@ class BrowserAPIWrapper {
     return new Proxy(storageArea, {
       get(target, prop) {
         switch (prop) {
-          case "get":
+          case 'get':
             return (keys, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.storage[areaName].get(keys, context),
@@ -218,7 +218,7 @@ class BrowserAPIWrapper {
                 `storage.${areaName}.get`
               );
 
-          case "set":
+          case 'set':
             return (items, context = {}) =>
               self.executeWithRateLimit(
                 () => RateLimitedAPI.storage[areaName].set(items, context),
@@ -245,7 +245,7 @@ class BrowserAPIWrapper {
   async executeWithRateLimit(rateLimitedCall, nativeCall, operationName) {
     if (!this.rateLimitingEnabled) {
       Logger.debug(
-        "BrowserAPIWrapper",
+        'BrowserAPIWrapper',
         `Rate limiting desabilitado, usando API nativa: ${operationName}`
       );
       return nativeCall();
@@ -254,19 +254,19 @@ class BrowserAPIWrapper {
     try {
       const result = await rateLimitedCall();
       Logger.debug(
-        "BrowserAPIWrapper",
+        'BrowserAPIWrapper',
         `Rate limited call bem-sucedida: ${operationName}`
       );
       return result;
     } catch (error) {
       Logger.warn(
-        "BrowserAPIWrapper",
+        'BrowserAPIWrapper',
         `Rate limited call falhou para ${operationName}: ${error.message}`
       );
 
       if (this.fallbackToNative) {
         Logger.debug(
-          "BrowserAPIWrapper",
+          'BrowserAPIWrapper',
           `Usando fallback para API nativa: ${operationName}`
         );
         return nativeCall();
@@ -281,7 +281,7 @@ class BrowserAPIWrapper {
    */
   enableRateLimiting() {
     this.rateLimitingEnabled = true;
-    Logger.info("BrowserAPIWrapper", "Rate limiting habilitado");
+    Logger.info('BrowserAPIWrapper', 'Rate limiting habilitado');
   }
 
   /**
@@ -289,7 +289,7 @@ class BrowserAPIWrapper {
    */
   disableRateLimiting() {
     this.rateLimitingEnabled = false;
-    Logger.info("BrowserAPIWrapper", "Rate limiting desabilitado");
+    Logger.info('BrowserAPIWrapper', 'Rate limiting desabilitado');
   }
 
   /**
@@ -297,7 +297,7 @@ class BrowserAPIWrapper {
    */
   enableFallback() {
     this.fallbackToNative = true;
-    Logger.info("BrowserAPIWrapper", "Fallback para API nativa habilitado");
+    Logger.info('BrowserAPIWrapper', 'Fallback para API nativa habilitado');
   }
 
   /**
@@ -305,7 +305,7 @@ class BrowserAPIWrapper {
    */
   disableFallback() {
     this.fallbackToNative = false;
-    Logger.info("BrowserAPIWrapper", "Fallback para API nativa desabilitado");
+    Logger.info('BrowserAPIWrapper', 'Fallback para API nativa desabilitado');
   }
 
   /**
@@ -418,6 +418,6 @@ export function createRateLimitedStorageAPI() {
 }
 
 Logger.debug(
-  "BrowserAPIWrapper",
-  "Wrapper de APIs do navegador com rate limiting inicializado."
+  'BrowserAPIWrapper',
+  'Wrapper de APIs do navegador com rate limiting inicializado.'
 );

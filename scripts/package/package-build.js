@@ -1,19 +1,19 @@
 // scripts/package/package-build.js
-const fs = require("fs");
-const path = require("path");
-const archiver = require("archiver");
+const fs = require('fs');
+const path = require('path');
+const archiver = require('archiver');
 
 function zipDir(source, out) {
-  const archive = archiver("zip", { zlib: { level: 9 } });
+  const archive = archiver('zip', { zlib: { level: 9 } });
   const stream = fs.createWriteStream(out);
 
   return new Promise((resolve, reject) => {
     archive
       .directory(source, false)
-      .on("error", (err) => reject(err))
+      .on('error', (err) => reject(err))
       .pipe(stream);
 
-    stream.on("close", () => resolve());
+    stream.on('close', () => resolve());
     archive.finalize();
   });
 }
@@ -21,13 +21,13 @@ function zipDir(source, out) {
 async function main() {
   // Lê a versão do package.json
   const pkg = JSON.parse(
-    fs.readFileSync(path.resolve(__dirname, "../../package.json"), "utf8")
+    fs.readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8')
   );
   const version = pkg.version;
 
   const builds = [
-    { dir: "dist/chromium", out: `dist/chromium-${version}.zip` },
-    { dir: "dist/firefox", out: `dist/firefox-${version}.zip` },
+    { dir: 'dist/chromium', out: `dist/chromium-${version}.zip` },
+    { dir: 'dist/firefox', out: `dist/firefox-${version}.zip` },
   ];
 
   for (const build of builds) {

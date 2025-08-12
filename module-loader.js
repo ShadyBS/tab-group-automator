@@ -4,7 +4,7 @@
  * Implementa lazy loading com cache e prevenção de carregamentos duplicados
  */
 
-import Logger from "./logger.js";
+import Logger from './logger.js';
 
 /**
  * Sistema de carregamento dinâmico de módulos
@@ -29,13 +29,13 @@ class ModuleLoader {
     // Evitar carregamento duplicado
     if (this.loadedModules.has(moduleName)) {
       const cachedModule = this.loadedModules.get(moduleName);
-      Logger.debug("ModuleLoader", `Módulo ${moduleName} retornado do cache`);
+      Logger.debug('ModuleLoader', `Módulo ${moduleName} retornado do cache`);
       return cachedModule;
     }
 
     // Evitar múltiplas requisições simultâneas
     if (this.loadingPromises.has(moduleName)) {
-      Logger.debug("ModuleLoader", `Aguardando carregamento em progresso: ${moduleName}`);
+      Logger.debug('ModuleLoader', `Aguardando carregamento em progresso: ${moduleName}`);
       return this.loadingPromises.get(moduleName);
     }
 
@@ -72,11 +72,11 @@ class ModuleLoader {
       const module = await import(`./${moduleName}`);
       const loadTime = performance.now() - startTime;
       
-      Logger.info("ModuleLoader", `${moduleName} carregado em ${loadTime.toFixed(2)}ms`);
+      Logger.info('ModuleLoader', `${moduleName} carregado em ${loadTime.toFixed(2)}ms`);
       return module;
     } catch (error) {
       const loadTime = performance.now() - startTime;
-      Logger.error("ModuleLoader", `Falha ao carregar ${moduleName} após ${loadTime.toFixed(2)}ms:`, error);
+      Logger.error('ModuleLoader', `Falha ao carregar ${moduleName} após ${loadTime.toFixed(2)}ms:`, error);
       throw new Error(`Falha ao carregar módulo ${moduleName}: ${error.message}`);
     }
   }
@@ -88,14 +88,14 @@ class ModuleLoader {
    */
   async preloadModules(moduleNames) {
     const startTime = performance.now();
-    Logger.info("ModuleLoader", `Pré-carregando ${moduleNames.length} módulos:`, moduleNames);
+    Logger.info('ModuleLoader', `Pré-carregando ${moduleNames.length} módulos:`, moduleNames);
     
     const preloadPromises = moduleNames.map(async (moduleName) => {
       try {
         await this.loadModule(moduleName);
         return { module: moduleName, success: true };
       } catch (error) {
-        Logger.warn("ModuleLoader", `Falha no pré-carregamento de ${moduleName}:`, error);
+        Logger.warn('ModuleLoader', `Falha no pré-carregamento de ${moduleName}:`, error);
         return { module: moduleName, success: false, error: error.message };
       }
     });
@@ -105,7 +105,7 @@ class ModuleLoader {
     const failed = results.length - successful;
     
     const totalTime = performance.now() - startTime;
-    Logger.info("ModuleLoader", `Pré-carregamento concluído em ${totalTime.toFixed(2)}ms: ${successful} sucessos, ${failed} falhas`);
+    Logger.info('ModuleLoader', `Pré-carregamento concluído em ${totalTime.toFixed(2)}ms: ${successful} sucessos, ${failed} falhas`);
     
     return {
       total: moduleNames.length,
@@ -136,7 +136,7 @@ class ModuleLoader {
     
     // Log de performance se exceder threshold
     if (loadTime > 200) { // 200ms threshold
-      Logger.warn("ModuleLoader", `Carregamento lento detectado: ${moduleName} levou ${loadTime.toFixed(2)}ms`);
+      Logger.warn('ModuleLoader', `Carregamento lento detectado: ${moduleName} levou ${loadTime.toFixed(2)}ms`);
     }
   }
 
@@ -192,12 +192,12 @@ class ModuleLoader {
         this.loadedModules.delete(name);
         this.loadMetrics.delete(name);
       });
-      Logger.info("ModuleLoader", `Cache limpo para módulos: ${moduleNames.join(', ')}`);
+      Logger.info('ModuleLoader', `Cache limpo para módulos: ${moduleNames.join(', ')}`);
     } else {
       const clearedCount = this.loadedModules.size;
       this.loadedModules.clear();
       this.loadMetrics.clear();
-      Logger.info("ModuleLoader", `Cache completo limpo: ${clearedCount} módulos removidos`);
+      Logger.info('ModuleLoader', `Cache completo limpo: ${clearedCount} módulos removidos`);
     }
   }
 

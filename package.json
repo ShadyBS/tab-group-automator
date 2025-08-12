@@ -4,7 +4,7 @@
   "description": "Productivity browser extension for tab grouping and renaming, following strict local dependency and validation rules.",
   "main": "background.js",
   "scripts": {
-    "lint": "eslint popup options help --ext .js,.ts",
+    "lint": "eslint *.js popup/ options/ help/ --ext .js,.ts --fix",
     "validate:manifest": "node scripts/validation/validate-manifest.js",
     "validate:permissions": "node scripts/validation/validate-permissions.js",
     "validate:security": "node scripts/validation/validate-security.js",

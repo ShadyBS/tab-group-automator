@@ -44,7 +44,7 @@ const helpTexts = {
   exceptionsList:
     'Liste aqui os sites que você NUNCA quer que sejam agrupados. Insira o domínio (ex: `mail.google.com`), um por linha. Qualquer URL que contenha o texto inserido será ignorada.',
   customRules:
-    'Crie regras poderosas para cenários complexos. As regras são verificadas de cima para baixo; a primeira que corresponder será usada. Arraste-as para reordenar a prioridade. <br><a href='../help/help.html' target='_blank' class='text-indigo-400 hover:underline'>Aprenda a dominar as regras.</a>',
+    'Crie regras poderosas para cenários complexos. As regras são verificadas de cima para baixo; a primeira que corresponder será usada. Arraste-as para reordenar a prioridade. <br><a href="../help/help.html" target="_blank" class="text-indigo-400 hover:underline">Aprenda a dominar as regras.</a>',
   ruleTester:
     'Use este campo para testar como uma URL e um título seriam agrupados com base nas suas regras e configurações atuais. O resultado mostrará qual regra personalizada correspondeu, ou se será usado o agrupamento padrão.',
   syncEnabled:
@@ -1050,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rules = currentSettings.tabRenamingRules || [];
     if (rules.length === 0) {
       ui.renamingRulesList.innerHTML =
-        '<p class='text-slate-500 italic text-center p-4 dark:text-slate-400'>Nenhuma regra de renomeação personalizada ainda.</p>';
+        '<p class=\'text-slate-500 italic text-center p-4 dark:text-slate-400\'>Nenhuma regra de renomeação personalizada ainda.</p>';
       return;
     }
 

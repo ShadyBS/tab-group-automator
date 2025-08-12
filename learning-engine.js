@@ -3,19 +3,19 @@
  * @description Módulo de aprendizado para sugerir grupos de abas com base no comportamento do usuário.
  */
 
-import { settings, updateSettings } from "./settings-manager.js";
-import Logger from "./logger.js";
+import { settings, updateSettings } from './settings-manager.js';
+import Logger from './logger.js';
 
 // Utilitário para hash SHA-256 de strings (hostname)
 async function hashHostname(hostname) {
   const encoder = new TextEncoder();
   const data = encoder.encode(hostname);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
-const LOG_PREFIX = "[LearningEngine]";
+const LOG_PREFIX = '[LearningEngine]';
 
 class LearningEngine {
   constructor() {
@@ -114,8 +114,8 @@ class LearningEngine {
         createdAt: Date.now(),
         expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 dias
         lastAccessedAt: Date.now(),
-        source: "user_grouping",
-        privacyLevel: "hashed_hostname",
+        source: 'user_grouping',
+        privacyLevel: 'hashed_hostname',
       };
       this.patterns.push(newPattern);
       Logger.debug(`${LOG_PREFIX} Novo padrão criado:`, newPattern);
@@ -347,10 +347,10 @@ class LearningEngine {
         suggestedName: pattern.suggestedName,
         confidence: Math.round(pattern.confidence * 100),
         timesSeen: pattern.timesSeen,
-        createdAt: new Date(pattern.createdAt).toLocaleDateString("pt-BR"),
+        createdAt: new Date(pattern.createdAt).toLocaleDateString('pt-BR'),
         expiresAt: pattern.expiresAt
-          ? new Date(pattern.expiresAt).toLocaleDateString("pt-BR")
-          : "Nunca",
+          ? new Date(pattern.expiresAt).toLocaleDateString('pt-BR')
+          : 'Nunca',
         daysUntilExpiry: pattern.expiresAt
           ? Math.ceil((pattern.expiresAt - now) / (24 * 60 * 60 * 1000))
           : null,
@@ -396,7 +396,7 @@ class LearningEngine {
     this.mlTrain(hashes, accepted);
     Logger.info(
       `${LOG_PREFIX} Feedback recebido para ML: ${
-        accepted ? "aceito" : "rejeitado"
+        accepted ? 'aceito' : 'rejeitado'
       }.`
     );
   }

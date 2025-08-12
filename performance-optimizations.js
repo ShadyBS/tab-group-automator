@@ -3,8 +3,8 @@
  * @description Otimizações de performance para resolver problemas identificados nos logs
  */
 
-import { updateConfig } from "./performance-config.js";
-import Logger from "./logger.js";
+import { updateConfig } from './performance-config.js';
+import Logger from './logger.js';
 
 /**
  * Aplica otimizações de performance baseadas na análise dos logs de erro
@@ -63,15 +63,15 @@ export function applyPerformanceOptimizations() {
   
   updateConfig(optimizations);
   
-  Logger.info("PerformanceOptimizations", "Otimizações de performance aplicadas:", {
+  Logger.info('PerformanceOptimizations', 'Otimizações de performance aplicadas:', {
     optimizationsCount: Object.keys(optimizations).length,
     keyChanges: [
-      "Reduzida concorrência máxima",
-      "Aumentados delays de processamento", 
-      "Reduzidas tentativas de retry",
-      "Otimizados intervalos de verificação",
-      "Melhorado circuit breaker",
-      "Reduzido tamanho do cache"
+      'Reduzida concorrência máxima',
+      'Aumentados delays de processamento', 
+      'Reduzidas tentativas de retry',
+      'Otimizados intervalos de verificação',
+      'Melhorado circuit breaker',
+      'Reduzido tamanho do cache'
     ]
   });
   
@@ -102,7 +102,7 @@ export function applyContentScriptOptimizations() {
   
   updateConfig(contentScriptOptimizations);
   
-  Logger.info("PerformanceOptimizations", "Otimizações de content script aplicadas:", contentScriptOptimizations);
+  Logger.info('PerformanceOptimizations', 'Otimizações de content script aplicadas:', contentScriptOptimizations);
   
   return contentScriptOptimizations;
 }
@@ -132,7 +132,7 @@ export function applyCacheOptimizations() {
   
   updateConfig(cacheOptimizations);
   
-  Logger.info("PerformanceOptimizations", "Otimizações de cache aplicadas:", cacheOptimizations);
+  Logger.info('PerformanceOptimizations', 'Otimizações de cache aplicadas:', cacheOptimizations);
   
   return cacheOptimizations;
 }
@@ -145,7 +145,7 @@ export function applyAllOptimizations() {
   const contentOpts = applyContentScriptOptimizations();
   const cacheOpts = applyCacheOptimizations();
   
-  Logger.info("PerformanceOptimizations", "Todas as otimizações aplicadas com sucesso", {
+  Logger.info('PerformanceOptimizations', 'Todas as otimizações aplicadas com sucesso', {
     general: Object.keys(generalOpts).length,
     contentScript: Object.keys(contentOpts).length,
     cache: Object.keys(cacheOpts).length,
@@ -159,4 +159,4 @@ export function applyAllOptimizations() {
   };
 }
 
-Logger.debug("PerformanceOptimizations", "Módulo de otimizações de performance carregado.");
+Logger.debug('PerformanceOptimizations', 'Módulo de otimizações de performance carregado.');

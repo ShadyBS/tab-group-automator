@@ -562,6 +562,134 @@
         </div>
       </section>
 
+      <!-- NOVO: Seção de Feature Flags de Performance -->
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Otimizações de Performance (Experimental)
+        </h2>
+        <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">
+          Controle as novas otimizações de performance implementadas. Essas
+          funcionalidades são experimentais e podem ser desabilitadas se
+          causarem problemas.
+        </p>
+        <div class="grid grid-cols-1 gap-4">
+          <div
+            class="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600"
+          >
+            <div class="flex-1">
+              <label for="smartNameCachingFlag" class="font-semibold block mb-1"
+                >Cache de Nomes Inteligentes<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="smartNameCachingFlag"
+                >
+                  ?
+                </button></label
+              >
+              <p class="text-sm text-slate-600 dark:text-slate-400">
+                Ativa o cache da função fetchSmartName para melhorar performance
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              id="smartNameCachingFlag"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+              checked
+            />
+          </div>
+
+          <div
+            class="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600"
+          >
+            <div class="flex-1">
+              <label
+                for="selectiveProcessingFlag"
+                class="font-semibold block mb-1"
+                >Processamento Seletivo<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="selectiveProcessingFlag"
+                >
+                  ?
+                </button></label
+              >
+              <p class="text-sm text-slate-600 dark:text-slate-400">
+                Refatoração da processTabQueue para processar apenas abas
+                necessárias
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              id="selectiveProcessingFlag"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+              checked
+            />
+          </div>
+
+          <div
+            class="flex items-center justify-between p-4 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600"
+          >
+            <div class="flex-1">
+              <label for="batchedStorageFlag" class="font-semibold block mb-1"
+                >Armazenamento em Lote<button
+                  type="button"
+                  class="help-tooltip"
+                  data-help-key="batchedStorageFlag"
+                >
+                  ?
+                </button></label
+              >
+              <p class="text-sm text-slate-600 dark:text-slate-400">
+                Otimização do chrome.storage.local com operações em lote
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              id="batchedStorageFlag"
+              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+              checked
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+          <div class="flex items-start">
+            <div class="flex-shrink-0">
+              <svg
+                class="h-5 w-5 text-amber-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3
+                class="text-sm font-medium text-amber-800 dark:text-amber-200"
+              >
+                Funcionalidades Experimentais
+              </h3>
+              <div class="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                <p>
+                  Essas otimizações foram implementadas para melhorar a
+                  performance da extensão. Se você encontrar problemas, pode
+                  desabilitá-las individualmente.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- FIM NOVO: Seção de Feature Flags de Performance -->
+
       <section
         class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
       >
@@ -1127,18 +1255,22 @@ youtube.com"
       <div
         class="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-4xl m-4 dark:bg-slate-800"
       >
-        <h3 class="text-2xl font-bold mb-6">Dados de Aprendizado Armazenados</h3>
-        
+        <h3 class="text-2xl font-bold mb-6">
+          Dados de Aprendizado Armazenados
+        </h3>
+
         <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
           <p class="text-sm text-blue-700 dark:text-blue-300">
-            <strong>Privacidade:</strong> Apenas nomes de domínio (ex: "github.com") são armazenados, nunca URLs completas ou dados pessoais.
+            <strong>Privacidade:</strong> Apenas nomes de domínio (ex:
+            "github.com") são armazenados, nunca URLs completas ou dados
+            pessoais.
           </p>
         </div>
-        
+
         <div id="learningDataContent" class="max-h-96 overflow-y-auto">
           <!-- Conteúdo será preenchido via JavaScript -->
         </div>
-        
+
         <div class="flex justify-end space-x-4 mt-6">
           <button
             id="closeLearningDataBtn"

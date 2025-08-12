@@ -4,7 +4,7 @@
  * Implementa tracking de métricas, alertas e relatórios de performance
  */
 
-import Logger from "./logger.js";
+import Logger from './logger.js';
 
 /**
  * Monitor de performance em tempo real
@@ -63,7 +63,7 @@ class PerformanceMonitor {
     // Log para analytics
     this.logMetric(name, metric);
     
-    Logger.debug("PerformanceMonitor", `Métrica registrada: ${name} = ${value}${unit}`);
+    Logger.debug('PerformanceMonitor', `Métrica registrada: ${name} = ${value}${unit}`);
   }
 
   /**
@@ -109,7 +109,7 @@ class PerformanceMonitor {
       this.alerts.shift();
     }
     
-    Logger.warn("PerformanceMonitor", `⚠️ Alerta de Performance: ${name} = ${value} excede threshold ${threshold}`, alert);
+    Logger.warn('PerformanceMonitor', `⚠️ Alerta de Performance: ${name} = ${value} excede threshold ${threshold}`, alert);
     
     // Notifica handlers registrados
     this.notifyAlertHandlers(alert);
@@ -143,7 +143,7 @@ class PerformanceMonitor {
       try {
         handler(alert);
       } catch (error) {
-        Logger.error("PerformanceMonitor", "Erro em handler de alerta:", error);
+        Logger.error('PerformanceMonitor', 'Erro em handler de alerta:', error);
       }
     }
   }
@@ -174,7 +174,7 @@ class PerformanceMonitor {
    * @param {object} alert - Alerta crítico
    */
   handleCriticalAlert(alert) {
-    Logger.error("PerformanceMonitor", `🚨 ALERTA CRÍTICO: ${alert.metric}`, alert);
+    Logger.error('PerformanceMonitor', `🚨 ALERTA CRÍTICO: ${alert.metric}`, alert);
     
     switch (alert.metric) {
       case 'memoryUsage':
@@ -194,7 +194,7 @@ class PerformanceMonitor {
    * @param {object} alert - Alerta de alta severidade
    */
   handleHighAlert(alert) {
-    Logger.warn("PerformanceMonitor", `🔥 ALERTA ALTO: ${alert.metric}`, alert);
+    Logger.warn('PerformanceMonitor', `🔥 ALERTA ALTO: ${alert.metric}`, alert);
     
     // Ações menos drásticas que crítico
     switch (alert.metric) {
@@ -212,7 +212,7 @@ class PerformanceMonitor {
    * @param {object} alert - Alerta de média severidade
    */
   handleMediumAlert(alert) {
-    Logger.info("PerformanceMonitor", `⚠️ ALERTA MÉDIO: ${alert.metric}`, alert);
+    Logger.info('PerformanceMonitor', `⚠️ ALERTA MÉDIO: ${alert.metric}`, alert);
     
     // Registra para análise posterior
     this.schedulePerformanceAnalysis(alert);
@@ -225,7 +225,7 @@ class PerformanceMonitor {
   addAlertHandler(handler) {
     if (typeof handler === 'function') {
       this.alertHandlers.add(handler);
-      Logger.debug("PerformanceMonitor", "Handler de alerta registrado");
+      Logger.debug('PerformanceMonitor', 'Handler de alerta registrado');
     }
   }
 
@@ -235,7 +235,7 @@ class PerformanceMonitor {
    */
   removeAlertHandler(handler) {
     this.alertHandlers.delete(handler);
-    Logger.debug("PerformanceMonitor", "Handler de alerta removido");
+    Logger.debug('PerformanceMonitor', 'Handler de alerta removido');
   }
 
   /**
@@ -327,7 +327,7 @@ class PerformanceMonitor {
       generatedAt: now
     };
     
-    Logger.info("PerformanceMonitor", "Relatório de performance gerado", {
+    Logger.info('PerformanceMonitor', 'Relatório de performance gerado', {
       timeRange: timeRange / 1000 / 60,
       metrics: Object.keys(metricStats).length,
       alerts: recentAlerts.length
@@ -383,16 +383,16 @@ class PerformanceMonitor {
     }
     
     if (alertStats.total > 10) {
-      recommendations.push("Alto número de alertas - considerar ajustar thresholds ou otimizar performance");
+      recommendations.push('Alto número de alertas - considerar ajustar thresholds ou otimizar performance');
     }
     
     // Recomendações específicas
     if (metricStats.startupTime && metricStats.startupTime.avg > 1000) {
-      recommendations.push("Implementar lazy loading para reduzir tempo de startup");
+      recommendations.push('Implementar lazy loading para reduzir tempo de startup');
     }
     
     if (metricStats.memoryUsage && metricStats.memoryUsage.trend === 'increasing') {
-      recommendations.push("Investigar possível memory leak");
+      recommendations.push('Investigar possível memory leak');
     }
     
     return recommendations;
@@ -412,7 +412,7 @@ class PerformanceMonitor {
       this.logPerformanceReport(report);
     }, interval);
     
-    Logger.info("PerformanceMonitor", `Auto-reporting iniciado com intervalo de ${interval / 1000}s`);
+    Logger.info('PerformanceMonitor', `Auto-reporting iniciado com intervalo de ${interval / 1000}s`);
   }
 
   /**
@@ -422,7 +422,7 @@ class PerformanceMonitor {
     if (this.reportingInterval) {
       clearInterval(this.reportingInterval);
       this.reportingInterval = null;
-      Logger.info("PerformanceMonitor", "Auto-reporting parado");
+      Logger.info('PerformanceMonitor', 'Auto-reporting parado');
     }
   }
 
@@ -431,7 +431,7 @@ class PerformanceMonitor {
    * @param {object} report - Relatório para log
    */
   logPerformanceReport(report) {
-    Logger.info("PerformanceMonitor", "📊 Relatório de Performance", {
+    Logger.info('PerformanceMonitor', '📊 Relatório de Performance', {
       uptime: `${(report.summary.uptime / 1000 / 60).toFixed(1)}min`,
       metrics: report.summary.uniqueMetrics,
       alerts: report.summary.totalAlerts,
@@ -439,7 +439,7 @@ class PerformanceMonitor {
     });
     
     if (report.recommendations.length > 0) {
-      Logger.warn("PerformanceMonitor", "💡 Recomendações:", report.recommendations);
+      Logger.warn('PerformanceMonitor', '💡 Recomendações:', report.recommendations);
     }
   }
 
@@ -452,7 +452,7 @@ class PerformanceMonitor {
     // Implementar integração com sistema de analytics se necessário
     // Por enquanto apenas debug log
     if (metric.threshold && metric.value > metric.threshold) {
-      Logger.debug("PerformanceMonitor", `📈 Métrica ${name}: ${metric.value}${metric.unit} (threshold: ${metric.threshold})`);
+      Logger.debug('PerformanceMonitor', `📈 Métrica ${name}: ${metric.value}${metric.unit} (threshold: ${metric.threshold})`);
     }
   }
 
@@ -460,30 +460,30 @@ class PerformanceMonitor {
    * Ações específicas para diferentes tipos de alerta
    */
   triggerEmergencyMemoryCleanup() {
-    Logger.error("PerformanceMonitor", "🆘 Acionando limpeza de emergência de memória");
+    Logger.error('PerformanceMonitor', '🆘 Acionando limpeza de emergência de memória');
     // Integrar com sistema de limpeza de memória
   }
 
   triggerStartupOptimization() {
-    Logger.error("PerformanceMonitor", "🚀 Acionando otimização de startup");
+    Logger.error('PerformanceMonitor', '🚀 Acionando otimização de startup');
     // Implementar otimizações de startup
   }
 
   triggerErrorRateInvestigation() {
-    Logger.error("PerformanceMonitor", "🔍 Acionando investigação de taxa de erro");
+    Logger.error('PerformanceMonitor', '🔍 Acionando investigação de taxa de erro');
     // Implementar análise de erros
   }
 
   suggestModuleOptimization(metadata) {
-    Logger.warn("PerformanceMonitor", "📦 Sugerindo otimização de módulo", metadata);
+    Logger.warn('PerformanceMonitor', '📦 Sugerindo otimização de módulo', metadata);
   }
 
   suggestCacheOptimization() {
-    Logger.warn("PerformanceMonitor", "💾 Sugerindo otimização de cache");
+    Logger.warn('PerformanceMonitor', '💾 Sugerindo otimização de cache');
   }
 
   schedulePerformanceAnalysis(alert) {
-    Logger.info("PerformanceMonitor", "📋 Agendando análise de performance", alert);
+    Logger.info('PerformanceMonitor', '📋 Agendando análise de performance', alert);
   }
 
   /**
@@ -511,7 +511,7 @@ class PerformanceMonitor {
     this.metricsHistory.length = 0;
     this.startTime = performance.now();
     
-    Logger.info("PerformanceMonitor", "Monitor de performance resetado");
+    Logger.info('PerformanceMonitor', 'Monitor de performance resetado');
   }
 }
 

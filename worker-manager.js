@@ -4,7 +4,7 @@
  * Implementa pool de workers, timeout, retry e métricas de performance
  */
 
-import Logger from "./logger.js";
+import Logger from './logger.js';
 
 /**
  * Gerenciador de Web Workers para operações pesadas
@@ -25,7 +25,7 @@ class WorkerManager {
       failedTasks: 0,
       timeoutTasks: 0,
       averageTime: 0,
-      totalTime: 0
+      totalTime: 0,
     };
   }
 
@@ -39,25 +39,37 @@ class WorkerManager {
   async executeHeavyTask(type, data, options = {}) {
     const taskId = ++this.taskIdCounter;
     const timeout = options.timeout || this.defaultTimeout;
-    const retries = options.retries !== undefined ? options.retries : this.retryAttempts;
-    
-    Logger.debug("WorkerManager", `Executando tarefa ${taskId} tipo ${type}`);
-    
+    const retries =
+      options.retries !== undefined ? options.retries : this.retryAttempts;
+
+    Logger.debug('WorkerManager', `Executando tarefa ${taskId} tipo ${type}`);
+
     this.metrics.totalTasks++;
-    
+
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        const result = await this.executeTaskWithTimeout(taskId, type, data, timeout);
-        
+        const result = await this.executeTaskWithTimeout(
+          taskId,
+          type,
+          data,
+          timeout
+        );
+
         this.metrics.completedTasks++;
         this.updateAverageTime(result.processingTime);
-        
-        Logger.debug("WorkerManager", `Tarefa ${taskId} concluída em ${result.processingTime.toFixed(2)}ms`);
+
+        Logger.debug(
+          'WorkerManager',
+          `Tarefa ${taskId} concluída em ${result.processingTime.toFixed(2)}ms`
+        );
         return result.result;
-        
       } catch (error) {
-        Logger.warn("WorkerManager", `Tentativa ${attempt + 1} da tarefa ${taskId} falhou:`, error);
-        
+        Logger.warn(
+          'WorkerManager',
+          `Tentativa ${attempt + 1} da tarefa ${taskId} falhou:`,
+          error
+        );
+
         if (attempt === retries) {
           this.metrics.failedTasks++;
           if (error.message.includes('timeout')) {
@@ -65,9 +77,11 @@ class WorkerManager {
           }
           throw error;
         }
-        
+
         // Delay antes da próxima tentativa
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (attempt + 1))
+        );
       }
     }
   }
@@ -88,11 +102,11 @@ class WorkerManager {
       }, timeout);
 
       this.executeTaskInternal(taskId, type, data)
-        .then(result => {
+        .then((result) => {
           clearTimeout(timeoutId);
           resolve(result);
         })
-        .catch(error => {
+        .catch((error) => {
           clearTimeout(timeoutId);
           reject(error);
         });
@@ -109,7 +123,7 @@ class WorkerManager {
   async executeTaskInternal(taskId, type, data) {
     const worker = await this.getAvailableWorker();
     const startTime = performance.now();
-    
+
     return new Promise((resolve, reject) => {
       // Registra tarefa ativa
       this.activeTasks.set(taskId, {
@@ -117,18 +131,24 @@ class WorkerManager {
         startTime,
         type,
         resolve,
-        reject
+        reject,
       });
 
       // Configura listener para esta tarefa
       const messageHandler = (event) => {
-        const { taskId: responseTaskId, success, result, error, processingTime } = event.data;
-        
+        const {
+          taskId: responseTaskId,
+          success,
+          result,
+          error,
+          processingTime,
+        } = event.data;
+
         if (responseTaskId === taskId) {
           worker.removeEventListener('message', messageHandler);
           this.activeTasks.delete(taskId);
           this.releaseWorker(worker);
-          
+
           if (success) {
             resolve({ result, processingTime });
           } else {
@@ -138,7 +158,7 @@ class WorkerManager {
       };
 
       worker.addEventListener('message', messageHandler);
-      
+
       // Envia tarefa para o worker
       worker.postMessage({ taskId, type, data });
     });
@@ -150,23 +170,23 @@ class WorkerManager {
    */
   async getAvailableWorker() {
     // Procura worker livre
-    for (const [workerId, workerInfo] of this.workers.entries()) {
+    for (const [, workerInfo] of this.workers.entries()) {
       if (!workerInfo.busy) {
         workerInfo.busy = true;
         workerInfo.lastUsed = Date.now();
         return workerInfo.worker;
       }
     }
-    
+
     // Cria novo worker se não atingiu o limite
     if (this.workers.size < this.maxWorkers) {
       return this.createNewWorker();
     }
-    
+
     // Aguarda worker ficar disponível
     return new Promise((resolve) => {
       const checkInterval = setInterval(() => {
-        for (const [workerId, workerInfo] of this.workers.entries()) {
+        for (const [, workerInfo] of this.workers.entries()) {
           if (!workerInfo.busy) {
             clearInterval(checkInterval);
             workerInfo.busy = true;
@@ -186,19 +206,25 @@ class WorkerManager {
   createNewWorker() {
     try {
       const worker = new Worker('./performance-worker.js');
-      const workerId = `worker_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+      const workerId = `worker_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+
       // Configura handlers de erro
       worker.addEventListener('error', (error) => {
-        Logger.error("WorkerManager", `Erro no worker ${workerId}:`, error);
+        Logger.error('WorkerManager', `Erro no worker ${workerId}:`, error);
         this.handleWorkerError(workerId, error);
       });
-      
+
       worker.addEventListener('messageerror', (error) => {
-        Logger.error("WorkerManager", `Erro de mensagem no worker ${workerId}:`, error);
+        Logger.error(
+          'WorkerManager',
+          `Erro de mensagem no worker ${workerId}:`,
+          error
+        );
         this.handleWorkerError(workerId, error);
       });
-      
+
       // Registra worker
       this.workers.set(workerId, {
         worker,
@@ -206,15 +232,17 @@ class WorkerManager {
         created: Date.now(),
         lastUsed: Date.now(),
         tasksCompleted: 0,
-        errors: 0
+        errors: 0,
       });
-      
-      Logger.info("WorkerManager", `Worker ${workerId} criado. Total: ${this.workers.size}`);
+
+      Logger.info(
+        'WorkerManager',
+        `Worker ${workerId} criado. Total: ${this.workers.size}`
+      );
       return worker;
-      
     } catch (error) {
-      Logger.error("WorkerManager", "Erro ao criar worker:", error);
-      throw new Error("Falha ao criar worker para processamento pesado");
+      Logger.error('WorkerManager', 'Erro ao criar worker:', error);
+      throw new Error('Falha ao criar worker para processamento pesado');
     }
   }
 
@@ -227,7 +255,7 @@ class WorkerManager {
       if (workerInfo.worker === worker) {
         workerInfo.busy = false;
         workerInfo.tasksCompleted++;
-        Logger.debug("WorkerManager", `Worker ${workerId} liberado`);
+        Logger.debug('WorkerManager', `Worker ${workerId} liberado`);
         break;
       }
     }
@@ -238,14 +266,18 @@ class WorkerManager {
    * @param {string} workerId - ID do worker
    * @param {Error} error - Erro ocorrido
    */
+  // eslint-disable-next-line no-unused-vars -- error is required by event signature for future-proofing
   handleWorkerError(workerId, error) {
     const workerInfo = this.workers.get(workerId);
     if (workerInfo) {
       workerInfo.errors++;
-      
+
       // Remove worker se muitos erros
       if (workerInfo.errors > 3) {
-        Logger.warn("WorkerManager", `Removendo worker ${workerId} devido a muitos erros`);
+        Logger.warn(
+          'WorkerManager',
+          `Removendo worker ${workerId} devido a muitos erros`
+        );
         this.removeWorker(workerId);
       }
     }
@@ -261,11 +293,18 @@ class WorkerManager {
       try {
         workerInfo.worker.terminate();
       } catch (error) {
-        Logger.debug("WorkerManager", `Erro ao terminar worker ${workerId}:`, error);
+        Logger.debug(
+          'WorkerManager',
+          `Erro ao terminar worker ${workerId}:`,
+          error
+        );
       }
-      
+
       this.workers.delete(workerId);
-      Logger.info("WorkerManager", `Worker ${workerId} removido. Total: ${this.workers.size}`);
+      Logger.info(
+        'WorkerManager',
+        `Worker ${workerId} removido. Total: ${this.workers.size}`
+      );
     }
   }
 
@@ -287,7 +326,8 @@ class WorkerManager {
    */
   updateAverageTime(processingTime) {
     this.metrics.totalTime += processingTime;
-    this.metrics.averageTime = this.metrics.totalTime / this.metrics.completedTasks;
+    this.metrics.averageTime =
+      this.metrics.totalTime / this.metrics.completedTasks;
   }
 
   /**
@@ -295,24 +335,30 @@ class WorkerManager {
    * @returns {object} - Métricas detalhadas
    */
   getPerformanceMetrics() {
-    const workerStats = Array.from(this.workers.entries()).map(([id, info]) => ({
-      id,
-      busy: info.busy,
-      tasksCompleted: info.tasksCompleted,
-      errors: info.errors,
-      uptime: Date.now() - info.created,
-      lastUsed: Date.now() - info.lastUsed
-    }));
-    
+    const workerStats = Array.from(this.workers.entries()).map(
+      ([id, info]) => ({
+        id,
+        busy: info.busy,
+        tasksCompleted: info.tasksCompleted,
+        errors: info.errors,
+        uptime: Date.now() - info.created,
+        lastUsed: Date.now() - info.lastUsed,
+      })
+    );
+
     return {
       ...this.metrics,
-      successRate: this.metrics.totalTasks > 0 ? 
-        (this.metrics.completedTasks / this.metrics.totalTasks) : 0,
-      timeoutRate: this.metrics.totalTasks > 0 ? 
-        (this.metrics.timeoutTasks / this.metrics.totalTasks) : 0,
+      successRate:
+        this.metrics.totalTasks > 0
+          ? this.metrics.completedTasks / this.metrics.totalTasks
+          : 0,
+      timeoutRate:
+        this.metrics.totalTasks > 0
+          ? this.metrics.timeoutTasks / this.metrics.totalTasks
+          : 0,
       activeWorkers: this.workers.size,
       activeTasks: this.activeTasks.size,
-      workerStats
+      workerStats,
     };
   }
 
@@ -320,21 +366,22 @@ class WorkerManager {
    * Limpa workers inativos
    * @param {number} maxIdleTime - Tempo máximo inativo em ms
    */
-  cleanupIdleWorkers(maxIdleTime = 5 * 60 * 1000) { // 5 minutos
+  cleanupIdleWorkers(maxIdleTime = 5 * 60 * 1000) {
+    // 5 minutos
     const now = Date.now();
     const workersToRemove = [];
-    
+
     for (const [workerId, workerInfo] of this.workers.entries()) {
-      if (!workerInfo.busy && (now - workerInfo.lastUsed) > maxIdleTime) {
+      if (!workerInfo.busy && now - workerInfo.lastUsed > maxIdleTime) {
         workersToRemove.push(workerId);
       }
     }
-    
-    workersToRemove.forEach(workerId => {
-      Logger.debug("WorkerManager", `Removendo worker inativo: ${workerId}`);
+
+    workersToRemove.forEach((workerId) => {
+      Logger.debug('WorkerManager', `Removendo worker inativo: ${workerId}`);
       this.removeWorker(workerId);
     });
-    
+
     return workersToRemove.length;
   }
 
@@ -342,20 +389,24 @@ class WorkerManager {
    * Termina todos os workers
    */
   terminateAllWorkers() {
-    Logger.info("WorkerManager", `Terminando ${this.workers.size} workers...`);
-    
+    Logger.info('WorkerManager', `Terminando ${this.workers.size} workers...`);
+
     for (const [workerId, workerInfo] of this.workers.entries()) {
       try {
         workerInfo.worker.terminate();
       } catch (error) {
-        Logger.debug("WorkerManager", `Erro ao terminar worker ${workerId}:`, error);
+        Logger.debug(
+          'WorkerManager',
+          `Erro ao terminar worker ${workerId}:`,
+          error
+        );
       }
     }
-    
+
     this.workers.clear();
     this.activeTasks.clear();
-    
-    Logger.info("WorkerManager", "Todos os workers terminados");
+
+    Logger.info('WorkerManager', 'Todos os workers terminados');
   }
 
   /**
@@ -365,10 +416,11 @@ class WorkerManager {
   getStatus() {
     return {
       totalWorkers: this.workers.size,
-      busyWorkers: Array.from(this.workers.values()).filter(w => w.busy).length,
+      busyWorkers: Array.from(this.workers.values()).filter((w) => w.busy)
+        .length,
       activeTasks: this.activeTasks.size,
       queuedTasks: this.taskQueue.length,
-      metrics: this.getPerformanceMetrics()
+      metrics: this.getPerformanceMetrics(),
     };
   }
 
@@ -382,10 +434,10 @@ class WorkerManager {
       failedTasks: 0,
       timeoutTasks: 0,
       averageTime: 0,
-      totalTime: 0
+      totalTime: 0,
     };
-    
-    Logger.info("WorkerManager", "Métricas resetadas");
+
+    Logger.info('WorkerManager', 'Métricas resetadas');
   }
 }
 
@@ -396,7 +448,7 @@ const workerManager = new WorkerManager();
 setInterval(() => {
   const cleaned = workerManager.cleanupIdleWorkers();
   if (cleaned > 0) {
-    Logger.info("WorkerManager", `${cleaned} workers inativos removidos`);
+    Logger.info('WorkerManager', `${cleaned} workers inativos removidos`);
   }
 }, 10 * 60 * 1000);
 
