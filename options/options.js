@@ -62,6 +62,14 @@ const helpTexts = {
     "Expressões Regulares (Regex) são um padrão de busca poderoso para encontrar e manipular texto. <br><strong>Dica:</strong> Use parênteses <code>()</code> para criar um 'grupo de captura'. Você pode então usar <code>$1</code>, <code>$2</code>, etc., no campo 'Substituir por' para se referir ao texto capturado. <br><a href='https://regex101.com/' target='_blank' class='text-indigo-400 hover:underline'>Aprenda e teste suas Regex aqui.</a>",
   advancedRenamingOptions:
     "Ajustes finos para o comportamento da regra:<ul><li><strong>Aguardar carregamento:</strong> Útil para sites que carregam o título dinamicamente após a página inicial carregar.</li><li><strong>Armazenar em cache:</strong> Melhora a performance ao salvar o resultado da renomeação, evitando reprocessamento.</li><li><strong>Respeitar alterações manuais:</strong> Se você renomear manualmente uma aba, a extensão não tentará renomeá-la novamente.</li><li><strong>Tentativas de Reaplicação:</strong> Quantas vezes a regra deve tentar ser aplicada se a primeira tentativa falhar (ex: o elemento ainda não apareceu na página).</li></ul>",
+  memoryCriticalThreshold:
+    "Define o percentual de uso de memória em que o sistema entra em modo crítico e pode acionar limpezas mais agressivas. Recomenda-se manter acima de 90%.",
+  memoryWarningThreshold:
+    "Percentual de uso de memória a partir do qual alertas ou limpezas preventivas são iniciadas. Útil para evitar atingir o limite crítico.",
+  cleanupInterval:
+    "Intervalo (em segundos) entre as limpezas automáticas de memória e cache. Valores menores aumentam a frequência de limpeza.",
+  highPressureInterval:
+    "Intervalo (em segundos) entre limpezas quando o sistema está sob alta pressão de memória. Valores menores tornam a resposta mais rápida sob estresse.",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -165,6 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
     ),
     cancelRenamingRuleBtn: document.getElementById("cancelRenamingRuleBtn"),
     saveRenamingRuleBtn: document.getElementById("saveRenamingRuleBtn"),
+    // NOVO: Gerenciador de Memória
+    memoryCriticalThreshold: document.getElementById("memoryCriticalThreshold"),
+    memoryWarningThreshold: document.getElementById("memoryWarningThreshold"),
+    cleanupInterval: document.getElementById("cleanupInterval"),
+    highPressureInterval: document.getElementById("highPressureInterval"),
   };
 
   let currentSettings = {};
@@ -687,6 +700,27 @@ document.addEventListener("DOMContentLoaded", () => {
       settings.titleSanitizationNoise || []
     ).join("\n");
     ui.titleDelimiters.value = settings.titleDelimiters || "|–—:·»«-";
+    // NOVO: Gerenciador de Memória
+    ui.memoryCriticalThreshold.value =
+      settings.memoryLimits &&
+      settings.memoryLimits.criticalThreshold !== undefined
+        ? settings.memoryLimits.criticalThreshold
+        : 95;
+    ui.memoryWarningThreshold.value =
+      settings.memoryLimits &&
+      settings.memoryLimits.warningThreshold !== undefined
+        ? settings.memoryLimits.warningThreshold
+        : 80;
+    ui.cleanupInterval.value =
+      settings.adaptiveConfig &&
+      settings.adaptiveConfig.cleanupInterval !== undefined
+        ? Math.round(settings.adaptiveConfig.cleanupInterval / 1000)
+        : 300;
+    ui.highPressureInterval.value =
+      settings.adaptiveConfig &&
+      settings.adaptiveConfig.highPressureInterval !== undefined
+        ? Math.round(settings.adaptiveConfig.highPressureInterval / 1000)
+        : 30;
     renderRulesList(); // Agrupamento
     // NOVO: Renomeação de Abas
     ui.tabRenamingEnabled.checked = settings.tabRenamingEnabled || false;
@@ -694,6 +728,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function collectSettingsFromForm() {
+    // Copia os objetos para evitar mutação direta
+    const memoryLimits = { ...(currentSettings.memoryLimits || {}) };
+    const adaptiveConfig = { ...(currentSettings.adaptiveConfig || {}) };
+
+    memoryLimits.criticalThreshold =
+      parseInt(ui.memoryCriticalThreshold.value, 10) || 95;
+    memoryLimits.warningThreshold =
+      parseInt(ui.memoryWarningThreshold.value, 10) || 80;
+    adaptiveConfig.cleanupInterval =
+      (parseInt(ui.cleanupInterval.value, 10) || 300) * 1000;
+    adaptiveConfig.highPressureInterval =
+      (parseInt(ui.highPressureInterval.value, 10) || 30) * 1000;
+
     return {
       ...currentSettings,
       theme: ui.theme.value,
@@ -724,6 +771,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // NOVO: Renomeação de Abas
       tabRenamingEnabled: ui.tabRenamingEnabled.checked,
       tabRenamingRules: currentSettings.tabRenamingRules || [],
+      // NOVO: Gerenciador de Memória
+      memoryLimits,
+      adaptiveConfig,
     };
   }
 
@@ -1702,6 +1752,11 @@ document.addEventListener("DOMContentLoaded", () => {
       "domainSanitizationTlds",
       "titleSanitizationNoise",
       "tabRenamingEnabled", // NOVO
+      // NOVO: Gerenciador de Memória
+      "memoryCriticalThreshold",
+      "memoryWarningThreshold",
+      "cleanupInterval",
+      "highPressureInterval",
     ];
     autoSaveFields.forEach((id) => {
       const el = ui[id];

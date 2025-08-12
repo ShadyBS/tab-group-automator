@@ -371,6 +371,111 @@
         </div>
       </section>
 
+      <!-- NOVO: Configurações do Gerenciador de Memória -->
+      <section
+        class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
+      >
+        <h2
+          class="text-2xl font-bold mb-5 border-b border-slate-200 pb-3 dark:border-slate-700"
+        >
+          Configurações do Gerenciador de Memória
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="memoryCriticalThreshold" class="font-semibold">
+              Limiar Crítico de Memória (%)
+              <button
+                type="button"
+                class="help-tooltip"
+                data-help-key="memoryCriticalThreshold"
+              >
+                ?
+              </button>
+            </label>
+            <input
+              type="number"
+              id="memoryCriticalThreshold"
+              min="50"
+              max="100"
+              step="1"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+              placeholder="95"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="memoryWarningThreshold" class="font-semibold">
+              Limiar de Alerta de Memória (%)
+              <button
+                type="button"
+                class="help-tooltip"
+                data-help-key="memoryWarningThreshold"
+              >
+                ?
+              </button>
+            </label>
+            <input
+              type="number"
+              id="memoryWarningThreshold"
+              min="10"
+              max="100"
+              step="1"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+              placeholder="80"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="cleanupInterval" class="font-semibold">
+              Intervalo de Limpeza (segundos)
+              <button
+                type="button"
+                class="help-tooltip"
+                data-help-key="cleanupInterval"
+              >
+                ?
+              </button>
+            </label>
+            <input
+              type="number"
+              id="cleanupInterval"
+              min="10"
+              max="3600"
+              step="1"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+              placeholder="300"
+            />
+          </div>
+          <div
+            class="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50"
+          >
+            <label for="highPressureInterval" class="font-semibold">
+              Intervalo sob Alta Pressão (segundos)
+              <button
+                type="button"
+                class="help-tooltip"
+                data-help-key="highPressureInterval"
+              >
+                ?
+              </button>
+            </label>
+            <input
+              type="number"
+              id="highPressureInterval"
+              min="5"
+              max="600"
+              step="1"
+              class="p-2 border border-slate-300 rounded-md shadow-sm w-32 focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:border-slate-600"
+              placeholder="30"
+            />
+          </div>
+        </div>
+      </section>
+
       <section
         class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
       >
