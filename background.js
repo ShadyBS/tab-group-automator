@@ -876,6 +876,8 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
           updateAutoCollapseTimer();
           updateUngroupTimer();
+
+          // Atualiza menu de contexto dinamicamente ao alterar configurações
           await updateContextMenus();
 
           // Notifica outras partes da extensão (como o popup) que as configurações mudaram.
