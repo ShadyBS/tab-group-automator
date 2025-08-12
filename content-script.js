@@ -5,6 +5,58 @@
  */
 
 (async () => {
+  // Aguarda DOM dinâmico e shadow roots
+  function waitForElement(selector, { timeout = 5000, root = document } = {}) {
+    return new Promise((resolve) => {
+      const el = root.querySelector(selector);
+      if (el) return resolve(el);
+
+      const observer = new MutationObserver(() => {
+        const found = root.querySelector(selector);
+        if (found) {
+          observer.disconnect();
+          resolve(found);
+        }
+      });
+
+      observer.observe(root === document ? document.body : root, {
+        childList: true,
+        subtree: true,
+      });
+
+      setTimeout(() => {
+        observer.disconnect();
+        resolve(null);
+      }, timeout);
+    });
+  }
+
+  // Busca recursiva em shadow roots
+  function querySelectorDeep(selector, root = document) {
+    const el = root.querySelector(selector);
+    if (el) return el;
+    const traverse = (node) => {
+      if (node.shadowRoot) {
+        const found = node.shadowRoot.querySelector(selector);
+        if (found) return found;
+        for (const child of node.shadowRoot.children) {
+          const deep = traverse(child);
+          if (deep) return deep;
+        }
+      }
+      for (const child of node.children || []) {
+        const deep = traverse(child);
+        if (deep) return deep;
+      }
+      return null;
+    };
+    for (const child of root.children || []) {
+      const deep = traverse(child);
+      if (deep) return deep;
+    }
+    return null;
+  }
+
   function getMetaContent(selector) {
     const tag = document.querySelector(selector);
     return tag ? tag.content.trim() : null;
@@ -87,8 +139,11 @@
     return null;
   }
 
-  // NOVO: Extrai o conteúdo do primeiro h1, se existir.
-  const h1 = document.querySelector("h1");
+  // Aguarda o h1 dinâmico (inclusive em shadow roots)
+  const h1 =
+    (await waitForElement("h1", { timeout: 3000 })) ||
+    querySelectorDeep("h1") ||
+    document.querySelector("h1");
 
   const hostname = window.location.hostname;
 

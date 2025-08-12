@@ -282,8 +282,18 @@ function handleTabUpdated(tabId, changeInfo, tab) {
       `Aba ${tabId} marcada para processamento de agrupamento devido a mudança de status ou título.`
     );
     injectionFailureMap.delete(tabId);
-    tabProcessingQueue.add(tabId);
-    scheduleQueueProcessing();
+
+    // Debounce agrupamento por aba
+    const groupingDebounceKey = `grouping-${tabId}`;
+    if (debouncedTitleUpdaters.has(groupingDebounceKey)) {
+      clearTimeout(debouncedTitleUpdaters.get(groupingDebounceKey));
+    }
+    const timeoutId = setTimeout(() => {
+      tabProcessingQueue.add(tabId);
+      scheduleQueueProcessing();
+      debouncedTitleUpdaters.delete(groupingDebounceKey);
+    }, 300); // 300ms debounce para agrupamento
+    debouncedTitleUpdaters.set(groupingDebounceKey, timeoutId);
   }
 
   // --- NOVO: Acionamento da Renomeação de Abas ---
