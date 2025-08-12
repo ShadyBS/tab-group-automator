@@ -8,15 +8,22 @@ import { getConfig } from "./performance-config.js";
 import { withErrorHandling } from "./adaptive-error-handler.js";
 
 // Limites de tamanho para estruturas de dados (configuráveis)
-const MEMORY_LIMITS = {
-  TAB_GROUP_MAP: 5000, // Máximo de entradas no mapa aba-grupo
-  TITLE_UPDATERS: 100, // Máximo de updaters pendentes
-  GROUP_ACTIVITY: 1000, // Máximo de atividades de grupo rastreadas
-  SMART_NAME_CACHE: 2000, // Máximo de nomes em cache
-  INJECTION_FAILURES: 500, // Máximo de falhas de injeção rastreadas
-  PENDING_GROUPS: 50, // Máximo de grupos pendentes
-  SINGLE_TAB_TIMESTAMPS: 200, // Máximo de timestamps de abas únicas
-};
+import { settings } from "./settings-manager.js";
+
+// Limites de tamanho para estruturas de dados (agora dinâmicos)
+function getMemoryLimits() {
+  return (
+    settings.memoryLimits || {
+      TAB_GROUP_MAP: 5000,
+      TITLE_UPDATERS: 100,
+      GROUP_ACTIVITY: 1000,
+      SMART_NAME_CACHE: 2000,
+      INJECTION_FAILURES: 500,
+      PENDING_GROUPS: 50,
+      SINGLE_TAB_TIMESTAMPS: 200,
+    }
+  );
+}
 
 // Configurações adaptativas de limpeza
 const ADAPTIVE_CONFIG = {
@@ -51,7 +58,7 @@ const ADAPTIVE_CONFIG = {
 export class AdaptiveMemoryManager {
   constructor() {
     this.cleanupInterval = null;
-    this.currentInterval = ADAPTIVE_CONFIG.DEFAULT_INTERVAL;
+    this.currentInterval = getAdaptiveConfig().DEFAULT_INTERVAL;
     this.pressureHistory = [];
     this.lastCleanupStats = null;
 
@@ -82,13 +89,14 @@ export class AdaptiveMemoryManager {
    */
   calculateMemoryPressure(maps) {
     const pressures = [
-      maps.tabGroupMap.size / MEMORY_LIMITS.TAB_GROUP_MAP,
-      maps.debouncedTitleUpdaters.size / MEMORY_LIMITS.TITLE_UPDATERS,
-      maps.groupActivity.size / MEMORY_LIMITS.GROUP_ACTIVITY,
-      maps.singleTabGroupTimestamps.size / MEMORY_LIMITS.SINGLE_TAB_TIMESTAMPS,
-      maps.smartNameCache.size / MEMORY_LIMITS.SMART_NAME_CACHE,
-      maps.injectionFailureMap.size / MEMORY_LIMITS.INJECTION_FAILURES,
-      maps.pendingAutomaticGroups.size / MEMORY_LIMITS.PENDING_GROUPS,
+      maps.tabGroupMap.size / getMemoryLimits().TAB_GROUP_MAP,
+      maps.debouncedTitleUpdaters.size / getMemoryLimits().TITLE_UPDATERS,
+      maps.groupActivity.size / getMemoryLimits().GROUP_ACTIVITY,
+      maps.singleTabGroupTimestamps.size /
+        getMemoryLimits().SINGLE_TAB_TIMESTAMPS,
+      maps.smartNameCache.size / getMemoryLimits().SMART_NAME_CACHE,
+      maps.injectionFailureMap.size / getMemoryLimits().INJECTION_FAILURES,
+      maps.pendingAutomaticGroups.size / getMemoryLimits().PENDING_GROUPS,
     ];
 
     // Calcula pressão média ponderada (dá mais peso aos mapas maiores)
@@ -109,7 +117,9 @@ export class AdaptiveMemoryManager {
     this.pressureHistory.push(currentPressure);
 
     // Mantém apenas o histórico recente
-    if (this.pressureHistory.length > ADAPTIVE_CONFIG.PRESSURE_HISTORY_SIZE) {
+    if (
+      this.pressureHistory.length > getAdaptiveConfig().PRESSURE_HISTORY_SIZE
+    ) {
       this.pressureHistory.shift();
     }
 
@@ -131,29 +141,28 @@ export class AdaptiveMemoryManager {
   adaptCleanupInterval(currentPressure) {
     let targetInterval;
 
-    if (currentPressure >= ADAPTIVE_CONFIG.HIGH_PRESSURE_THRESHOLD) {
+    const config = getAdaptiveConfig();
+    if (currentPressure >= config.HIGH_PRESSURE_THRESHOLD) {
       // Alta pressão: intervalo mínimo
-      targetInterval = ADAPTIVE_CONFIG.MIN_INTERVAL;
-    } else if (currentPressure >= ADAPTIVE_CONFIG.MEDIUM_PRESSURE_THRESHOLD) {
+      targetInterval = config.MIN_INTERVAL;
+    } else if (currentPressure >= config.MEDIUM_PRESSURE_THRESHOLD) {
       // Pressão média: interpola entre mínimo e padrão
       const factor =
-        (currentPressure - ADAPTIVE_CONFIG.MEDIUM_PRESSURE_THRESHOLD) /
-        (ADAPTIVE_CONFIG.HIGH_PRESSURE_THRESHOLD -
-          ADAPTIVE_CONFIG.MEDIUM_PRESSURE_THRESHOLD);
+        (currentPressure - config.MEDIUM_PRESSURE_THRESHOLD) /
+        (config.HIGH_PRESSURE_THRESHOLD - config.MEDIUM_PRESSURE_THRESHOLD);
       targetInterval =
-        ADAPTIVE_CONFIG.DEFAULT_INTERVAL -
-        factor *
-          (ADAPTIVE_CONFIG.DEFAULT_INTERVAL - ADAPTIVE_CONFIG.MIN_INTERVAL);
-    } else if (currentPressure >= ADAPTIVE_CONFIG.LOW_PRESSURE_THRESHOLD) {
+        config.DEFAULT_INTERVAL -
+        factor * (config.DEFAULT_INTERVAL - config.MIN_INTERVAL);
+    } else if (currentPressure >= config.LOW_PRESSURE_THRESHOLD) {
       // Pressão baixa: intervalo padrão
-      targetInterval = ADAPTIVE_CONFIG.DEFAULT_INTERVAL;
+      targetInterval = config.DEFAULT_INTERVAL;
     } else {
       // Pressão muito baixa: intervalo máximo
-      targetInterval = ADAPTIVE_CONFIG.MAX_INTERVAL;
+      targetInterval = config.MAX_INTERVAL;
     }
 
     // Suaviza a adaptação para evitar oscilações
-    const adaptationFactor = ADAPTIVE_CONFIG.ADAPTATION_FACTOR;
+    const adaptationFactor = config.ADAPTATION_FACTOR;
     const newInterval =
       this.currentInterval * (1 - adaptationFactor) +
       targetInterval * adaptationFactor;
@@ -172,8 +181,8 @@ export class AdaptiveMemoryManager {
     }
 
     this.currentInterval = Math.max(
-      ADAPTIVE_CONFIG.MIN_INTERVAL,
-      Math.min(ADAPTIVE_CONFIG.MAX_INTERVAL, newInterval)
+      config.MIN_INTERVAL,
+      Math.min(config.MAX_INTERVAL, newInterval)
     );
 
     return this.currentInterval;
@@ -185,11 +194,12 @@ export class AdaptiveMemoryManager {
    * @returns {string} O nome da estratégia de limpeza.
    */
   getCleanupStrategy(pressure) {
-    if (pressure >= ADAPTIVE_CONFIG.EMERGENCY_THRESHOLD) {
+    const config = getAdaptiveConfig();
+    if (pressure >= config.EMERGENCY_THRESHOLD) {
       return "emergency";
-    } else if (pressure >= ADAPTIVE_CONFIG.HIGH_PRESSURE_THRESHOLD) {
+    } else if (pressure >= config.HIGH_PRESSURE_THRESHOLD) {
       return "high";
-    } else if (pressure >= ADAPTIVE_CONFIG.MEDIUM_PRESSURE_THRESHOLD) {
+    } else if (pressure >= config.MEDIUM_PRESSURE_THRESHOLD) {
       return "medium";
     } else {
       return "low";
@@ -350,7 +360,7 @@ export class AdaptiveMemoryManager {
 
           // Aplica limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.TAB_GROUP_MAP * (1 - config.aggressiveness * 0.2)
+            getMemoryLimits().TAB_GROUP_MAP * (1 - config.aggressiveness * 0.2)
           );
           if (tabGroupMap.size > adaptiveLimit) {
             const excess = tabGroupMap.size - adaptiveLimit;
@@ -401,7 +411,7 @@ export class AdaptiveMemoryManager {
 
           // Limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.TITLE_UPDATERS * (1 - config.aggressiveness * 0.3)
+            getMemoryLimits().TITLE_UPDATERS * (1 - config.aggressiveness * 0.3)
           );
           if (debouncedTitleUpdaters.size > adaptiveLimit) {
             const excess = debouncedTitleUpdaters.size - adaptiveLimit;
@@ -441,7 +451,8 @@ export class AdaptiveMemoryManager {
 
           // Threshold adaptativo baseado na agressividade
           const adaptiveThreshold =
-            ADAPTIVE_CONFIG.STALE_THRESHOLD * (1 - config.aggressiveness * 0.5);
+            getAdaptiveConfig().STALE_THRESHOLD *
+            (1 - config.aggressiveness * 0.5);
           const staleThreshold = now - adaptiveThreshold;
 
           for (const [groupId, lastActivity] of groupActivity.entries()) {
@@ -456,7 +467,7 @@ export class AdaptiveMemoryManager {
 
           // Limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.GROUP_ACTIVITY * (1 - config.aggressiveness * 0.2)
+            getMemoryLimits().GROUP_ACTIVITY * (1 - config.aggressiveness * 0.2)
           );
           if (groupActivity.size > adaptiveLimit) {
             const excess = groupActivity.size - adaptiveLimit;
@@ -492,7 +503,8 @@ export class AdaptiveMemoryManager {
           let removedCount = 0;
           const now = Date.now();
           const adaptiveThreshold =
-            ADAPTIVE_CONFIG.STALE_THRESHOLD * (1 - config.aggressiveness * 0.5);
+            getAdaptiveConfig().STALE_THRESHOLD *
+            (1 - config.aggressiveness * 0.5);
           const staleThreshold = now - adaptiveThreshold;
 
           for (const [
@@ -510,7 +522,7 @@ export class AdaptiveMemoryManager {
 
           // Limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.SINGLE_TAB_TIMESTAMPS *
+            getMemoryLimits().SINGLE_TAB_TIMESTAMPS *
               (1 - config.aggressiveness * 0.3)
           );
           if (singleTabGroupTimestamps.size > adaptiveLimit) {
@@ -547,7 +559,7 @@ export class AdaptiveMemoryManager {
 
     // Limite adaptativo baseado na agressividade
     const adaptiveLimit = Math.floor(
-      MEMORY_LIMITS.SMART_NAME_CACHE * (1 - config.aggressiveness * 0.4)
+      getMemoryLimits().SMART_NAME_CACHE * (1 - config.aggressiveness * 0.4)
     );
 
     if (smartNameCache.size > adaptiveLimit) {
@@ -583,7 +595,8 @@ export class AdaptiveMemoryManager {
 
           // Limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.INJECTION_FAILURES * (1 - config.aggressiveness * 0.3)
+            getMemoryLimits().INJECTION_FAILURES *
+              (1 - config.aggressiveness * 0.3)
           );
           if (injectionFailureMap.size > adaptiveLimit) {
             const excess = injectionFailureMap.size - adaptiveLimit;
@@ -636,7 +649,7 @@ export class AdaptiveMemoryManager {
 
           // Limite adaptativo
           const adaptiveLimit = Math.floor(
-            MEMORY_LIMITS.PENDING_GROUPS * (1 - config.aggressiveness * 0.4)
+            getMemoryLimits().PENDING_GROUPS * (1 - config.aggressiveness * 0.4)
           );
           if (pendingAutomaticGroups.size > adaptiveLimit) {
             const excess = pendingAutomaticGroups.size - adaptiveLimit;
@@ -716,7 +729,7 @@ export class AdaptiveMemoryManager {
             error
           );
           // Reagenda com intervalo padrão em caso de erro
-          this.currentInterval = ADAPTIVE_CONFIG.DEFAULT_INTERVAL;
+          this.currentInterval = getAdaptiveConfig().DEFAULT_INTERVAL;
           scheduleNextCleanup();
         }
       }, this.currentInterval);
@@ -766,7 +779,7 @@ export class AdaptiveMemoryManager {
    */
   isMemoryPressureCritical(maps) {
     const pressure = this.calculateMemoryPressure(maps);
-    return pressure >= ADAPTIVE_CONFIG.EMERGENCY_THRESHOLD;
+    return pressure >= getAdaptiveConfig().EMERGENCY_THRESHOLD;
   }
 
   /**
@@ -783,8 +796,8 @@ export class AdaptiveMemoryManager {
       currentInterval: this.currentInterval,
       pressureHistory: [...this.pressureHistory],
       lastCleanupStats: this.lastCleanupStats,
-      memoryLimits: MEMORY_LIMITS,
-      adaptiveConfig: ADAPTIVE_CONFIG,
+      memoryLimits: getMemoryLimits(),
+      adaptiveConfig: getAdaptiveConfig(),
       sizes: {
         tabGroupMap: maps.tabGroupMap?.size || 0,
         debouncedTitleUpdaters: maps.debouncedTitleUpdaters?.size || 0,
@@ -796,23 +809,23 @@ export class AdaptiveMemoryManager {
       },
       pressureBreakdown: {
         tabGroupMap:
-          (maps.tabGroupMap?.size || 0) / MEMORY_LIMITS.TAB_GROUP_MAP,
+          (maps.tabGroupMap?.size || 0) / getMemoryLimits().TAB_GROUP_MAP,
         debouncedTitleUpdaters:
           (maps.debouncedTitleUpdaters?.size || 0) /
-          MEMORY_LIMITS.TITLE_UPDATERS,
+          getMemoryLimits().TITLE_UPDATERS,
         groupActivity:
-          (maps.groupActivity?.size || 0) / MEMORY_LIMITS.GROUP_ACTIVITY,
+          (maps.groupActivity?.size || 0) / getMemoryLimits().GROUP_ACTIVITY,
         singleTabGroupTimestamps:
           (maps.singleTabGroupTimestamps?.size || 0) /
-          MEMORY_LIMITS.SINGLE_TAB_TIMESTAMPS,
+          getMemoryLimits().SINGLE_TAB_TIMESTAMPS,
         smartNameCache:
-          (maps.smartNameCache?.size || 0) / MEMORY_LIMITS.SMART_NAME_CACHE,
+          (maps.smartNameCache?.size || 0) / getMemoryLimits().SMART_NAME_CACHE,
         injectionFailureMap:
           (maps.injectionFailureMap?.size || 0) /
-          MEMORY_LIMITS.INJECTION_FAILURES,
+          getMemoryLimits().INJECTION_FAILURES,
         pendingAutomaticGroups:
           (maps.pendingAutomaticGroups?.size || 0) /
-          MEMORY_LIMITS.PENDING_GROUPS,
+          getMemoryLimits().PENDING_GROUPS,
       },
     };
   }
