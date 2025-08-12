@@ -866,7 +866,7 @@ export function isMemoryLimitExceeded(maps) {
 }
 
 // Exporta constantes para compatibilidade
-export { MEMORY_LIMITS, ADAPTIVE_CONFIG as CLEANUP_CONFIG };
+export { ADAPTIVE_CONFIG as CLEANUP_CONFIG };
 
 Logger.debug(
   "AdaptiveMemoryManager",
