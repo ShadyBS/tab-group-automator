@@ -58,7 +58,7 @@ const ADAPTIVE_CONFIG = {
 export class AdaptiveMemoryManager {
   constructor() {
     this.cleanupInterval = null;
-    this.currentInterval = getAdaptiveConfig().DEFAULT_INTERVAL;
+    this.currentInterval = ADAPTIVE_CONFIG.DEFAULT_INTERVAL;
     this.pressureHistory = [];
     this.lastCleanupStats = null;
 
@@ -117,9 +117,7 @@ export class AdaptiveMemoryManager {
     this.pressureHistory.push(currentPressure);
 
     // Mantém apenas o histórico recente
-    if (
-      this.pressureHistory.length > getAdaptiveConfig().PRESSURE_HISTORY_SIZE
-    ) {
+    if (this.pressureHistory.length > ADAPTIVE_CONFIG.PRESSURE_HISTORY_SIZE) {
       this.pressureHistory.shift();
     }
 
@@ -141,7 +139,7 @@ export class AdaptiveMemoryManager {
   adaptCleanupInterval(currentPressure) {
     let targetInterval;
 
-    const config = getAdaptiveConfig();
+    const config = ADAPTIVE_CONFIG;
     if (currentPressure >= config.HIGH_PRESSURE_THRESHOLD) {
       // Alta pressão: intervalo mínimo
       targetInterval = config.MIN_INTERVAL;
@@ -194,7 +192,7 @@ export class AdaptiveMemoryManager {
    * @returns {string} O nome da estratégia de limpeza.
    */
   getCleanupStrategy(pressure) {
-    const config = getAdaptiveConfig();
+    const config = ADAPTIVE_CONFIG;
     if (pressure >= config.EMERGENCY_THRESHOLD) {
       return "emergency";
     } else if (pressure >= config.HIGH_PRESSURE_THRESHOLD) {
@@ -451,8 +449,7 @@ export class AdaptiveMemoryManager {
 
           // Threshold adaptativo baseado na agressividade
           const adaptiveThreshold =
-            getAdaptiveConfig().STALE_THRESHOLD *
-            (1 - config.aggressiveness * 0.5);
+            ADAPTIVE_CONFIG.STALE_THRESHOLD * (1 - config.aggressiveness * 0.5);
           const staleThreshold = now - adaptiveThreshold;
 
           for (const [groupId, lastActivity] of groupActivity.entries()) {
@@ -503,8 +500,7 @@ export class AdaptiveMemoryManager {
           let removedCount = 0;
           const now = Date.now();
           const adaptiveThreshold =
-            getAdaptiveConfig().STALE_THRESHOLD *
-            (1 - config.aggressiveness * 0.5);
+            ADAPTIVE_CONFIG.STALE_THRESHOLD * (1 - config.aggressiveness * 0.5);
           const staleThreshold = now - adaptiveThreshold;
 
           for (const [
@@ -729,7 +725,7 @@ export class AdaptiveMemoryManager {
             error
           );
           // Reagenda com intervalo padrão em caso de erro
-          this.currentInterval = getAdaptiveConfig().DEFAULT_INTERVAL;
+          this.currentInterval = ADAPTIVE_CONFIG.DEFAULT_INTERVAL;
           scheduleNextCleanup();
         }
       }, this.currentInterval);
@@ -779,7 +775,7 @@ export class AdaptiveMemoryManager {
    */
   isMemoryPressureCritical(maps) {
     const pressure = this.calculateMemoryPressure(maps);
-    return pressure >= getAdaptiveConfig().EMERGENCY_THRESHOLD;
+    return pressure >= ADAPTIVE_CONFIG.EMERGENCY_THRESHOLD;
   }
 
   /**
@@ -797,7 +793,7 @@ export class AdaptiveMemoryManager {
       pressureHistory: [...this.pressureHistory],
       lastCleanupStats: this.lastCleanupStats,
       memoryLimits: getMemoryLimits(),
-      adaptiveConfig: getAdaptiveConfig(),
+      adaptiveConfig: ADAPTIVE_CONFIG,
       sizes: {
         tabGroupMap: maps.tabGroupMap?.size || 0,
         debouncedTitleUpdaters: maps.debouncedTitleUpdaters?.size || 0,
