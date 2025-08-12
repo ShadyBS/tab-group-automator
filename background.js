@@ -413,6 +413,15 @@ function toggleListeners(enable) {
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
 /**
+ * Centraliza o gerenciamento dos timers de automação para evitar concorrência.
+ * Garante que apenas uma instância de cada timer esteja ativa.
+ */
+function updateAutomationTimers() {
+  updateAutoCollapseTimer();
+  updateUngroupTimer();
+}
+
+/**
  * Inicia ou para o temporizador que verifica e recolhe grupos de abas inativos.
  * A configuração é baseada em `settings.autoCollapseTimeout`.
  */
@@ -874,8 +883,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
               newSettings.showTabCount ||
               newSettings.tabRenamingEnabled
           ); // Adiciona tabRenamingEnabled para ativar/desativar listeners
-          updateAutoCollapseTimer();
-          updateUngroupTimer();
+          updateAutomationTimers();
 
           // Atualiza menu de contexto dinamicamente ao alterar configurações
           await updateContextMenus();
@@ -1155,8 +1163,7 @@ async function main() {
           settings.showTabCount ||
           settings.tabRenamingEnabled
       );
-      updateAutoCollapseTimer();
-      updateUngroupTimer();
+      updateAutomationTimers();
 
       // Inicia o gerenciamento automático de memória
       startMemoryCleanup(memoryMaps);

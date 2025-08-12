@@ -1,0 +1,5 @@
+feat: Sincroniza UIs e centraliza timers de automação
+
+- Implementa a sincronização em tempo real entre a UI do popup e a página de opções utilizando `chrome.storage.onChanged`. Isso garante que qualquer alteração de configuração seja refletida imediatamente em todas as interfaces abertas.
+
+- Centraliza o gerenciamento dos timers de automação (auto-collapse e ungroup) na função `updateAutomationTimers` em `background.js`. A refatoração previne condições de concorrência e garante que os timers sejam reiniciados de forma consistente após atualizações de configuração.

@@ -2101,6 +2101,20 @@ document.addEventListener("DOMContentLoaded", () => {
   initialize();
   initializeHelpTooltips();
 
+  // Sincronização: escuta alterações em chrome.storage e recarrega settings se necessário
+  if (
+    typeof browser !== "undefined" &&
+    browser.storage &&
+    browser.storage.onChanged
+  ) {
+    browser.storage.onChanged.addListener((changes, area) => {
+      if (area === "local" && changes.settings) {
+        // Recarrega as configurações se houver alteração
+        loadSettings();
+      }
+    });
+  }
+
   // Carrega configurações iniciais
   setTimeout(updateMemoryStats, 1000);
   setTimeout(loadPerformanceConfig, 1500);
