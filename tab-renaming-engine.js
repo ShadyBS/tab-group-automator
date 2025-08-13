@@ -821,23 +821,52 @@ export class TabRenamingEngine {
    * @param {string} value - Valor a armazenar
    * @param {number} ttl - Time to live em ms
    */
+  /**
+   * Armazena resultado no cache com limite de tamanho e política LRU.
+   * Ao atingir o limite, remove a entrada menos recentemente usada.
+   * Racional: evita crescimento indefinido do cache e uso excessivo de memória.
+   */
   setCachedResult(key, value, ttl = null) {
     const cacheTTL = ttl || getConfig("TAB_RENAMING_CACHE_TTL");
+    // Se a chave já existe, remove para atualizar a ordem (LRU)
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    }
     this.cache.set(key, {
       value,
       expires: Date.now() + cacheTTL,
       created: Date.now(),
     });
-    // Risco: Cache pode crescer indefinidamente.
-    // Mitigação: A limpeza periódica e LRU (se implementado) gerenciam isso.
+
+    // Limite de tamanho do cache (configurável, padrão 300)
+    const maxCacheSize = getConfig("MAX_CACHE_SIZE") || 300;
+    while (this.cache.size > maxCacheSize) {
+      // Remove a entrada menos recentemente usada (primeira do Map)
+      const lruKey = this.cache.keys().next().value;
+      this.cache.delete(lruKey);
+      // Comentário: LRU simples, pois Map mantém ordem de inserção/acesso.
+    }
   }
 
   /**
    * Inicia limpeza periódica do cache
    */
+  /**
+   * Inicia limpeza periódica do cache.
+   * Garante que só será chamado uma vez por ciclo de vida da extensão.
+   * Racional: evita múltiplos timers concorrentes e vazamentos de recursos.
+   */
   startCacheCleanup() {
-    // Risco: Múltiplos timers de limpeza se chamado várias vezes.
-    // Mitigação: Verifica se o timer já está ativo.
+    if (this._cleanupStarted) {
+      // Já iniciado, ignora chamadas subsequentes.
+      Logger.debug(
+        "TabRenamingEngine",
+        "startCacheCleanup() já foi chamado; ignorando chamada duplicada."
+      );
+      return;
+    }
+    this._cleanupStarted = true;
+
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
     }
