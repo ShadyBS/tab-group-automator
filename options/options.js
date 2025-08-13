@@ -681,50 +681,57 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function populateForm(settings) {
-    applyTheme(settings.theme || "auto");
-    ui.theme.value = settings.theme || "auto";
-    ui.groupingMode.value = settings.groupingMode;
-    ui.minTabsForAutoGroup.value = settings.minTabsForAutoGroup || 2;
-    ui.uncollapseOnActivate.checked = settings.uncollapseOnActivate;
-    ui.autoCollapseTimeout.value = settings.autoCollapseTimeout;
-    ui.ungroupSingleTabs.checked = settings.ungroupSingleTabs;
-    ui.ungroupSingleTabsTimeout.value = settings.ungroupSingleTabsTimeout;
-    ui.exceptionsList.value = (settings.exceptions || []).join("\n");
-    ui.showTabCount.checked = settings.showTabCount;
-    ui.syncEnabled.checked = settings.syncEnabled;
-    ui.logLevel.value = settings.logLevel || "INFO";
-    ui.domainSanitizationTlds.value = (
-      settings.domainSanitizationTlds || []
-    ).join("\n");
-    ui.titleSanitizationNoise.value = (
-      settings.titleSanitizationNoise || []
-    ).join("\n");
-    ui.titleDelimiters.value = settings.titleDelimiters || "|–—:·»«-";
-    // NOVO: Gerenciador de Memória
-    ui.memoryCriticalThreshold.value =
-      settings.memoryLimits &&
-      settings.memoryLimits.criticalThreshold !== undefined
-        ? settings.memoryLimits.criticalThreshold
-        : 95;
-    ui.memoryWarningThreshold.value =
-      settings.memoryLimits &&
-      settings.memoryLimits.warningThreshold !== undefined
-        ? settings.memoryLimits.warningThreshold
-        : 80;
-    ui.cleanupInterval.value =
-      settings.adaptiveConfig &&
-      settings.adaptiveConfig.cleanupInterval !== undefined
-        ? Math.round(settings.adaptiveConfig.cleanupInterval / 1000)
-        : 300;
-    ui.highPressureInterval.value =
-      settings.adaptiveConfig &&
-      settings.adaptiveConfig.highPressureInterval !== undefined
-        ? Math.round(settings.adaptiveConfig.highPressureInterval / 1000)
-        : 30;
-    renderRulesList(); // Agrupamento
-    // NOVO: Renomeação de Abas
-    ui.tabRenamingEnabled.checked = settings.tabRenamingEnabled || false;
-    renderRenamingRulesList();
+    console.debug("[DEBUG] populateForm: start", settings);
+    try {
+      applyTheme(settings.theme || "auto");
+      ui.theme.value = settings.theme || "auto";
+      ui.groupingMode.value = settings.groupingMode;
+      ui.minTabsForAutoGroup.value = settings.minTabsForAutoGroup || 2;
+      ui.uncollapseOnActivate.checked = settings.uncollapseOnActivate;
+      ui.autoCollapseTimeout.value = settings.autoCollapseTimeout;
+      ui.ungroupSingleTabs.checked = settings.ungroupSingleTabs;
+      ui.ungroupSingleTabsTimeout.value = settings.ungroupSingleTabsTimeout;
+      ui.exceptionsList.value = (settings.exceptions || []).join("\n");
+      ui.showTabCount.checked = settings.showTabCount;
+      ui.syncEnabled.checked = settings.syncEnabled;
+      ui.logLevel.value = settings.logLevel || "INFO";
+      ui.domainSanitizationTlds.value = (
+        settings.domainSanitizationTlds || []
+      ).join("\n");
+      ui.titleSanitizationNoise.value = (
+        settings.titleSanitizationNoise || []
+      ).join("\n");
+      ui.titleDelimiters.value = settings.titleDelimiters || "|–—:·»«-";
+      // NOVO: Gerenciador de Memória
+      ui.memoryCriticalThreshold.value =
+        settings.memoryLimits &&
+        settings.memoryLimits.criticalThreshold !== undefined
+          ? settings.memoryLimits.criticalThreshold
+          : 95;
+      ui.memoryWarningThreshold.value =
+        settings.memoryLimits &&
+        settings.memoryLimits.warningThreshold !== undefined
+          ? settings.memoryLimits.warningThreshold
+          : 80;
+      ui.cleanupInterval.value =
+        settings.adaptiveConfig &&
+        settings.adaptiveConfig.cleanupInterval !== undefined
+          ? Math.round(settings.adaptiveConfig.cleanupInterval / 1000)
+          : 300;
+      ui.highPressureInterval.value =
+        settings.adaptiveConfig &&
+        settings.adaptiveConfig.highPressureInterval !== undefined
+          ? Math.round(settings.adaptiveConfig.highPressureInterval / 1000)
+          : 30;
+      renderRulesList(); // Agrupamento
+      // NOVO: Renomeação de Abas
+      ui.tabRenamingEnabled.checked = settings.tabRenamingEnabled || false;
+      renderRenamingRulesList();
+      console.debug("[DEBUG] populateForm: end");
+    } catch (err) {
+      console.debug("[DEBUG] populateForm: error", err);
+      throw err;
+    }
   }
 
   function collectSettingsFromForm() {
@@ -1710,6 +1717,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   function updateDynamicUI() {
+    console.debug(
+      "[DEBUG] updateDynamicUI: tabRenamingEnabled =",
+      ui.tabRenamingEnabled.checked
+    );
     ui.ungroupSingleTabsTimeout.disabled = !ui.ungroupSingleTabs.checked;
     ui.ungroupSingleTabsTimeout.parentElement.style.opacity = ui
       .ungroupSingleTabs.checked
@@ -1724,9 +1735,22 @@ document.addEventListener("DOMContentLoaded", () => {
       renamingSection
         .querySelectorAll("button, input, select, textarea")
         .forEach((el) => {
+          // Não desabilita o checkbox principal de ativação
+          if (el === ui.tabRenamingEnabled) return;
           el.disabled = isDisabled;
+          if (isDisabled) {
+            console.debug(
+              "[DEBUG] Renomeação Automática de Abas: control disabled",
+              { control: el, reason: "tabRenamingEnabled is false" }
+            );
+          }
         });
-      // Re-habilita o próprio toggle de renomeação
+      if (isDisabled) {
+        console.debug(
+          "[DEBUG] Renomeação Automática de Abas: section disabled (tabRenamingEnabled is false)"
+        );
+      }
+      // Garante que o próprio toggle de renomeação está sempre habilitado
       ui.tabRenamingEnabled.disabled = false;
     }
   }

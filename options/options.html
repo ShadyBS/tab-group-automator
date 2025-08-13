@@ -229,6 +229,18 @@
       </section>
 
       <!-- NOVO: Seção de Renomeação Automática de Abas -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center space-x-2">
+          <label for="tabRenamingEnabled" class="font-semibold"
+            >Ativar Renomeação:</label
+          >
+          <input
+            type="checkbox"
+            id="tabRenamingEnabled"
+            class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+          />
+        </div>
+      </div>
       <section
         class="bg-white p-6 rounded-2xl shadow-lg mb-8 dark:bg-slate-800"
       >
@@ -245,16 +257,6 @@
               ?
             </button>
           </h2>
-          <div class="flex items-center space-x-2">
-            <label for="tabRenamingEnabled" class="font-semibold"
-              >Ativar Renomeação:</label
-            >
-            <input
-              type="checkbox"
-              id="tabRenamingEnabled"
-              class="h-6 w-6 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700"
-            />
-          </div>
         </div>
         <p class="text-sm text-slate-500 mb-4 dark:text-slate-400">
           Crie regras para renomear automaticamente os títulos das suas abas. As
