@@ -410,6 +410,38 @@ function toggleListeners(enable) {
   }
 }
 
+/**
+ * Lida com o evento de criação de uma nova aba.
+ * Atualiza o contador do grupo se a aba já pertencer a um grupo.
+ * @param {browser.tabs.Tab} tab - A aba criada.
+ */
+function handleTabCreated(tab) {
+  if (tab && tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
+    scheduleTitleUpdate(tab.groupId);
+    tabGroupMap.set(tab.id, tab.groupId);
+  }
+}
+
+/**
+ * Lida com o evento de anexação de uma aba a um grupo.
+ * Atualiza o contador do grupo de destino.
+ * @param {object} attachInfo - Informações sobre a anexação.
+ * @param {number} attachInfo.tabId - ID da aba anexada.
+ * @param {number} attachInfo.newWindowId - ID da nova janela.
+ * @param {number} attachInfo.newPosition - Nova posição da aba.
+ */
+async function handleTabAttached(attachInfo) {
+  try {
+    const tab = await browser.tabs.get(attachInfo.tabId);
+    if (tab && tab.groupId && tab.groupId !== browser.tabs.TAB_ID_NONE) {
+      scheduleTitleUpdate(tab.groupId);
+      tabGroupMap.set(tab.id, tab.groupId);
+    }
+  } catch (e) {
+    Logger.warn("handleTabAttached", "Erro ao obter aba anexada:", e);
+  }
+}
+
 // --- Lógica de Comportamento dos Grupos (Timers) ---
 
 /**
@@ -1099,10 +1131,20 @@ async function main() {
       // Cada 'addListener' é agora verificado para garantir que a API existe antes de ser usada.
       // Isto previne a falha crítica 'Cannot read properties of undefined (reading 'addListener')'.
 
-      if (browser.tabs && browser.tabs.onActivated) {
-        browser.tabs.onActivated.addListener(handleTabActivated);
-      } else {
-        Logger.warn("Main", "API 'tabs.onActivated' não disponível.");
+      if (browser.tabs) {
+        if (browser.tabs.onActivated) {
+          browser.tabs.onActivated.addListener(handleTabActivated);
+        } else {
+          Logger.warn("Main", "API 'tabs.onActivated' não disponível.");
+        }
+
+        // Adiciona listeners para criação e anexação de abas
+        if (browser.tabs.onCreated) {
+          browser.tabs.onCreated.addListener(handleTabCreated);
+        }
+        if (browser.tabs.onAttached) {
+          browser.tabs.onAttached.addListener(handleTabAttached);
+        }
       }
 
       if (browser.tabGroups) {
